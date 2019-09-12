@@ -125,8 +125,8 @@ type alias Settings msg =
 
 ## Examples
 
-Examples can be found in the [examples](examples/) folder. To build the examples to view in the browser run: `cd examples && make && cd ..` from the root of the repository.
+Examples can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples) folder. To build the examples to view in the browser run: `cd examples && make && cd ..` from the root of the repository.
 
 ## CSS
 
-The CSS for the date picker is distributed separately and can be found [here](css/)
+The CSS for the date picker is distributed separately and can be found [here](https://github.com/mercurymedia/elm-datetime-picker/tree/master/css)
