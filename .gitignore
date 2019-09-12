@@ -1,0 +1,5 @@
+# compiled Elm
+/elm-stuff
+
+# compiled example.js files
+/examples/Compiled/
