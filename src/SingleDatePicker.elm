@@ -26,9 +26,9 @@ module SingleDatePicker exposing
 import Browser.Events
 import DatePicker.Icons as Icons
 import DatePicker.Styles
-import DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, monthData, monthToNameString, splitIntoWeeks)
-import Html exposing (Html, button, div, option, select, text)
-import Html.Attributes exposing (class, id, selected, value)
+import DatePicker.Utilities as Utilities exposing (HourOrMinute(..))
+import Html exposing (Html, button, div, select, text)
+import Html.Attributes exposing (class, id)
 import Html.Events exposing (on, onClick)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
@@ -71,11 +71,6 @@ type Status
     | Open Posix
 
 
-type HourOrMinute
-    = Hour Int
-    | Minute Int
-
-
 type alias MsgConfig msg =
     { internalMsg : DatePicker -> msg
     , externalMsg : Posix -> msg
@@ -95,8 +90,8 @@ msg indicators
 -}
 defaultSettings : MsgConfig msg -> Settings msg
 defaultSettings { internalMsg, externalMsg } =
-    { formattedDay = dayToNameString
-    , formattedMonth = monthToNameString
+    { formattedDay = Utilities.dayToNameString
+    , formattedMonth = Utilities.monthToNameString
     , today = Nothing
     , dayDisabled = always False
     , internalMsg = internalMsg
@@ -126,10 +121,23 @@ subscriptions : (DatePicker -> msg) -> DatePicker -> Sub msg
 subscriptions internalMsg (DatePicker model) =
     case model.status of
         Open _ ->
-            Browser.Events.onMouseDown (outsideComponent datePickerId internalMsg (DatePicker model))
+            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId internalMsg (DatePicker model))
 
         Closed ->
             Sub.none
+
+
+clickedOutsidePicker : String -> (DatePicker -> msg) -> DatePicker -> Decode.Decoder msg
+clickedOutsidePicker componentId internalMsg datePicker =
+    Decode.field "target" (Utilities.eventIsOutsideComponent componentId)
+        |> Decode.andThen
+            (\isOutside ->
+                if isOutside then
+                    Decode.succeed <| internalMsg (update Close datePicker)
+
+                else
+                    Decode.fail "inside component"
+            )
 
 
 calculatePickerOffset : Posix -> Maybe Posix -> Int
@@ -180,7 +188,7 @@ type Msg
     | PrevMonth
     | NextYear
     | PrevYear
-    | SelectDateTime Posix
+    | SetDay Posix
     | SetHour Int
     | SetMinute Int
     | Close
@@ -203,45 +211,20 @@ update msg (DatePicker model) =
                 PrevYear ->
                     DatePicker { model | viewOffset = model.viewOffset - 12 }
 
-                SelectDateTime time ->
-                    DatePicker { model | pickedTime = Just time }
+                SetDay time ->
+                    DatePicker { model | pickedTime = Just <| Utilities.setDayNotTime model.pickedTime time }
 
                 SetHour hour ->
-                    let
-                        newTime =
-                            setTimeOfDay (Maybe.withDefault baseTime model.pickedTime) (Hour hour)
-                    in
-                    DatePicker { model | pickedTime = Just newTime }
+                    DatePicker { model | pickedTime = Just <| Utilities.setTimeNotDay (Maybe.withDefault baseTime model.pickedTime) (IsHour hour) }
 
                 SetMinute minute ->
-                    let
-                        newTime =
-                            setTimeOfDay (Maybe.withDefault baseTime model.pickedTime) (Minute minute)
-                    in
-                    DatePicker { model | pickedTime = Just newTime }
+                    DatePicker { model | pickedTime = Just <| Utilities.setTimeNotDay (Maybe.withDefault baseTime model.pickedTime) (IsMinute minute) }
 
                 Close ->
                     DatePicker { model | status = Closed }
 
         Closed ->
             DatePicker model
-
-
-setTimeOfDay : Posix -> HourOrMinute -> Posix
-setTimeOfDay timeToUpdate hourOrMinute =
-    let
-        parts =
-            Time.posixToParts Time.utc timeToUpdate
-
-        newParts =
-            case hourOrMinute of
-                Hour hour ->
-                    { parts | hour = hour }
-
-                Minute minute ->
-                    { parts | minute = minute }
-    in
-    Time.partsToPosix Time.utc newParts
 
 
 classPrefix : String
@@ -348,13 +331,13 @@ viewMonth : Settings msg -> Model -> Maybe Posix -> Posix -> Html msg
 viewMonth settings model pickedTime viewTime =
     let
         monthRenderData =
-            monthData viewTime
+            Utilities.monthData viewTime
 
         currentMonth =
             Time.posixToParts Time.utc viewTime |> .month
 
         weeks =
-            List.reverse (splitIntoWeeks monthRenderData [])
+            List.reverse (Utilities.splitIntoWeeks monthRenderData [])
     in
     div
         [ class (classPrefix ++ "calendar-month") ]
@@ -372,13 +355,13 @@ viewDay : Settings msg -> Model -> Month -> Maybe Posix -> Parts -> Html msg
 viewDay settings model currentMonth pickedTime day =
     let
         isToday =
-            Maybe.map (\tday -> doDaysMatch day (Time.posixToParts Time.utc tday)) settings.today
+            Maybe.map (\tday -> Utilities.doDaysMatch day (Time.posixToParts Time.utc tday)) settings.today
                 |> Maybe.withDefault False
 
         isPicked =
             case pickedTime of
                 Just time ->
-                    doDaysMatch day (Time.posixToParts Time.utc time)
+                    Utilities.doDaysMatch day (Time.posixToParts Time.utc time)
 
                 Nothing ->
                     False
@@ -394,7 +377,7 @@ viewDay settings model currentMonth pickedTime day =
                 [ class dayClasses ]
 
             else
-                [ class dayClasses, onClick <| settings.internalMsg (update (SelectDateTime (Time.partsToPosix Time.utc day)) (DatePicker model)) ]
+                [ class dayClasses, onClick <| settings.internalMsg (update (SetDay (Time.partsToPosix Time.utc day)) (DatePicker model)) ]
     in
     div
         attrs
@@ -451,54 +434,8 @@ viewTimePicker settings model pickedTime =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ] (generateHourOptions hour) ]
+            [ div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ] (Utilities.generateHourOptions hour) ]
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ] (generateMinuteOptions minute) ]
+            , div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ] (Utilities.generateMinuteOptions minute) ]
             ]
-        ]
-
-
-generateHourOptions : Int -> List (Html msg)
-generateHourOptions selectedHour =
-    List.range 0 23
-        |> List.map (\hour -> option [ value (String.fromInt hour), selected (selectedHour == hour) ] [ text (addLeadingZero hour) ])
-
-
-generateMinuteOptions : Int -> List (Html msg)
-generateMinuteOptions selectedMinute =
-    List.range 0 59
-        |> List.map (\minute -> option [ value (String.fromInt minute), selected (selectedMinute == minute) ] [ text (addLeadingZero minute) ])
-
-
-outsideComponent : String -> (DatePicker -> msg) -> DatePicker -> Decode.Decoder msg
-outsideComponent componentId internalMsg datePicker =
-    Decode.field "target" (isOutsideComponent componentId)
-        |> Decode.andThen
-            (\isOutside ->
-                if isOutside then
-                    Decode.succeed <| internalMsg (update Close datePicker)
-
-                else
-                    Decode.fail "inside component"
-            )
-
-
-isOutsideComponent : String -> Decode.Decoder Bool
-isOutsideComponent componentId =
-    Decode.oneOf
-        [ Decode.field "id" Decode.string
-            |> Decode.andThen
-                (\id ->
-                    if componentId == id then
-                        -- found match by id
-                        Decode.succeed False
-
-                    else
-                        -- try next decoder
-                        Decode.fail "check parent node"
-                )
-        , Decode.lazy (\_ -> isOutsideComponent componentId |> Decode.field "parentNode")
-
-        -- fallback if all previous decoders failed
-        , Decode.succeed True
         ]

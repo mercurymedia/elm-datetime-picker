@@ -1,5 +1,8 @@
-module DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, monthData, monthToNameString, splitIntoWeeks, switchTimes, toUtcDateTimeString)
+module DatePicker.Utilities exposing (HourOrMinute(..), addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, monthData, monthToNameString, setDayNotTime, setTimeNotDay, splitIntoWeeks, switchTimes, toUtcDateTimeString)
 
+import Html exposing (Html, option, text)
+import Html.Attributes exposing (selected, value)
+import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..))
 import Time.Extra as Time exposing (Interval(..), Parts)
@@ -314,3 +317,69 @@ toUtcDateTimeString datetime =
         ++ ":"
         ++ addLeadingZero (Time.toSecond Time.utc datetime)
         ++ " (UTC)"
+
+
+setDayNotTime : Maybe Posix -> Posix -> Posix
+setDayNotTime prevPickedDT newPickedDT =
+    let
+        ( prevPickedHour, prevPickedMinute ) =
+            Maybe.map (Time.posixToParts Time.utc) prevPickedDT
+                |> Maybe.map (\parts -> ( parts.hour, parts.minute ))
+                |> Maybe.withDefault ( 0, 0 )
+    in
+    Time.posixToParts Time.utc newPickedDT |> (\parts -> { parts | hour = prevPickedHour, minute = prevPickedMinute }) |> Time.partsToPosix Time.utc
+
+
+type HourOrMinute
+    = IsHour Int
+    | IsMinute Int
+
+
+setTimeNotDay : Posix -> HourOrMinute -> Posix
+setTimeNotDay timeToUpdate hourOrMinute =
+    let
+        parts =
+            Time.posixToParts Time.utc timeToUpdate
+
+        newParts =
+            case hourOrMinute of
+                IsHour hour ->
+                    { parts | hour = hour }
+
+                IsMinute minute ->
+                    { parts | minute = minute }
+    in
+    Time.partsToPosix Time.utc newParts
+
+
+generateHourOptions : Int -> List (Html msg)
+generateHourOptions selectedHour =
+    List.range 0 23
+        |> List.map (\hour -> option [ value (String.fromInt hour), selected (selectedHour == hour) ] [ text (addLeadingZero hour) ])
+
+
+generateMinuteOptions : Int -> List (Html msg)
+generateMinuteOptions selectedMinute =
+    List.range 0 59
+        |> List.map (\minute -> option [ value (String.fromInt minute), selected (selectedMinute == minute) ] [ text (addLeadingZero minute) ])
+
+
+eventIsOutsideComponent : String -> Decode.Decoder Bool
+eventIsOutsideComponent componentId =
+    Decode.oneOf
+        [ Decode.field "id" Decode.string
+            |> Decode.andThen
+                (\id ->
+                    if componentId == id then
+                        -- found match by id
+                        Decode.succeed False
+
+                    else
+                        -- try next decoder
+                        Decode.fail "check parent node"
+                )
+        , Decode.lazy (\_ -> eventIsOutsideComponent componentId |> Decode.field "parentNode")
+
+        -- fallback if all previous decoders failed
+        , Decode.succeed True
+        ]
