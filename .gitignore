@@ -3,3 +3,6 @@
 
 # compiled example.js files
 /examples/Compiled/
+
+# node modules
+/node_modules/

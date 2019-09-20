@@ -1,4 +1,4 @@
-module DatePicker.Utilities exposing (HourOrMinute(..), addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, monthData, monthToNameString, setDayNotTime, setTimeNotDay, splitIntoWeeks, switchTimes, toUtcDateTimeString)
+module DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, monthData, monthToNameString, setDayNotTime, setHourNotDay, setMinuteNotDay, splitIntoWeeks, switchTimes, toUtcDateTimeString)
 
 import Html exposing (Html, option, text)
 import Html.Attributes exposing (selected, value)
@@ -319,35 +319,41 @@ toUtcDateTimeString datetime =
         ++ " (UTC)"
 
 
-setDayNotTime : Maybe Posix -> Posix -> Posix
-setDayNotTime prevPickedDT newPickedDT =
+{-| Set the day (month and year) of the previously selected dateTime to match that of the newly selected dateTime
+-}
+setDayNotTime : Posix -> Posix -> Posix
+setDayNotTime newPickedDT prevPickedDT =
     let
-        ( prevPickedHour, prevPickedMinute ) =
-            Maybe.map (Time.posixToParts Time.utc) prevPickedDT
-                |> Maybe.map (\parts -> ( parts.hour, parts.minute ))
-                |> Maybe.withDefault ( 0, 0 )
+        newPickedParts =
+            Time.posixToParts Time.utc newPickedDT
     in
-    Time.posixToParts Time.utc newPickedDT |> (\parts -> { parts | hour = prevPickedHour, minute = prevPickedMinute }) |> Time.partsToPosix Time.utc
+    Time.posixToParts Time.utc prevPickedDT |> (\parts -> { parts | day = newPickedParts.day, month = newPickedParts.month, year = newPickedParts.year }) |> Time.partsToPosix Time.utc
 
 
-type HourOrMinute
-    = IsHour Int
-    | IsMinute Int
-
-
-setTimeNotDay : Posix -> HourOrMinute -> Posix
-setTimeNotDay timeToUpdate hourOrMinute =
+{-| Set only the hour of the provided dateTime
+-}
+setHourNotDay : Int -> Posix -> Posix
+setHourNotDay hour timeToUpdate =
     let
         parts =
             Time.posixToParts Time.utc timeToUpdate
 
         newParts =
-            case hourOrMinute of
-                IsHour hour ->
-                    { parts | hour = hour }
+            { parts | hour = hour }
+    in
+    Time.partsToPosix Time.utc newParts
 
-                IsMinute minute ->
-                    { parts | minute = minute }
+
+{-| Set only the minute of the provided dateTime
+-}
+setMinuteNotDay : Int -> Posix -> Posix
+setMinuteNotDay minute timeToUpdate =
+    let
+        parts =
+            Time.posixToParts Time.utc timeToUpdate
+
+        newParts =
+            { parts | minute = minute }
     in
     Time.partsToPosix Time.utc newParts
 
