@@ -26,7 +26,7 @@ module DurationDatePicker exposing
 import Browser.Events
 import DatePicker.Icons as Icons
 import DatePicker.Styles
-import DatePicker.Utilities as Utilities exposing (HourOrMinute(..))
+import DatePicker.Utilities as Utilities
 import Html exposing (Html, button, div, select, text)
 import Html.Attributes exposing (class, id)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
@@ -278,6 +278,9 @@ update msg (DatePicker model) =
     case model.status of
         Open baseTime ->
             let
+                -- this serves as the basis for time (not day) selection. In the event there is no previously picked DateTime, we use the baseTime
+                -- passed into the picker on open to serve as a default. However, the time of day of the baseTime is not always guaranteed to be at 00:00,
+                -- so here we ensure that the default time is 00:00 by flooring it.
                 flooredBaseTime =
                     Time.floor Day Time.utc baseTime
             in
@@ -429,14 +432,14 @@ update msg (DatePicker model) =
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setTimeNotDay (Maybe.withDefault flooredBaseTime model.pickedStartTime) (IsHour hour)
+                                    Utilities.setHourNotDay hour (Maybe.withDefault flooredBaseTime model.pickedStartTime)
                             in
                             DatePicker { model | pickedStartTime = Just newTime }
 
                         End ->
                             let
                                 newTime =
-                                    Utilities.setTimeNotDay (Maybe.withDefault flooredBaseTime model.pickedEndTime) (IsHour hour)
+                                    Utilities.setHourNotDay hour (Maybe.withDefault flooredBaseTime model.pickedEndTime)
                             in
                             DatePicker { model | pickedEndTime = Just newTime }
 
@@ -445,14 +448,14 @@ update msg (DatePicker model) =
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setTimeNotDay (Maybe.withDefault flooredBaseTime model.pickedStartTime) (IsMinute minute)
+                                    Utilities.setMinuteNotDay minute (Maybe.withDefault flooredBaseTime model.pickedStartTime)
                             in
                             DatePicker { model | pickedStartTime = Just newTime }
 
                         End ->
                             let
                                 newTime =
-                                    Utilities.setTimeNotDay (Maybe.withDefault flooredBaseTime model.pickedEndTime) (IsMinute minute)
+                                    Utilities.setMinuteNotDay minute (Maybe.withDefault flooredBaseTime model.pickedEndTime)
                             in
                             DatePicker { model | pickedEndTime = Just newTime }
 

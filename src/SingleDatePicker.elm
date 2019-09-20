@@ -26,7 +26,7 @@ module SingleDatePicker exposing
 import Browser.Events
 import DatePicker.Icons as Icons
 import DatePicker.Styles
-import DatePicker.Utilities as Utilities exposing (HourOrMinute(..))
+import DatePicker.Utilities as Utilities
 import Html exposing (Html, button, div, select, text)
 import Html.Attributes exposing (class, id)
 import Html.Events exposing (on, onClick)
@@ -212,13 +212,13 @@ update msg (DatePicker model) =
                     DatePicker { model | viewOffset = model.viewOffset - 12 }
 
                 SetDay time ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setDayNotTime model.pickedTime time }
+                    DatePicker { model | pickedTime = Just <| Utilities.setDayNotTime time (Maybe.withDefault (Time.floor Day Time.utc time) model.pickedTime) }
 
                 SetHour hour ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setTimeNotDay (Maybe.withDefault baseTime model.pickedTime) (IsHour hour) }
+                    DatePicker { model | pickedTime = Just <| Utilities.setHourNotDay hour (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime) }
 
                 SetMinute minute ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setTimeNotDay (Maybe.withDefault baseTime model.pickedTime) (IsMinute minute) }
+                    DatePicker { model | pickedTime = Just <| Utilities.setMinuteNotDay minute (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime) }
 
                 Close ->
                     DatePicker { model | status = Closed }
