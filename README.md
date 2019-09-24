@@ -5,6 +5,16 @@ Single and duration datetime picker components written in Elm 0.19
 
 `elm install mercurymedia/elm-datetime-picker`
 
+## In action
+
+#### Single Picker
+
+![SinglePicker](https://user-images.githubusercontent.com/20546636/64876897-82b2e280-d650-11e9-8b36-5609125b1665.gif)
+
+#### Duration Picker
+
+![DurationPicker](https://user-images.githubusercontent.com/20546636/64876920-91999500-d650-11e9-8f56-3088930b64f7.gif)
+
 ## Usage
 
 This package exposes two modules `SingleDatePicker` and `DurationDatePicker`. As their names imply, `SingleDatePicker` can be used to pick a singular datetime while `DurationDatePicker` is used to select a datetime range. To keep things simple, the documentation here focuses on the `SingleDatePicker` but both types have an example app for additional reference.
@@ -125,8 +135,8 @@ type alias Settings msg =
 
 ## Examples
 
-Examples can be found in the [examples](examples/) folder. To build the examples to view in the browser run: `cd examples && make && cd ..` from the root of the repository.
+Examples can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples) folder. To build the examples to view in the browser run: `cd examples && make && cd ..` from the root of the repository.
 
 ## CSS
 
-The CSS for the date picker is distributed separately and can be found [here](css/)
+The CSS for the date picker is distributed separately and can be found [here](https://github.com/mercurymedia/elm-datetime-picker/tree/master/css)

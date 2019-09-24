@@ -1,5 +1,8 @@
-module DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, monthData, monthToNameString, splitIntoWeeks, switchTimes, toUtcDateTimeString)
+module DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, monthData, monthToNameString, setDayNotTime, setHourNotDay, setMinuteNotDay, splitIntoWeeks, switchTimes, toUtcDateTimeString)
 
+import Html exposing (Html, option, text)
+import Html.Attributes exposing (selected, value)
+import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..))
 import Time.Extra as Time exposing (Interval(..), Parts)
@@ -314,3 +317,75 @@ toUtcDateTimeString datetime =
         ++ ":"
         ++ addLeadingZero (Time.toSecond Time.utc datetime)
         ++ " (UTC)"
+
+
+{-| Set the day (month and year) of the previously selected dateTime to match that of the newly selected dateTime
+-}
+setDayNotTime : Posix -> Posix -> Posix
+setDayNotTime newPickedDT prevPickedDT =
+    let
+        newPickedParts =
+            Time.posixToParts Time.utc newPickedDT
+    in
+    Time.posixToParts Time.utc prevPickedDT |> (\parts -> { parts | day = newPickedParts.day, month = newPickedParts.month, year = newPickedParts.year }) |> Time.partsToPosix Time.utc
+
+
+{-| Set only the hour of the provided dateTime
+-}
+setHourNotDay : Int -> Posix -> Posix
+setHourNotDay hour timeToUpdate =
+    let
+        parts =
+            Time.posixToParts Time.utc timeToUpdate
+
+        newParts =
+            { parts | hour = hour }
+    in
+    Time.partsToPosix Time.utc newParts
+
+
+{-| Set only the minute of the provided dateTime
+-}
+setMinuteNotDay : Int -> Posix -> Posix
+setMinuteNotDay minute timeToUpdate =
+    let
+        parts =
+            Time.posixToParts Time.utc timeToUpdate
+
+        newParts =
+            { parts | minute = minute }
+    in
+    Time.partsToPosix Time.utc newParts
+
+
+generateHourOptions : Int -> List (Html msg)
+generateHourOptions selectedHour =
+    List.range 0 23
+        |> List.map (\hour -> option [ value (String.fromInt hour), selected (selectedHour == hour) ] [ text (addLeadingZero hour) ])
+
+
+generateMinuteOptions : Int -> List (Html msg)
+generateMinuteOptions selectedMinute =
+    List.range 0 59
+        |> List.map (\minute -> option [ value (String.fromInt minute), selected (selectedMinute == minute) ] [ text (addLeadingZero minute) ])
+
+
+eventIsOutsideComponent : String -> Decode.Decoder Bool
+eventIsOutsideComponent componentId =
+    Decode.oneOf
+        [ Decode.field "id" Decode.string
+            |> Decode.andThen
+                (\id ->
+                    if componentId == id then
+                        -- found match by id
+                        Decode.succeed False
+
+                    else
+                        -- try next decoder
+                        Decode.fail "check parent node"
+                )
+        , Decode.lazy (\_ -> eventIsOutsideComponent componentId |> Decode.field "parentNode")
+
+        -- fallback if all previous decoders failed
+        , Decode.succeed True
+        ]

@@ -3,7 +3,7 @@
     "name": "mercurymedia/elm-datetime-picker",
     "summary": "a datetime picker component",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "exposed-modules": [
         "DurationDatePicker",
         "SingleDatePicker"
@@ -20,5 +20,7 @@
         "elm-community/list-extra": "8.2.0 <= v < 9.0.0",
         "justinmimbs/time-extra": "1.1.0 <= v < 2.0.0"
     },
-    "test-dependencies": {}
+    "test-dependencies": {
+        "elm-explorations/test": "1.2.2 <= v < 2.0.0"
+    }
 }
