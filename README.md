@@ -48,7 +48,7 @@ type Msg
     | Selected Posix -- the external confirm msg
     | UpdatePicker DatePicker.DatePicker -- the internal update msg
 
-userDefinedDatePickerSettings : Settings Msg
+userDefinedDatePickerSettings : DatePicker.Settings Msg
 userDefinedDatePickerSettings =
     DatePicker.defaultSettings { internalMsg = UpdatePicker, externalMsg = Selected }
 ```
@@ -60,7 +60,7 @@ view : Model -> Html Msg
 view model =
     ...
     div []
-        [ button [ onClick <| OpenPicker ] [ text "Open Me!" ]
+        [ button [ onClick OpenPicker ] [ text "Open Me!" ]
         , DatePicker.view userDefinedDatePickerSettings model.picker
         ]
 ```
