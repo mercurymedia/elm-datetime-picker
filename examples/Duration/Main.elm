@@ -2,7 +2,7 @@ module DatePickerExample.Duration.Main exposing (main)
 
 import Browser
 import DatePicker.Utilities as Utilities
-import DurationDatePicker exposing (Settings, defaultSettings)
+import DurationDatePicker exposing (Settings)
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
@@ -12,15 +12,12 @@ import Time.Extra as Time exposing (Interval(..))
 
 type Msg
     = OpenPicker
-    | Selected Posix Posix
-    | UpdatePicker DurationDatePicker.DatePicker
+    | UpdatePicker (DurationDatePicker.DatePicker Msg)
 
 
 type alias Model =
     { today : Posix
-    , pickedStartTime : Maybe Posix
-    , pickedEndTime : Maybe Posix
-    , picker : DurationDatePicker.DatePicker
+    , picker : DurationDatePicker.DatePicker Msg
     }
 
 
@@ -28,15 +25,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OpenPicker ->
-            ( { model | picker = DurationDatePicker.openPicker model.today model.pickedStartTime model.pickedEndTime model.picker }, Cmd.none )
-
-        Selected startTime endTime ->
-            let
-                -- Don't want to close after confirming picked date? No problem, just remove the picker update!
-                newPicker =
-                    DurationDatePicker.closePicker model.picker
-            in
-            ( { model | pickedStartTime = Just startTime, pickedEndTime = Just endTime, picker = newPicker }, Cmd.none )
+            ( { model | picker = DurationDatePicker.open model.picker }, Cmd.none )
 
         UpdatePicker newPicker ->
             ( { model | picker = newPicker }, Cmd.none )
@@ -51,7 +40,7 @@ userDefinedDatePickerSettings : Posix -> Settings Msg
 userDefinedDatePickerSettings today =
     let
         defaults =
-            defaultSettings { internalMsg = UpdatePicker, externalMsg = Selected }
+            DurationDatePicker.defaultSettings today UpdatePicker
     in
     { defaults | dayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime, today = Just today }
 
@@ -64,12 +53,11 @@ view model =
             [ style "width" "500px", style "display" "inline-flex" ]
             [ div []
                 [ button [ style "margin-right" "10px", onClick <| OpenPicker ] [ text "Picker" ]
-                , DurationDatePicker.view (userDefinedDatePickerSettings model.today) model.picker
+                , DurationDatePicker.view model.picker
                 ]
-            , Maybe.map2
-                (\start end -> text (Utilities.toUtcDateTimeString start ++ " - " ++ Utilities.toUtcDateTimeString end))
-                model.pickedStartTime
-                model.pickedEndTime
+            , Maybe.map
+                (\( start, end ) -> text (Utilities.toUtcDateTimeString start ++ " - " ++ Utilities.toUtcDateTimeString end))
+                (DurationDatePicker.getPickedTimes model.picker)
                 |> Maybe.withDefault (text "No date selected yet!")
             ]
         ]
@@ -82,9 +70,7 @@ init currentTime =
             Time.millisToPosix currentTime
     in
     ( { today = today
-      , pickedStartTime = Nothing
-      , pickedEndTime = Nothing
-      , picker = DurationDatePicker.init
+      , picker = DurationDatePicker.init (userDefinedDatePickerSettings today) Nothing
       }
     , Cmd.none
     )
@@ -92,7 +78,7 @@ init currentTime =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    DurationDatePicker.subscriptions UpdatePicker model.picker
+    DurationDatePicker.subscriptions model.picker
 
 
 main : Program Int Model Msg

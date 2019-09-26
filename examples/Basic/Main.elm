@@ -5,21 +5,19 @@ import DatePicker.Utilities as Utilities
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
-import SingleDatePicker exposing (Settings, defaultSettings)
+import SingleDatePicker exposing (Settings)
 import Time exposing (Month(..), Posix)
 import Time.Extra as Time exposing (Interval(..))
 
 
 type Msg
     = OpenPicker
-    | Selected Posix
-    | UpdatePicker SingleDatePicker.DatePicker
+    | UpdatePicker (SingleDatePicker.DatePicker Msg)
 
 
 type alias Model =
     { today : Posix
-    , pickedTime : Maybe Posix
-    , picker : SingleDatePicker.DatePicker
+    , picker : SingleDatePicker.DatePicker Msg
     }
 
 
@@ -27,15 +25,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OpenPicker ->
-            ( { model | picker = SingleDatePicker.openPicker model.today model.pickedTime model.picker }, Cmd.none )
-
-        Selected time ->
-            let
-                -- Don't want to close after confirming picked date? No problem, just remove the picker update!
-                newPicker =
-                    SingleDatePicker.closePicker model.picker
-            in
-            ( { model | pickedTime = Just time, picker = newPicker }, Cmd.none )
+            ( { model | picker = SingleDatePicker.open model.picker }, Cmd.none )
 
         UpdatePicker newPicker ->
             ( { model | picker = newPicker }, Cmd.none )
@@ -50,7 +40,7 @@ userDefinedDatePickerSettings : Posix -> Settings Msg
 userDefinedDatePickerSettings today =
     let
         defaults =
-            defaultSettings { internalMsg = UpdatePicker, externalMsg = Selected }
+            SingleDatePicker.defaultSettings today UpdatePicker
     in
     { defaults
         | dayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime
@@ -66,14 +56,9 @@ view model =
             [ style "width" "500px", style "display" "inline-flex" ]
             [ div []
                 [ button [ style "margin-right" "10px", onClick <| OpenPicker ] [ text "Picker" ]
-                , SingleDatePicker.view (userDefinedDatePickerSettings model.today) model.picker
+                , SingleDatePicker.view model.picker
                 ]
-            , case model.pickedTime of
-                Just date ->
-                    text (Utilities.toUtcDateTimeString date)
-
-                Nothing ->
-                    text "No date selected yet!"
+            , Maybe.map (\date -> text <| Utilities.toUtcDateTimeString date) (SingleDatePicker.getPickedTime model.picker) |> Maybe.withDefault (text "No date selected yet!")
             ]
         ]
 
@@ -85,8 +70,7 @@ init currentTime =
             Time.millisToPosix currentTime
     in
     ( { today = today
-      , pickedTime = Nothing
-      , picker = SingleDatePicker.init
+      , picker = SingleDatePicker.init (userDefinedDatePickerSettings today) Nothing
       }
     , Cmd.none
     )
@@ -94,7 +78,7 @@ init currentTime =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    SingleDatePicker.subscriptions UpdatePicker model.picker
+    SingleDatePicker.subscriptions model.picker
 
 
 main : Program Int Model Msg

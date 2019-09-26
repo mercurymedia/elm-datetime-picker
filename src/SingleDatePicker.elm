@@ -1,8 +1,8 @@
 module SingleDatePicker exposing
     ( DatePicker, init, view, subscriptions
     , Settings, defaultSettings
-    , openPicker, closePicker
-    , isOpen
+    , getPickedTime, isOpen
+    , open, close, setPickedTime
     )
 
 {-| A date picker component for a single datetime.
@@ -18,9 +18,14 @@ module SingleDatePicker exposing
 @docs Settings, defaultSettings
 
 
+# Query
+
+@docs getPickedTime, isOpen
+
+
 # Externally Triggered Actions
 
-@docs openPicker, closePicker
+@docs open, close, setPickedTime
 
 -}
 
@@ -38,20 +43,28 @@ import Time exposing (Month(..), Posix, Weekday(..))
 import Time.Extra as Time exposing (Interval(..), Parts)
 
 
-type alias Model =
-    { status : Status
+type alias Model msg =
+    { settings : Settings msg
+    , status : Status
     , viewOffset : Int
+    , stagedTime : Maybe Posix
     , pickedTime : Maybe Posix
     }
 
 
 {-| The opaque type representing a particular date picker instance.
 -}
-type DatePicker
-    = DatePicker Model
+type DatePicker msg
+    = DatePicker (Model msg)
 
 
 {-| The type facilitating the configuration of the datepicker settings.
+
+You might be wondering what the difference between `today` and `baseTime` is. Indeed
+in many cases, the `baseTime` that the picker is centered on will likely be the
+day on which it is being used. However, it is possible that the implementer wishes to
+center the picker on a day that is not the day on which it is being used.
+
 -}
 type alias Settings msg =
     -- this will get more advanced as we develop the api.
@@ -61,53 +74,48 @@ type alias Settings msg =
     { formattedDay : Weekday -> String
     , formattedMonth : Month -> String
     , today : Maybe Posix
+    , baseTime : Posix
     , dayDisabled : Posix -> Bool
-    , internalMsg : DatePicker -> msg
-    , selectedMsg : Posix -> msg
+    , internalMsg : DatePicker msg -> msg
     }
 
 
 type Status
-    = Closed
+    = Closed Posix
     | Open Posix
-
-
-type alias MsgConfig msg =
-    { internalMsg : DatePicker -> msg
-    , externalMsg : Posix -> msg
-    }
 
 
 {-| A record of default settings for the date picker. Extend this if
 you want to further customize the date picker.
 
-Requires a MsgConfig msg record to set the date picker's internal and external
-msg indicators
-
-    { internalMsg : DatePicker -> msg
-    , externalMsg : Posix -> msg
-    }
+Requires an internal msg (DatePicker -> msg) as well as a default
+time the picker should center on (in the event a time has not yet
+been picked). A common example of a default time would be the
+datetime for the current day.
 
 -}
-defaultSettings : MsgConfig msg -> Settings msg
-defaultSettings { internalMsg, externalMsg } =
+defaultSettings : Posix -> (DatePicker msg -> msg) -> Settings msg
+defaultSettings baseTime internalMsg =
     { formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
     , today = Nothing
+    , baseTime = baseTime
     , dayDisabled = always False
     , internalMsg = internalMsg
-    , selectedMsg = externalMsg
     }
 
 
-{-| Instantiates and returns a date picker.
+{-| Instantiates and returns a date picker. Takes in the configured picker
+settings as well as the picked time, if any.
 -}
-init : DatePicker
-init =
+init : Settings msg -> Maybe Posix -> DatePicker msg
+init settings pickedTime =
     DatePicker
-        { status = Closed
+        { settings = settings
+        , status = Closed <| Time.floor Day Time.utc settings.baseTime
         , viewOffset = 0
-        , pickedTime = Nothing
+        , stagedTime = Nothing
+        , pickedTime = pickedTime
         }
 
 
@@ -118,23 +126,23 @@ datePickerId =
 
 {-| Events external to the picker to which it is subscribed.
 -}
-subscriptions : (DatePicker -> msg) -> DatePicker -> Sub msg
-subscriptions internalMsg (DatePicker model) =
+subscriptions : DatePicker msg -> Sub msg
+subscriptions (DatePicker model) =
     case model.status of
         Open _ ->
-            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId internalMsg (DatePicker model))
+            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId (DatePicker model))
 
-        Closed ->
+        Closed _ ->
             Sub.none
 
 
-clickedOutsidePicker : String -> (DatePicker -> msg) -> DatePicker -> Decode.Decoder msg
-clickedOutsidePicker componentId internalMsg datePicker =
+clickedOutsidePicker : String -> DatePicker msg -> Decode.Decoder msg
+clickedOutsidePicker componentId (DatePicker model) =
     Decode.field "target" (Utilities.eventIsOutsideComponent componentId)
         |> Decode.andThen
             (\isOutside ->
                 if isOutside then
-                    Decode.succeed <| internalMsg (update Close datePicker)
+                    Decode.succeed <| model.settings.internalMsg (update Close model)
 
                 else
                     Decode.fail "inside component"
@@ -163,36 +171,46 @@ calculatePickerOffset baseTime pickedTime =
                 0 - Time.diff Month Time.utc flooredPick flooredBase
 
 
-{-| Open the provided date picker and receive the updated picker instance. Also
-takes a default time the picker should center on (in the event a time has not yet
-been picked) as well as the picked time. A common example of a default time
-would be the datetime for the current day.
+{-| Retrieve the picked time, if any, from the provided date picker.
 -}
-openPicker : Posix -> Maybe Posix -> DatePicker -> DatePicker
-openPicker baseTime pickedTime (DatePicker model) =
-    let
-        pickerOffset =
-            calculatePickerOffset baseTime pickedTime
-    in
-    DatePicker { model | status = Open baseTime, pickedTime = pickedTime, viewOffset = pickerOffset }
+getPickedTime : DatePicker msg -> Maybe Posix
+getPickedTime (DatePicker model) =
+    model.pickedTime
+
+
+{-| Open the provided date picker and receive the updated picker instance.
+-}
+open : DatePicker msg -> DatePicker msg
+open (DatePicker model) =
+    DatePicker { model | status = Open model.settings.baseTime, stagedTime = model.pickedTime, viewOffset = calculatePickerOffset (Time.floor Day Time.utc model.settings.baseTime) model.pickedTime }
 
 
 {-| Close the provided date picker and receive the updated picker instance.
 -}
-closePicker : DatePicker -> DatePicker
-closePicker (DatePicker model) =
-    DatePicker { model | status = Closed }
+close : DatePicker msg -> DatePicker msg
+close (DatePicker model) =
+    DatePicker { model | status = Closed model.settings.baseTime, stagedTime = Nothing }
+
+
+{-| It is possible that the picker is instantiated on your model before data representing
+a previously picked datetime is loaded. Use this function to update the picked datetime in
+the picker when the appropriate data is received. Use this method sparingly, if at all.
+The picked state should ideally only change due to user input.
+-}
+setPickedTime : Posix -> DatePicker msg -> DatePicker msg
+setPickedTime datetime (DatePicker model) =
+    DatePicker { model | pickedTime = Just datetime }
 
 
 {-| Indicates whether the DatePicker is open
 -}
-isOpen : DatePicker -> Bool
+isOpen : DatePicker msg -> Bool
 isOpen (DatePicker { status }) =
     case status of
         Open _ ->
             True
 
-        Closed ->
+        Closed _ ->
             False
 
 
@@ -204,11 +222,12 @@ type Msg
     | SetDay Posix
     | SetHour Int
     | SetMinute Int
+    | ConfirmDateTime Posix
     | Close
 
 
-update : Msg -> DatePicker -> DatePicker
-update msg (DatePicker model) =
+update : Msg -> Model msg -> DatePicker msg
+update msg model =
     case model.status of
         Open baseTime ->
             case msg of
@@ -225,18 +244,21 @@ update msg (DatePicker model) =
                     DatePicker { model | viewOffset = model.viewOffset - 12 }
 
                 SetDay time ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setDayNotTime time (Maybe.withDefault (Time.floor Day Time.utc time) model.pickedTime) }
+                    DatePicker { model | stagedTime = Just <| Utilities.setDayNotTime time (Maybe.withDefault (Time.floor Day Time.utc time) model.stagedTime) }
 
                 SetHour hour ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setHourNotDay hour (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime) }
+                    DatePicker { model | stagedTime = Just <| Utilities.setHourNotDay hour (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.stagedTime) }
 
                 SetMinute minute ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setMinuteNotDay minute (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime) }
+                    DatePicker { model | stagedTime = Just <| Utilities.setMinuteNotDay minute (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.stagedTime) }
+
+                ConfirmDateTime confirmed ->
+                    DatePicker { model | pickedTime = Just confirmed } |> close
 
                 Close ->
-                    DatePicker { model | status = Closed }
+                    close <| DatePicker model
 
-        Closed ->
+        Closed _ ->
             DatePicker model
 
 
@@ -245,11 +267,10 @@ classPrefix =
     "elm-datetimepicker-single--"
 
 
-{-| The date picker view. Simply pass it the configured settings
-and the date picker instance you wish to view.
+{-| The date picker view. Simply pass it the date picker instance you wish to view.
 -}
-view : Settings msg -> DatePicker -> Html msg
-view settings (DatePicker model) =
+view : DatePicker msg -> Html msg
+view (DatePicker model) =
     case model.status of
         Open baseTime ->
             let
@@ -259,21 +280,21 @@ view settings (DatePicker model) =
             div
                 [ id datePickerId, class (classPrefix ++ "picker-container") ]
                 [ div [ class (classPrefix ++ "calendar-container") ]
-                    [ viewCalendarHeader settings model offsetTime
-                    , viewMonth settings model model.pickedTime offsetTime
+                    [ viewCalendarHeader model offsetTime
+                    , viewMonth model offsetTime
                     ]
-                , viewFooter settings model model.pickedTime
+                , viewFooter model
                 ]
 
-        Closed ->
+        Closed _ ->
             text ""
 
 
-viewCalendarHeader : Settings msg -> Model -> Posix -> Html msg
-viewCalendarHeader settings model time =
+viewCalendarHeader : Model msg -> Posix -> Html msg
+viewCalendarHeader model time =
     let
         monthName =
-            Time.toMonth Time.utc time |> settings.formattedMonth
+            Time.toMonth Time.utc time |> model.settings.formattedMonth
 
         year =
             Time.toYear Time.utc time |> String.fromInt
@@ -283,7 +304,7 @@ viewCalendarHeader settings model time =
         [ div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
                 [ class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update PrevMonth (DatePicker model)
+                , onClick <| model.settings.internalMsg <| update PrevMonth model
                 ]
                 [ Icons.chevronLeft
                     |> Icons.withSize 12
@@ -294,7 +315,7 @@ viewCalendarHeader settings model time =
                 [ div [] [ text monthName ] ]
             , div
                 [ class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update NextMonth (DatePicker model)
+                , onClick <| model.settings.internalMsg <| update NextMonth model
                 ]
                 [ Icons.chevronRight
                     |> Icons.withSize 12
@@ -304,7 +325,7 @@ viewCalendarHeader settings model time =
         , div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
                 [ class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update PrevYear (DatePicker model)
+                , onClick <| model.settings.internalMsg <| update PrevYear model
                 ]
                 [ Icons.chevronsLeft
                     |> Icons.withSize 12
@@ -315,14 +336,14 @@ viewCalendarHeader settings model time =
                 [ div [] [ text year ] ]
             , div
                 [ class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update NextYear (DatePicker model)
+                , onClick <| model.settings.internalMsg <| update NextYear model
                 ]
                 [ Icons.chevronsRight
                     |> Icons.withSize 12
                     |> Icons.toHtml []
                 ]
             ]
-        , viewWeekHeader settings [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
+        , viewWeekHeader model.settings [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
         ]
 
 
@@ -340,8 +361,8 @@ viewHeaderDay formatDay day =
         [ text (formatDay day) ]
 
 
-viewMonth : Settings msg -> Model -> Maybe Posix -> Posix -> Html msg
-viewMonth settings model pickedTime viewTime =
+viewMonth : Model msg -> Posix -> Html msg
+viewMonth model viewTime =
     let
         monthRenderData =
             Utilities.monthData viewTime
@@ -354,25 +375,25 @@ viewMonth settings model pickedTime viewTime =
     in
     div
         [ class (classPrefix ++ "calendar-month") ]
-        [ div [] (List.map (viewWeek settings currentMonth pickedTime model) weeks)
+        [ div [] (List.map (viewWeek model currentMonth) weeks)
         ]
 
 
-viewWeek : Settings msg -> Month -> Maybe Posix -> Model -> List Parts -> Html msg
-viewWeek settings currentMonth pickedTime model week =
+viewWeek : Model msg -> Month -> List Parts -> Html msg
+viewWeek model currentMonth week =
     div [ class (classPrefix ++ "calendar-week") ]
-        (List.map (viewDay settings model currentMonth pickedTime) week)
+        (List.map (viewDay model currentMonth) week)
 
 
-viewDay : Settings msg -> Model -> Month -> Maybe Posix -> Parts -> Html msg
-viewDay settings model currentMonth pickedTime day =
+viewDay : Model msg -> Month -> Parts -> Html msg
+viewDay model currentMonth day =
     let
         isToday =
-            Maybe.map (\tday -> Utilities.doDaysMatch day (Time.posixToParts Time.utc tday)) settings.today
+            Maybe.map (\tday -> Utilities.doDaysMatch day (Time.posixToParts Time.utc tday)) model.settings.today
                 |> Maybe.withDefault False
 
         isPicked =
-            case pickedTime of
+            case model.stagedTime of
                 Just time ->
                     Utilities.doDaysMatch day (Time.posixToParts Time.utc time)
 
@@ -380,7 +401,7 @@ viewDay settings model currentMonth pickedTime day =
                     False
 
         isDisabled =
-            settings.dayDisabled (Time.partsToPosix Time.utc day)
+            model.settings.dayDisabled (Time.partsToPosix Time.utc day)
 
         dayClasses =
             DatePicker.Styles.singleDayClasses classPrefix (day.month /= currentMonth) isDisabled isPicked isToday
@@ -390,27 +411,27 @@ viewDay settings model currentMonth pickedTime day =
                 [ class dayClasses ]
 
             else
-                [ class dayClasses, onClick <| settings.internalMsg (update (SetDay (Time.partsToPosix Time.utc day)) (DatePicker model)) ]
+                [ class dayClasses, onClick <| model.settings.internalMsg (update (SetDay (Time.partsToPosix Time.utc day)) model) ]
     in
     div
         attrs
         [ text (String.fromInt day.day) ]
 
 
-viewFooter : Settings msg -> Model -> Maybe Posix -> Html msg
-viewFooter settings model pickedTime =
+viewFooter : Model msg -> Html msg
+viewFooter model =
     div
         [ class (classPrefix ++ "footer") ]
-        [ viewTimePicker settings model pickedTime
-        , div [ class (classPrefix ++ "confirm-button-container") ] [ viewConfirmButton settings pickedTime ]
+        [ viewTimePicker model
+        , div [ class (classPrefix ++ "confirm-button-container") ] [ viewConfirmButton model ]
         ]
 
 
-viewConfirmButton : Settings msg -> Maybe Posix -> Html msg
-viewConfirmButton settings pickedTime =
+viewConfirmButton : Model msg -> Html msg
+viewConfirmButton model =
     let
         ( classStr, confirmAction ) =
-            Maybe.map (\picked -> ( classPrefix ++ "confirm-button", [ onClick <| settings.selectedMsg picked ] )) pickedTime
+            Maybe.map (\staged -> ( classPrefix ++ "confirm-button", [ onClick <| model.settings.internalMsg (update (ConfirmDateTime staged) model) ] )) model.stagedTime
                 |> Maybe.withDefault ( classPrefix ++ "confirm-button " ++ classPrefix ++ "disabled", [] )
 
         confirmAttrs =
@@ -423,8 +444,8 @@ viewConfirmButton settings pickedTime =
         ]
 
 
-viewTimePicker : Settings msg -> Model -> Maybe Posix -> Html msg
-viewTimePicker settings model pickedTime =
+viewTimePicker : Model msg -> Html msg
+viewTimePicker model =
     let
         ( hour, minute ) =
             Maybe.map
@@ -435,7 +456,7 @@ viewTimePicker settings model pickedTime =
                     in
                     ( timeParts.hour, timeParts.minute )
                 )
-                pickedTime
+                model.stagedTime
                 |> Maybe.withDefault ( 0, 0 )
     in
     div
@@ -447,8 +468,8 @@ viewTimePicker settings model pickedTime =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ] (Utilities.generateHourOptions hour) ]
+            [ div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map model.settings.internalMsg (Decode.map (\msg -> update msg model) (Decode.map SetHour targetValueIntParse))) ] (Utilities.generateHourOptions hour) ]
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ] (Utilities.generateMinuteOptions minute) ]
+            , div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map model.settings.internalMsg (Decode.map (\msg -> update msg model) (Decode.map SetMinute targetValueIntParse))) ] (Utilities.generateMinuteOptions minute) ]
             ]
         ]
