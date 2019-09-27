@@ -28,7 +28,7 @@ import DatePicker.Icons as Icons
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities
 import Html exposing (Html, button, div, select, text)
-import Html.Attributes exposing (class, id)
+import Html.Attributes exposing (attribute, class, id, type_)
 import Html.Events exposing (on, onClick)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
@@ -401,7 +401,7 @@ viewConfirmButton settings pickedTime =
                 |> Maybe.withDefault ( classPrefix ++ "confirm-button " ++ classPrefix ++ "disabled", [] )
 
         confirmAttrs =
-            [ class classStr ] ++ confirmAction
+            [ class classStr, type_ "button", attribute "aria-label" "confirm" ] ++ confirmAction
     in
     button confirmAttrs
         [ Icons.check

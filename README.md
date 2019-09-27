@@ -48,7 +48,7 @@ type Msg
     | Selected Posix -- the external confirm msg
     | UpdatePicker DatePicker.DatePicker -- the internal update msg
 
-userDefinedDatePickerSettings : Settings Msg
+userDefinedDatePickerSettings : DatePicker.Settings Msg
 userDefinedDatePickerSettings =
     DatePicker.defaultSettings { internalMsg = UpdatePicker, externalMsg = Selected }
 ```
@@ -60,12 +60,18 @@ view : Model -> Html Msg
 view model =
     ...
     div []
-        [ button [ onClick <| OpenPicker ] [ text "Open Me!" ]
+        [ button [ onClick OpenPicker ] [ text "Open Me!" ]
         , DatePicker.view userDefinedDatePickerSettings model.picker
         ]
 ```
 
 While we are on the topic of the `DatePicker.view`, it is worth noting that this date picker does _not_ include an input or button to trigger the view to open, this is up to the user to define and allows the picker to be flexible across different use cases.
+
+Usage example with [elm-css](https://package.elm-lang.org/packages/rtfeldman/elm-css/latest):
+
+```elm
+Html.Styled.fromUnstyled <| DatePicker.view datePickerSettings model.picker
+```
 
 
 4) Now it is time for the meat and potatoes: handling the `DatePicker` updates, including `saving` the time selected in the picker to the calling module's model.
