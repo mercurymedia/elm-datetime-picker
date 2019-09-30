@@ -2,6 +2,7 @@ module DurationDatePicker exposing
     ( DatePicker, init, view, subscriptions
     , Settings, defaultSettings
     , openPicker, closePicker
+    , isOpen
     )
 
 {-| A date picker component for picking a datetime range.
@@ -256,6 +257,18 @@ openPicker baseTime startTime endTime (DatePicker model) =
 closePicker : DatePicker -> DatePicker
 closePicker (DatePicker model) =
     DatePicker { model | status = Closed }
+
+
+{-| Indicates whether the DatePicker is open
+-}
+isOpen : DatePicker -> Bool
+isOpen (DatePicker { status }) =
+    case status of
+        Open _ ->
+            True
+
+        Closed ->
+            False
 
 
 type Msg
