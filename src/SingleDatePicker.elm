@@ -22,6 +22,11 @@ module SingleDatePicker exposing
 
 @docs openPicker, closePicker
 
+
+# Query
+
+@docs isOpen
+
 -}
 
 import Browser.Events
