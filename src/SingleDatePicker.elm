@@ -105,17 +105,16 @@ defaultSettings baseTime internalMsg =
     }
 
 
-{-| Instantiates and returns a date picker. Takes in the configured picker
-settings as well as the picked time, if any.
+{-| Instantiates and returns a date picker.
 -}
-init : Settings msg -> Maybe Posix -> DatePicker msg
-init settings pickedTime =
+init : Settings msg -> DatePicker msg
+init settings =
     DatePicker
         { settings = settings
         , status = Closed <| Time.floor Day Time.utc settings.baseTime
         , viewOffset = 0
         , stagedTime = Nothing
-        , pickedTime = pickedTime
+        , pickedTime = Nothing
         }
 
 

@@ -70,7 +70,7 @@ init currentTime =
             Time.millisToPosix currentTime
     in
     ( { today = today
-      , picker = SingleDatePicker.init (userDefinedDatePickerSettings today) Nothing
+      , picker = SingleDatePicker.init (userDefinedDatePickerSettings today)
       }
     , Cmd.none
     )

@@ -21,33 +21,33 @@ This package exposes two modules `SingleDatePicker` and `DurationDatePicker`. As
 
 There are three steps to configure the `DatePicker`:
 
-1) Add the picker to the model and initialize it in the model init. The `DatePicker.init` function takes the configured
-settings for the picker as well as a `Maybe Posix` representing the previously picked datetime, if any.
+1) Add the picker to the model and initialize it in the model init. The `SingleDatePicker.init` function takes the configured
+settings. In the event you wish to `init` a picker with a previously picked datetime, simply pipe the result of the `init` to `SingleDatePicker.setPickedTime` passing the picked time.
 
 Both datepicker modules expose a `defaultSettings` method for configuring the settings. It takes a `Posix` representing the date around which the picker should center on if no datetime has been picked yet. It also takes a message defined by the user to handle updates internal to the datepicker. The function returns a `Settings` type which can be extended for further customization.
 
 ```elm
-import SingleDatePicker as DatePicker
+import SingleDatePicker
 
 type alias Model =
     { ...
-    , picker : DatePicker.DatePicker
+    , picker : SingleDatePicker.DatePicker
     }
 
 type Msg
     = ...
-    | UpdatePicker DatePicker.DatePicker
+    | UpdatePicker SingleDatePicker.DatePicker
 
 init : ( Model, Cmd Msg )
 init =
     ( { ...
-      , picker = DatePicker.init (DatePicker.defaultSettings today UpdatePicker) Nothing
+      , picker = SingleDatePicker.init (SingleDatePicker.defaultSettings today UpdatePicker) Nothing
       }
     , Cmd.none
     )
 ```
     
-2) Call the `DatePicker.view` function to render the picker, passing it the `DatePicker` instance to be operated on. Because the messages for handling picker updates are defined in the calling module and passed in via the settings, we do not need to worry about `Html.map`ping!
+2) Call the `SingleDatePicker.view` function to render the picker, passing it the `DatePicker` instance to be operated on. Because the messages for handling picker updates are defined in the calling module and passed in via the settings, we do not need to worry about `Html.map`ping!
 
 ```elm
 view : Model -> Html Msg
@@ -55,11 +55,11 @@ view model =
     ...
     div []
         [ button [ onClick <| OpenPicker ] [ text "Open Me!" ]
-        , DatePicker.view model.picker
+        , SingleDatePicker.view model.picker
         ]
 ```
 
-While we are on the topic of the `DatePicker.view`, it is worth noting that this date picker does _not_ include an input or button to trigger the view to open, this is up to the user to define and allows the picker to be flexible across different use cases.
+While we are on the topic of the `SingleDatePicker.view`, it is worth noting that this date picker does _not_ include an input or button to trigger the view to open, this is up to the user to define and allows the picker to be flexible across different use cases.
 
 
 3) Now it is time for the meat and potatoes: handling the `DatePicker` updates.
@@ -68,13 +68,13 @@ While we are on the topic of the `DatePicker.view`, it is worth noting that this
 type alias Model =
     { ...
     , today : Posix
-    , picker : DatePicker.DatePicker
+    , picker : SingleDatePicker.DatePicker
     }
 
 type Msg
     = ...
     | OpenPicker
-    | UpdatePicker DatePicker.DatePicker
+    | UpdatePicker SingleDatePicker.DatePicker
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -82,17 +82,17 @@ update msg model =
         ...
 
         OpenPicker ->
-            ( { model | picker = DatePicker.openPicker model.picker }, Cmd.none )
+            ( { model | picker = SingleDatePicker.openPicker model.picker }, Cmd.none )
 
         UpdatePicker newPicker ->
             ( { model | picker = newPicker }, Cmd.none )
 ```
 
-The user is responsible for defining his or her own `Open` picker message and placing the relevant event listener where he or she pleases. When handling this message in the `update` as seen above, we call `DatePicker.openPicker` which simply returns an updated picker instance to be stored on the model (`DatePicker.closePicker` is also provided and returns an updated picker instance like `openPicker` does).
+The user is responsible for defining his or her own `Open` picker message and placing the relevant event listener where he or she pleases. When handling this message in the `update` as seen above, we call `SingleDatePicker.openPicker` which simply returns an updated picker instance to be stored on the model (`SingleDatePicker.closePicker` is also provided and returns an updated picker instance like `openPicker` does).
 
 Remember that message we passed into the `DatePicker` settings? Here is where it comes into play. `UpdatePicker` let's us know that an update of the `DatePicker` instance's internal state has occured. Seeing as we don't need to do any additional processing here, the `UpdatePicker` message simply carries the updated `DatePicker` instance along with it to save in the model of the calling module.
 
-The picker also stores the current selection state. To access it, call `DatePicker.getPickedTime`.
+The picker also stores the current selection state. To access it, call `SingleDatePicker.getPickedTime`.
 
 ## Automatically close the picker
 
@@ -106,7 +106,7 @@ subscriptions model =
 
 ## Additional Configuration
 
-This is the settings type to be used when configuring the `datepicker`. More configuration will be available in future releases.
+This is the settings type to be used when configuring the `DatePicker`. More configuration will be available in future releases.
 
 ```elm
 type alias Settings msg =
