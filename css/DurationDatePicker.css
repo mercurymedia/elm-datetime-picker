@@ -45,23 +45,12 @@
 
 .elm-datetimepicker-duration--calendar-header-row {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
 }
 
 .elm-datetimepicker-duration--calendar-header-text {
     display: inline-flex;
     align-items: center;
-}
-
-.elm-datetimepicker-duration--calendar-header-chevron {
-    display: inline-flex;
-    align-items: center;
-    padding: 0 .5rem 0 .5rem;
-    cursor: pointer;
-}
-
-.elm-datetimepicker-duration--calendar-header-chevron:hover {
-    color: #38c172;
 }
 
 .elm-datetimepicker-duration--calendar-header-chevron.elm-datetimepicker-duration--hidden {

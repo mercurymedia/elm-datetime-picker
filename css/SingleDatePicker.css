@@ -17,9 +17,14 @@
     font-weight: bold;
 }
 
-.elm-datetimepicker-single--calendar-header-row {
+.elm-datetimepicker-single--calendar-header-month {
     display: flex;
     justify-content: space-between;
+}
+
+.elm-datetimepicker-single--calendar-header-year {
+    display: flex;
+    justify-content: center;
 }
 
 .elm-datetimepicker-single--calendar-header-text {
