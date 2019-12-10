@@ -1,7 +1,6 @@
 module DatePickerExample.Duration.Main exposing (main)
 
 import Browser
-import DatePicker.Utilities as Utilities
 import DurationDatePicker exposing (Settings, defaultSettings)
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (style)
@@ -12,8 +11,7 @@ import Time.Extra as Time exposing (Interval(..))
 
 type Msg
     = OpenPicker
-    | Selected Posix Posix
-    | UpdatePicker DurationDatePicker.DatePicker
+    | UpdatePicker ( DurationDatePicker.DatePicker, Maybe ( Posix, Posix ) )
 
 
 type alias Model =
@@ -30,16 +28,12 @@ update msg model =
         OpenPicker ->
             ( { model | picker = DurationDatePicker.openPicker model.today model.pickedStartTime model.pickedEndTime model.picker }, Cmd.none )
 
-        Selected startTime endTime ->
+        UpdatePicker ( newPicker, maybeRuntime ) ->
             let
-                -- Don't want to close after confirming picked date? No problem, just remove the picker update!
-                newPicker =
-                    DurationDatePicker.closePicker model.picker
+                ( startTime, endTime ) =
+                    Maybe.map (\( start, end ) -> ( Just start, Just end )) maybeRuntime |> Maybe.withDefault ( model.pickedStartTime, model.pickedEndTime )
             in
-            ( { model | pickedStartTime = Just startTime, pickedEndTime = Just endTime, picker = newPicker }, Cmd.none )
-
-        UpdatePicker newPicker ->
-            ( { model | picker = newPicker }, Cmd.none )
+            ( { model | picker = newPicker, pickedStartTime = startTime, pickedEndTime = endTime }, Cmd.none )
 
 
 isDateBeforeToday : Posix -> Posix -> Bool
@@ -51,9 +45,9 @@ userDefinedDatePickerSettings : Posix -> Settings Msg
 userDefinedDatePickerSettings today =
     let
         defaults =
-            defaultSettings { internalMsg = UpdatePicker, externalMsg = Selected }
+            defaultSettings UpdatePicker
     in
-    { defaults | dayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime, today = Just today }
+    { defaults | dayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime, today = Just today, dateStringFn = posixToDateString, timeStringFn = posixToTimeString }
 
 
 view : Model -> Html Msg
@@ -67,7 +61,7 @@ view model =
                 , DurationDatePicker.view (userDefinedDatePickerSettings model.today) model.picker
                 ]
             , Maybe.map2
-                (\start end -> text (Utilities.toUtcDateTimeString start ++ " - " ++ Utilities.toUtcDateTimeString end))
+                (\start end -> text (posixToDateString start ++ " " ++ posixToTimeString start ++ " - " ++ posixToDateString end ++ " " ++ posixToTimeString end))
                 model.pickedStartTime
                 model.pickedEndTime
                 |> Maybe.withDefault (text "No date selected yet!")
@@ -103,3 +97,79 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
+
+
+
+-- VIEW UTILITIES - these are not required for the package to work, they are used here simply to format the selected dates
+
+
+addLeadingZero : Int -> String
+addLeadingZero value =
+    let
+        string =
+            String.fromInt value
+    in
+    if String.length string == 1 then
+        "0" ++ string
+
+    else
+        string
+
+
+monthToNmbString : Month -> String
+monthToNmbString month =
+    case month of
+        Jan ->
+            "01"
+
+        Feb ->
+            "02"
+
+        Mar ->
+            "03"
+
+        Apr ->
+            "04"
+
+        May ->
+            "05"
+
+        Jun ->
+            "06"
+
+        Jul ->
+            "07"
+
+        Aug ->
+            "08"
+
+        Sep ->
+            "09"
+
+        Oct ->
+            "10"
+
+        Nov ->
+            "11"
+
+        Dec ->
+            "12"
+
+
+posixToDateString : Posix -> String
+posixToDateString date =
+    addLeadingZero (Time.toDay Time.utc date)
+        ++ "."
+        ++ monthToNmbString (Time.toMonth Time.utc date)
+        ++ "."
+        ++ addLeadingZero (Time.toYear Time.utc date)
+
+
+posixToTimeString : Posix -> String
+posixToTimeString datetime =
+    addLeadingZero (Time.toHour Time.utc datetime)
+        ++ ":"
+        ++ addLeadingZero (Time.toMinute Time.utc datetime)
+        ++ ":"
+        ++ addLeadingZero (Time.toSecond Time.utc datetime)
+        ++ " (UTC)"

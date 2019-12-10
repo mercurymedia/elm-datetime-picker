@@ -138,14 +138,25 @@
 }
 
 .elm-datetimepicker-duration--time-pickers-container {
-    width: 150px;
+    width: 100%;
+}
+
+.elm-datetimepicker-duration--time-picker-information-container {
+    align-items: center;
+    width: 100%;
 }
 
 .elm-datetimepicker-duration--time-picker-container {
     display: inline-flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
+    width: 35%;
+}
+
+.elm-datetimepicker-duration--date-display-container {
+    display: inline-flex;
+    justify-content: flex-end;
+    width: 65%;
 }
 
 .elm-datetimepicker-duration--time-picker {
@@ -162,34 +173,16 @@
     display: inline-flex;
 }
 
+.elm-datetimepicker-duration--selection-time {
+    margin-left: 5px;
+}
+
+.elm-datetimepicker-duration--selection-time-danger {
+    margin-left: 5px;
+    color: red;
+}
+
 .elm-datetimepicker-duration--select-spacer {
     display: inline-flex;
     padding: 0 .25rem 0 .25rem;
-}
-
-.elm-datetimepicker-duration--confirm-button-container {
-    display: inline-flex;
-    align-items: center;
-}
-
-.elm-datetimepicker-duration--confirm-button {
-    display: inline-flex;
-    height: 30px;
-    width: 50px;
-    border: 1px solid #a0aec0;
-    border-radius: 3px;
-    justify-content: center;
-    align-items: center;
-    color: #38c172;
-    cursor: pointer;
-}
-
-.elm-datetimepicker-duration--confirm-button:hover {
-    border-color: #38c172;
-}
-
-.elm-datetimepicker-duration--confirm-button.elm-datetimepicker-duration--disabled {
-    color: #a0aec0;
-    border-color: #a0aec0;
-    cursor: not-allowed;
 }
