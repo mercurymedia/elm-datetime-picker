@@ -8,15 +8,13 @@
     box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15)
 }
 
-.elm-datetimepicker-duration--picker-header {
+.elm-datetimepicker-duration--picker-header-chevrons {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: .5rem;
 }
 
 .elm-datetimepicker-duration--picker-header-chevron {
-    display: inline-flex;
     cursor: pointer;
 }
 

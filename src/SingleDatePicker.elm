@@ -189,6 +189,8 @@ isOpen (DatePicker { status }) =
 type Msg
     = NextMonth
     | PrevMonth
+    | NextYear
+    | PrevYear
     | SetDay Posix
     | SetHour Int
     | SetMinute Int
@@ -205,6 +207,12 @@ update msg (DatePicker model) =
 
                 PrevMonth ->
                     ( DatePicker { model | viewOffset = model.viewOffset - 1 }, Nothing )
+
+                NextYear ->
+                    ( DatePicker { model | viewOffset = model.viewOffset + 12 }, Nothing )
+
+                PrevYear ->
+                    ( DatePicker { model | viewOffset = model.viewOffset - 12 }, Nothing )
 
                 SetDay time ->
                     let
@@ -274,7 +282,7 @@ viewCalendarHeader settings model time =
     in
     div
         [ class (classPrefix ++ "calendar-header") ]
-        [ div [ class (classPrefix ++ "calendar-header-month") ]
+        [ div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
                 [ class (classPrefix ++ "calendar-header-chevron")
                 , onClick <| settings.internalMsg <| update PrevMonth (DatePicker model)
@@ -295,10 +303,26 @@ viewCalendarHeader settings model time =
                     |> Icons.toHtml []
                 ]
             ]
-        , div [ class (classPrefix ++ "calendar-header-year") ]
+        , div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
+                [ class (classPrefix ++ "calendar-header-chevron")
+                , onClick <| settings.internalMsg <| update PrevYear (DatePicker model)
+                ]
+                [ Icons.chevronsLeft
+                    |> Icons.withSize 12
+                    |> Icons.toHtml []
+                ]
+            , div
                 [ class (classPrefix ++ "calendar-header-text") ]
                 [ div [] [ text year ] ]
+            , div
+                [ class (classPrefix ++ "calendar-header-chevron")
+                , onClick <| settings.internalMsg <| update NextYear (DatePicker model)
+                ]
+                [ Icons.chevronsRight
+                    |> Icons.withSize 12
+                    |> Icons.toHtml []
+                ]
             ]
         , viewWeekHeader settings [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
         ]

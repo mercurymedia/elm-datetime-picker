@@ -208,6 +208,8 @@ isOpen (DatePicker { status }) =
 type Msg
     = NextMonth
     | PrevMonth
+    | NextYear
+    | PrevYear
     | SetHoveredDay Posix
     | ClearHoveredDay
     | SetRange Posix ( Maybe Posix, Maybe Posix )
@@ -248,6 +250,12 @@ update msg (DatePicker model) =
 
                 PrevMonth ->
                     ( DatePicker { model | pickerOffset = model.pickerOffset - 1 }, Nothing )
+
+                NextYear ->
+                    ( DatePicker { model | pickerOffset = model.pickerOffset + 12 }, Nothing )
+
+                PrevYear ->
+                    ( DatePicker { model | pickerOffset = model.pickerOffset - 12 }, Nothing )
 
                 SetHoveredDay time ->
                     ( DatePicker { model | hovered = Just time }, Nothing )
@@ -402,22 +410,42 @@ view settings (DatePicker model) =
 
 viewPickerHeader : Settings msg -> Model -> Html msg
 viewPickerHeader settings model =
-    div [ class (classPrefix ++ "picker-header") ]
-        [ div
-            [ class (classPrefix ++ "picker-header-chevron")
-            , onClick <| settings.internalMsg <| update PrevMonth (DatePicker model)
+    div []
+        [ div [ class (classPrefix ++ "picker-header-chevrons") ]
+            [ div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update PrevMonth (DatePicker model)
+                ]
+                [ Icons.chevronLeft
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
+            , div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update NextMonth (DatePicker model)
+                ]
+                [ Icons.chevronRight
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
             ]
-            [ Icons.chevronLeft
-                |> Icons.withSize 15
-                |> Icons.toHtml []
-            ]
-        , div
-            [ class (classPrefix ++ "picker-header-chevron")
-            , onClick <| settings.internalMsg <| update NextMonth (DatePicker model)
-            ]
-            [ Icons.chevronRight
-                |> Icons.withSize 15
-                |> Icons.toHtml []
+        , div [ class (classPrefix ++ "picker-header-chevrons") ]
+            [ div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update PrevYear (DatePicker model)
+                ]
+                [ Icons.chevronsLeft
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
+            , div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update NextYear (DatePicker model)
+                ]
+                [ Icons.chevronsRight
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
             ]
         ]
 
