@@ -62,8 +62,7 @@ type alias Settings msg =
     , formattedMonth : Month -> String
     , today : Maybe Posix
     , dayDisabled : Posix -> Bool
-    , internalMsg : DatePicker -> msg
-    , selectedMsg : Posix -> msg
+    , internalMsg : ( DatePicker, Maybe Posix ) -> msg
     }
 
 
@@ -72,31 +71,22 @@ type Status
     | Open Posix
 
 
-type alias MsgConfig msg =
-    { internalMsg : DatePicker -> msg
-    , externalMsg : Posix -> msg
-    }
-
-
 {-| A record of default settings for the date picker. Extend this if
 you want to further customize the date picker.
 
-Requires a MsgConfig msg record to set the date picker's internal and external
-msg indicators
+Requires a `msg` that expects a tuple containing a datepicker instance
+and a `Maybe Posix` representing a selected datetime.
 
-    { internalMsg : DatePicker -> msg
-    , externalMsg : Posix -> msg
-    }
+    ( DatePicker, Maybe ( Posix, Posix ) ) -> msg
 
 -}
-defaultSettings : MsgConfig msg -> Settings msg
-defaultSettings { internalMsg, externalMsg } =
+defaultSettings : (( DatePicker, Maybe Posix ) -> msg) -> Settings msg
+defaultSettings internalMsg =
     { formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
     , today = Nothing
     , dayDisabled = always False
     , internalMsg = internalMsg
-    , selectedMsg = externalMsg
     }
 
 
@@ -118,7 +108,7 @@ datePickerId =
 
 {-| Events external to the picker to which it is subscribed.
 -}
-subscriptions : (DatePicker -> msg) -> DatePicker -> Sub msg
+subscriptions : (( DatePicker, Maybe Posix ) -> msg) -> DatePicker -> Sub msg
 subscriptions internalMsg (DatePicker model) =
     case model.status of
         Open _ ->
@@ -128,7 +118,7 @@ subscriptions internalMsg (DatePicker model) =
             Sub.none
 
 
-clickedOutsidePicker : String -> (DatePicker -> msg) -> DatePicker -> Decode.Decoder msg
+clickedOutsidePicker : String -> (( DatePicker, Maybe Posix ) -> msg) -> DatePicker -> Decode.Decoder msg
 clickedOutsidePicker componentId internalMsg datePicker =
     Decode.field "target" (Utilities.eventIsOutsideComponent componentId)
         |> Decode.andThen
@@ -207,37 +197,49 @@ type Msg
     | Close
 
 
-update : Msg -> DatePicker -> DatePicker
+update : Msg -> DatePicker -> ( DatePicker, Maybe Posix )
 update msg (DatePicker model) =
     case model.status of
         Open baseTime ->
             case msg of
                 NextMonth ->
-                    DatePicker { model | viewOffset = model.viewOffset + 1 }
+                    ( DatePicker { model | viewOffset = model.viewOffset + 1 }, Nothing )
 
                 PrevMonth ->
-                    DatePicker { model | viewOffset = model.viewOffset - 1 }
+                    ( DatePicker { model | viewOffset = model.viewOffset - 1 }, Nothing )
 
                 NextYear ->
-                    DatePicker { model | viewOffset = model.viewOffset + 12 }
+                    ( DatePicker { model | viewOffset = model.viewOffset + 12 }, Nothing )
 
                 PrevYear ->
-                    DatePicker { model | viewOffset = model.viewOffset - 12 }
+                    ( DatePicker { model | viewOffset = model.viewOffset - 12 }, Nothing )
 
                 SetDay time ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setDayNotTime time (Maybe.withDefault (Time.floor Day Time.utc time) model.pickedTime) }
+                    let
+                        newTime =
+                            Just <| Utilities.setDayNotTime time (Maybe.withDefault (Time.floor Day Time.utc time) model.pickedTime)
+                    in
+                    ( DatePicker { model | pickedTime = newTime }, newTime )
 
                 SetHour hour ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setHourNotDay hour (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime) }
+                    let
+                        newTime =
+                            Just <| Utilities.setHourNotDay hour (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime)
+                    in
+                    ( DatePicker { model | pickedTime = newTime }, newTime )
 
                 SetMinute minute ->
-                    DatePicker { model | pickedTime = Just <| Utilities.setMinuteNotDay minute (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime) }
+                    let
+                        newTime =
+                            Just <| Utilities.setMinuteNotDay minute (Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedTime)
+                    in
+                    ( DatePicker { model | pickedTime = newTime }, newTime )
 
                 Close ->
-                    DatePicker { model | status = Closed }
+                    ( DatePicker { model | status = Closed }, Nothing )
 
         Closed ->
-            DatePicker model
+            ( DatePicker model, Nothing )
 
 
 classPrefix : String
@@ -368,13 +370,13 @@ viewDay : Settings msg -> Model -> Month -> Maybe Posix -> Parts -> Html msg
 viewDay settings model currentMonth pickedTime day =
     let
         isToday =
-            Maybe.map (\tday -> Utilities.doDaysMatch day (Time.posixToParts Time.utc tday)) settings.today
+            Maybe.map (\tday -> Utilities.doDaysMatch (Time.partsToPosix Time.utc day) tday) settings.today
                 |> Maybe.withDefault False
 
         isPicked =
             case pickedTime of
                 Just time ->
-                    Utilities.doDaysMatch day (Time.posixToParts Time.utc time)
+                    Utilities.doDaysMatch (Time.partsToPosix Time.utc day) time
 
                 Nothing ->
                     False
@@ -401,26 +403,7 @@ viewFooter : Settings msg -> Model -> Maybe Posix -> Html msg
 viewFooter settings model pickedTime =
     div
         [ class (classPrefix ++ "footer") ]
-        [ viewTimePicker settings model pickedTime
-        , div [ class (classPrefix ++ "confirm-button-container") ] [ viewConfirmButton settings pickedTime ]
-        ]
-
-
-viewConfirmButton : Settings msg -> Maybe Posix -> Html msg
-viewConfirmButton settings pickedTime =
-    let
-        ( classStr, confirmAction ) =
-            Maybe.map (\picked -> ( classPrefix ++ "confirm-button", [ onClick <| settings.selectedMsg picked ] )) pickedTime
-                |> Maybe.withDefault ( classPrefix ++ "confirm-button " ++ classPrefix ++ "disabled", [] )
-
-        confirmAttrs =
-            [ class classStr, type_ "button", attribute "aria-label" "confirm" ] ++ confirmAction
-    in
-    button confirmAttrs
-        [ Icons.check
-            |> Icons.withSize 16
-            |> Icons.toHtml []
-        ]
+        [ viewTimePicker settings model pickedTime ]
 
 
 viewTimePicker : Settings msg -> Model -> Maybe Posix -> Html msg

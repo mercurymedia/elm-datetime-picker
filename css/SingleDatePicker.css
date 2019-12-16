@@ -123,30 +123,3 @@
     display: inline-flex;
     padding: 0 .25rem 0 .25rem;
 }
-
-.elm-datetimepicker-single--confirm-button-container {
-    display: inline-flex;
-    align-items: center;
-}
-
-.elm-datetimepicker-single--confirm-button {
-    display: inline-flex;
-    height: 30px;
-    width: 50px;
-    border: 1px solid #a0aec0;
-    border-radius: 3px;
-    justify-content: center;
-    align-items: center;
-    color: #38c172;
-    cursor: pointer;
-}
-
-.elm-datetimepicker-single--confirm-button:hover {
-    border-color: #38c172;
-}
-
-.elm-datetimepicker-single--confirm-button.elm-datetimepicker-single--disabled {
-    color: #a0aec0;
-    border-color: #a0aec0;
-    cursor: not-allowed;
-}

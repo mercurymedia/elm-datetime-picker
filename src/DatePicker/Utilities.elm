@@ -172,7 +172,7 @@ addLeadingZero value =
         string
 
 
-durationDayPickedOrBetween : Parts -> Maybe Posix -> ( Maybe Posix, Maybe Posix ) -> ( Bool, Bool )
+durationDayPickedOrBetween : Posix -> Maybe Posix -> ( Maybe Posix, Maybe Posix ) -> ( Bool, Bool )
 durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
     case ( pickedStart, pickedEnd ) of
         ( Nothing, Nothing ) ->
@@ -181,12 +181,12 @@ durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
         ( Just start, Nothing ) ->
             let
                 picked =
-                    doDaysMatch day (Time.posixToParts Time.utc start)
+                    doDaysMatch day start
 
                 between =
                     case hovered of
                         Just hoveredTime ->
-                            isDayBetweenPickedAndHovered (Time.partsToPosix Time.utc day) start hoveredTime
+                            isDayBetweenDates day start hoveredTime
 
                         Nothing ->
                             False
@@ -196,12 +196,12 @@ durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
         ( Nothing, Just end ) ->
             let
                 picked =
-                    doDaysMatch day (Time.posixToParts Time.utc end)
+                    doDaysMatch day end
 
                 between =
                     case hovered of
                         Just hoveredTime ->
-                            isDayBetweenPickedAndHovered (Time.partsToPosix Time.utc day) end hoveredTime
+                            isDayBetweenDates day end hoveredTime
 
                         Nothing ->
                             False
@@ -211,49 +211,54 @@ durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
         ( Just start, Just end ) ->
             let
                 picked =
-                    doDaysMatch day (Time.posixToParts Time.utc end) || doDaysMatch day (Time.posixToParts Time.utc start)
+                    doDaysMatch day end || doDaysMatch day start
 
                 between =
-                    isDayBetweenPicks (Time.partsToPosix Time.utc day) start end
+                    isDayBetweenDates day start end
             in
             ( picked, between )
 
 
-isDayBetweenPickedAndHovered : Posix -> Posix -> Posix -> Bool
-isDayBetweenPickedAndHovered day picked hovered =
-    (Time.posixToMillis picked
+isDayBetweenDates : Posix -> Posix -> Posix -> Bool
+isDayBetweenDates day dateOne dateTwo =
+    (Time.posixToMillis dateOne
         > Time.posixToMillis day
         && Time.posixToMillis day
-        > Time.posixToMillis hovered
+        > Time.posixToMillis dateTwo
     )
-        || (Time.posixToMillis picked
+        || (Time.posixToMillis dateOne
                 < Time.posixToMillis day
                 && Time.posixToMillis day
-                < Time.posixToMillis hovered
+                < Time.posixToMillis dateTwo
            )
 
 
-isDayBetweenPicks : Posix -> Posix -> Posix -> Bool
-isDayBetweenPicks day start end =
-    Time.posixToMillis start
-        < Time.posixToMillis day
-        && Time.posixToMillis day
-        < Time.posixToMillis end
+doDaysMatch : Posix -> Posix -> Bool
+doDaysMatch dateTimeOne dateTimeTwo =
+    let
+        oneParts =
+            Time.posixToParts Time.utc dateTimeOne
+
+        twoParts =
+            Time.posixToParts Time.utc dateTimeTwo
+    in
+    oneParts.day == twoParts.day && oneParts.month == twoParts.month && oneParts.year == twoParts.year
 
 
-doDaysMatch : Parts -> Parts -> Bool
-doDaysMatch refDay targetDay =
-    refDay.day == targetDay.day && refDay.month == targetDay.month && refDay.year == targetDay.year
-
-
-switchTimes : Parts -> Parts -> ( Posix, Posix )
+switchTimes : Posix -> Posix -> ( Posix, Posix )
 switchTimes dateTimeOne dateTimeTwo =
     let
+        oneParts =
+            Time.posixToParts Time.utc dateTimeOne
+
+        twoParts =
+            Time.posixToParts Time.utc dateTimeTwo
+
         newOne =
-            { dateTimeOne | hour = dateTimeTwo.hour, minute = dateTimeTwo.minute } |> Time.partsToPosix Time.utc
+            { oneParts | hour = twoParts.hour, minute = twoParts.minute } |> Time.partsToPosix Time.utc
 
         newTwo =
-            { dateTimeTwo | hour = dateTimeOne.hour, minute = dateTimeOne.minute } |> Time.partsToPosix Time.utc
+            { twoParts | hour = oneParts.hour, minute = oneParts.minute } |> Time.partsToPosix Time.utc
     in
     ( newOne, newTwo )
 

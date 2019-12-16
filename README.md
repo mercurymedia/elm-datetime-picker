@@ -9,11 +9,11 @@ Single and duration datetime picker components written in Elm 0.19
 
 #### Single Picker
 
-![SinglePicker](https://user-images.githubusercontent.com/20546636/64876897-82b2e280-d650-11e9-8b36-5609125b1665.gif)
+![SinglePicker](https://user-images.githubusercontent.com/20546636/70648536-8bb15100-1c4b-11ea-8faa-6f3fc9b9715a.gif)
 
 #### Duration Picker
 
-![DurationPicker](https://user-images.githubusercontent.com/20546636/64876920-91999500-d650-11e9-8f56-3088930b64f7.gif)
+![DurationPicker](https://user-images.githubusercontent.com/20546636/70648518-7f2cf880-1c4b-11ea-8c6e-e97e4615c34c.gif)
 
 ## Usage
 
@@ -40,17 +40,16 @@ init =
     )
 ```
 
-2) Two messages need to be defined: one for updates internal to the datepicker and one that indicates a datetime has been confirmed. These messages are added to the picker settings.
+2) One message needs to be defined that expects an updated `DatePicker` instance as well as a `Maybe Posix` representing a datetime selection. This message is added to the picker settings.
 
 ```elm
 type Msg
     = ...
-    | Selected Posix -- the external confirm msg
-    | UpdatePicker DatePicker.DatePicker -- the internal update msg
+    | UpdatePicker ( DatePicker.DatePicker, Maybe Posix )
 
 userDefinedDatePickerSettings : DatePicker.Settings Msg
 userDefinedDatePickerSettings =
-    DatePicker.defaultSettings { internalMsg = UpdatePicker, externalMsg = Selected }
+    DatePicker.defaultSettings UpdatePicker
 ```
     
 3) We call the `DatePicker.view` function, passing it the defined settings and the `DatePicker` instance to be operated on. Because the messages for handling picker updates are defined in the calling module and passed in via the settings, we do not need to worry about `Html.map`ping!
@@ -81,8 +80,7 @@ type alias Model =
 type Msg
     = ...
     | OpenPicker
-    | Selected Posix
-    | UpdatePicker DatePicker.DatePicker
+    | UpdatePicker ( DatePicker.DatePicker, Maybe Posix )
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -92,21 +90,13 @@ update msg model =
         OpenPicker ->
             ( { model | picker = DatePicker.openPicker model.today model.pickedTime model.picker }, Cmd.none )
 
-        Selected time ->
-            let
-                -- Don't want to close after confirming picked date? No problem, just remove the picker update!
-                newPicker =
-                    DatePicker.closePicker model.picker
-            in
-            ( { model | pickedTime = Just time, picker = newPicker }, Cmd.none )
-
-        UpdatePicker newPicker ->
-            ( { model | picker = newPicker }, Cmd.none )
+        UpdatePicker ( newPicker, maybeNewTime ) ->
+            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
 ```
 
 The user is responsible for defining his or her own `Open` picker message and placing the relevant event listener where he or she pleases. When handling this message in the `update` as seen above, we call `DatePicker.openPicker` which simply returns an updated picker instance to be stored on the model (`DatePicker.closePicker` is also provided and returns an updated picker instance like `openPicker` does). `DatePicker.openPicker` takes a `Posix` (the base time), a `Maybe Posix` (the picked time), and the `DatePicker` instance we wish to open. The base time is used to inform the picker what day it should center on in the event no datetime has been selected yet. This could be the current date or another date of the implementer's choosing.
 
-Remember those two messages we passed into the `DatePicker` settings? Here is where they come into play. One of them, `UpdatePicker` let's us know that an update of the `DatePicker` instance's internal state has occured. Seeing as we don't need to do any additional processing here, the `UpdatePicker` message simply carries the updated `DatePicker` instance along with it to save in the model of the calling module. `Selected` is an external message that notifies us that a datetime has been picked _and_ confirmed. This message carries the datetime that should be saved in the calling module.
+Remember that message we passed into the `DatePicker` settings? Here is where it comes into play. `UpdatePicker` let's us know that an update of the `DatePicker` instance's internal state has occured. Seeing as we don't need to do any additional processing here, the `UpdatePicker` message simply carries the updated `DatePicker` instance along with it to save in the model of the calling module. Additionally, we get a `Maybe Posix`. In the case of `Just` a time, we set that on the model as the new `pickedTime` otherwise we default to the current `pickedTime`.
 
 ## Automatically close the picker
 
@@ -128,8 +118,7 @@ type alias Settings msg =
     , formattedMonth : Month -> String
     , today : Maybe Posix
     , dayDisabled : Posix -> Bool
-    , internalMsg : DatePicker -> msg
-    , selectedMsg : Posix -> msg
+    , internalMsg : ( DatePicker, Maybe Posix ) -> msg
     }
 ```
 

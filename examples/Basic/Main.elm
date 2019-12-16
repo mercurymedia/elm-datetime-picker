@@ -1,7 +1,6 @@
 module DatePickerExample.Basic.Main exposing (main)
 
 import Browser
-import DatePicker.Utilities as Utilities
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
@@ -12,8 +11,7 @@ import Time.Extra as Time exposing (Interval(..))
 
 type Msg
     = OpenPicker
-    | Selected Posix
-    | UpdatePicker SingleDatePicker.DatePicker
+    | UpdatePicker ( SingleDatePicker.DatePicker, Maybe Posix )
 
 
 type alias Model =
@@ -29,16 +27,8 @@ update msg model =
         OpenPicker ->
             ( { model | picker = SingleDatePicker.openPicker model.today model.pickedTime model.picker }, Cmd.none )
 
-        Selected time ->
-            let
-                -- Don't want to close after confirming picked date? No problem, just remove the picker update!
-                newPicker =
-                    SingleDatePicker.closePicker model.picker
-            in
-            ( { model | pickedTime = Just time, picker = newPicker }, Cmd.none )
-
-        UpdatePicker newPicker ->
-            ( { model | picker = newPicker }, Cmd.none )
+        UpdatePicker ( newPicker, maybeNewTime ) ->
+            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
 
 
 isDateBeforeToday : Posix -> Posix -> Bool
@@ -50,7 +40,7 @@ userDefinedDatePickerSettings : Posix -> Settings Msg
 userDefinedDatePickerSettings today =
     let
         defaults =
-            defaultSettings { internalMsg = UpdatePicker, externalMsg = Selected }
+            defaultSettings UpdatePicker
     in
     { defaults
         | dayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime
@@ -70,7 +60,7 @@ view model =
                 ]
             , case model.pickedTime of
                 Just date ->
-                    text (Utilities.toUtcDateTimeString date)
+                    text (posixToDateString date ++ " " ++ posixToTimeString date)
 
                 Nothing ->
                     text "No date selected yet!"
@@ -105,3 +95,79 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
+
+
+
+-- VIEW UTILITIES - these are not required for the package to work, they are used here simply to format the selected dates
+
+
+addLeadingZero : Int -> String
+addLeadingZero value =
+    let
+        string =
+            String.fromInt value
+    in
+    if String.length string == 1 then
+        "0" ++ string
+
+    else
+        string
+
+
+monthToNmbString : Month -> String
+monthToNmbString month =
+    case month of
+        Jan ->
+            "01"
+
+        Feb ->
+            "02"
+
+        Mar ->
+            "03"
+
+        Apr ->
+            "04"
+
+        May ->
+            "05"
+
+        Jun ->
+            "06"
+
+        Jul ->
+            "07"
+
+        Aug ->
+            "08"
+
+        Sep ->
+            "09"
+
+        Oct ->
+            "10"
+
+        Nov ->
+            "11"
+
+        Dec ->
+            "12"
+
+
+posixToDateString : Posix -> String
+posixToDateString date =
+    addLeadingZero (Time.toDay Time.utc date)
+        ++ "."
+        ++ monthToNmbString (Time.toMonth Time.utc date)
+        ++ "."
+        ++ addLeadingZero (Time.toYear Time.utc date)
+
+
+posixToTimeString : Posix -> String
+posixToTimeString datetime =
+    addLeadingZero (Time.toHour Time.utc datetime)
+        ++ ":"
+        ++ addLeadingZero (Time.toMinute Time.utc datetime)
+        ++ ":"
+        ++ addLeadingZero (Time.toSecond Time.utc datetime)
+        ++ " (UTC)"

@@ -28,7 +28,7 @@ import Browser.Events
 import DatePicker.Icons as Icons
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities
-import Html exposing (Html, button, div, select, text)
+import Html exposing (Html, button, div, select, span, text)
 import Html.Attributes exposing (attribute, class, id, type_)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
@@ -41,12 +41,9 @@ import Time.Extra as Time exposing (Interval(..), Parts)
 type alias Model =
     { status : Status
     , hovered : Maybe Posix
-    , leftPickerViewOffset : Int
-    , rightPickerViewOffset : Int
-    , pickedStartDay : Maybe Posix
-    , pickedStartTime : Maybe Posix
-    , pickedEndDay : Maybe Posix
-    , pickedEndTime : Maybe Posix
+    , pickerOffset : Int
+    , pickedStart : Maybe Posix
+    , pickedEnd : Maybe Posix
     }
 
 
@@ -67,8 +64,9 @@ type alias Settings msg =
     , formattedMonth : Month -> String
     , today : Maybe Posix
     , dayDisabled : Posix -> Bool
-    , internalMsg : DatePicker -> msg
-    , selectedMsg : Posix -> Posix -> msg
+    , internalMsg : ( DatePicker, Maybe ( Posix, Posix ) ) -> msg
+    , dateStringFn : Posix -> String
+    , timeStringFn : Posix -> String
     }
 
 
@@ -77,41 +75,29 @@ type Status
     | Open Posix
 
 
-type LeftOrRight
-    = Left
-    | Right
-
-
 type StartOrEnd
     = Start
     | End
 
 
-type alias MsgConfig msg =
-    { internalMsg : DatePicker -> msg
-    , externalMsg : Posix -> Posix -> msg
-    }
-
-
 {-| A record of default settings for the date picker. Extend this if
 you want to further customize the date picker.
 
-Requires a MsgConfig msg record to set the date picker's internal and external
-msg indicators
+Requires a `msg` that expects a tuple containing a datepicker instance
+and a `Maybe` tuple representing a selected duration.
 
-    { internalMsg : DatePicker -> msg
-    , externalMsg : Posix -> msg
-    }
+    ( DatePicker, Maybe ( Posix, Posix ) ) -> msg
 
 -}
-defaultSettings : MsgConfig msg -> Settings msg
-defaultSettings { internalMsg, externalMsg } =
+defaultSettings : (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> Settings msg
+defaultSettings internalMsg =
     { formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
     , today = Nothing
     , dayDisabled = always False
     , internalMsg = internalMsg
-    , selectedMsg = externalMsg
+    , dateStringFn = \_ -> ""
+    , timeStringFn = \_ -> ""
     }
 
 
@@ -122,12 +108,9 @@ init =
     DatePicker
         { status = Closed
         , hovered = Nothing
-        , leftPickerViewOffset = 0
-        , rightPickerViewOffset = 0
-        , pickedStartDay = Nothing
-        , pickedStartTime = Nothing
-        , pickedEndDay = Nothing
-        , pickedEndTime = Nothing
+        , pickerOffset = 0
+        , pickedStart = Nothing
+        , pickedEnd = Nothing
         }
 
 
@@ -138,7 +121,7 @@ datePickerId =
 
 {-| Events external to the picker to which it is subscribed.
 -}
-subscriptions : (DatePicker -> msg) -> DatePicker -> Sub msg
+subscriptions : (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> DatePicker -> Sub msg
 subscriptions internalMsg (DatePicker model) =
     case model.status of
         Open _ ->
@@ -148,7 +131,7 @@ subscriptions internalMsg (DatePicker model) =
             Sub.none
 
 
-clickedOutsidePicker : String -> (DatePicker -> msg) -> DatePicker -> Decode.Decoder msg
+clickedOutsidePicker : String -> (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> DatePicker -> Decode.Decoder msg
 clickedOutsidePicker componentId internalMsg datePicker =
     Decode.field "target" (Utilities.eventIsOutsideComponent componentId)
         |> Decode.andThen
@@ -161,72 +144,26 @@ clickedOutsidePicker componentId internalMsg datePicker =
             )
 
 
-calculatePickerOffsets : Posix -> Maybe Posix -> Maybe Posix -> ( Int, Int )
-calculatePickerOffsets baseTime startDay endDay =
+calculatePickerOffset : Posix -> Maybe Posix -> Int
+calculatePickerOffset baseTime pickedStartTime =
     let
         flooredBase =
             Time.floor Month Time.utc baseTime
     in
-    case ( startDay, endDay ) of
-        ( Nothing, Nothing ) ->
-            ( 0, 1 )
+    case pickedStartTime of
+        Nothing ->
+            0
 
-        ( Just start, Nothing ) ->
+        Just time ->
             let
                 flooredStart =
-                    Time.floor Month Time.utc start
-
-                leftOffset =
-                    if Time.posixToMillis flooredBase <= Time.posixToMillis flooredStart then
-                        Time.diff Month Time.utc flooredBase flooredStart
-
-                    else
-                        0 - Time.diff Month Time.utc flooredStart flooredBase
+                    Time.floor Month Time.utc time
             in
-            ( leftOffset, leftOffset + 1 )
+            if Time.posixToMillis flooredBase <= Time.posixToMillis flooredStart then
+                Time.diff Month Time.utc flooredBase flooredStart
 
-        ( Nothing, Just end ) ->
-            let
-                flooredEnd =
-                    Time.floor Month Time.utc end
-
-                rightOffset =
-                    if Time.posixToMillis flooredBase <= Time.posixToMillis flooredEnd then
-                        Time.diff Month Time.utc flooredBase flooredEnd
-
-                    else
-                        0 - Time.diff Month Time.utc flooredEnd flooredBase
-            in
-            ( rightOffset - 1, rightOffset )
-
-        ( Just start, Just end ) ->
-            let
-                flooredStart =
-                    Time.floor Month Time.utc start
-
-                flooredEnd =
-                    Time.floor Month Time.utc end
-
-                leftOffset =
-                    if Time.posixToMillis flooredBase <= Time.posixToMillis flooredStart then
-                        Time.diff Month Time.utc flooredBase flooredStart
-
-                    else
-                        0 - Time.diff Month Time.utc flooredStart flooredBase
-
-                rightOffset =
-                    let
-                        startEndDiff =
-                            Time.diff Month Time.utc flooredStart flooredEnd
-                    in
-                    case startEndDiff of
-                        0 ->
-                            leftOffset + 1
-
-                        _ ->
-                            leftOffset + startEndDiff
-            in
-            ( leftOffset, rightOffset )
+            else
+                0 - Time.diff Month Time.utc flooredStart flooredBase
 
 
 {-| Open the provided date picker and receive the updated picker instance. Also
@@ -235,20 +172,17 @@ been picked) as well as the picked start and end times. A common example of a de
 would be the datetime for the current day.
 -}
 openPicker : Posix -> Maybe Posix -> Maybe Posix -> DatePicker -> DatePicker
-openPicker baseTime startTime endTime (DatePicker model) =
+openPicker baseTime start end (DatePicker model) =
     let
-        ( leftPickerOffset, rightPickerOffset ) =
-            calculatePickerOffsets baseTime startTime endTime
+        pickerOffset =
+            calculatePickerOffset baseTime start
     in
     DatePicker
         { model
             | status = Open baseTime
-            , pickedStartDay = Maybe.map (Time.floor Day Time.utc) startTime
-            , pickedStartTime = startTime
-            , pickedEndDay = Maybe.map (Time.floor Day Time.utc) endTime
-            , pickedEndTime = endTime
-            , leftPickerViewOffset = leftPickerOffset
-            , rightPickerViewOffset = rightPickerOffset
+            , pickedStart = start
+            , pickedEnd = end
+            , pickerOffset = pickerOffset
         }
 
 
@@ -272,21 +206,34 @@ isOpen (DatePicker { status }) =
 
 
 type Msg
-    = BothViewsPrevMonth
-    | BothViewsNextMonth
-    | NextMonth LeftOrRight
-    | PrevMonth LeftOrRight
-    | NextYear LeftOrRight
-    | PrevYear LeftOrRight
+    = NextMonth
+    | PrevMonth
+    | NextYear
+    | PrevYear
     | SetHoveredDay Posix
     | ClearHoveredDay
-    | SetDay Posix
+    | SetRange Posix ( Maybe Posix, Maybe Posix )
     | SetHour StartOrEnd Int
     | SetMinute StartOrEnd Int
     | Close
 
 
-update : Msg -> DatePicker -> DatePicker
+validRuntimeOrNothing : Maybe Posix -> Maybe Posix -> Maybe ( Posix, Posix )
+validRuntimeOrNothing start end =
+    Maybe.map2
+        (\s e ->
+            if Time.posixToMillis s < Time.posixToMillis e then
+                Just ( s, e )
+
+            else
+                Nothing
+        )
+        start
+        end
+        |> Maybe.withDefault Nothing
+
+
+update : Msg -> DatePicker -> ( DatePicker, Maybe ( Posix, Posix ) )
 update msg (DatePicker model) =
     case model.status of
         Open baseTime ->
@@ -298,190 +245,133 @@ update msg (DatePicker model) =
                     Time.floor Day Time.utc baseTime
             in
             case msg of
-                BothViewsPrevMonth ->
-                    DatePicker { model | leftPickerViewOffset = model.leftPickerViewOffset - 1, rightPickerViewOffset = model.rightPickerViewOffset - 1 }
+                NextMonth ->
+                    ( DatePicker { model | pickerOffset = model.pickerOffset + 1 }, Nothing )
 
-                BothViewsNextMonth ->
-                    DatePicker { model | leftPickerViewOffset = model.leftPickerViewOffset + 1, rightPickerViewOffset = model.rightPickerViewOffset + 1 }
+                PrevMonth ->
+                    ( DatePicker { model | pickerOffset = model.pickerOffset - 1 }, Nothing )
 
-                NextMonth leftOrRight ->
-                    case leftOrRight of
-                        Left ->
-                            DatePicker { model | leftPickerViewOffset = model.leftPickerViewOffset + 1 }
+                NextYear ->
+                    ( DatePicker { model | pickerOffset = model.pickerOffset + 12 }, Nothing )
 
-                        Right ->
-                            DatePicker { model | rightPickerViewOffset = model.rightPickerViewOffset + 1 }
-
-                PrevMonth leftOrRight ->
-                    case leftOrRight of
-                        Left ->
-                            DatePicker { model | leftPickerViewOffset = model.leftPickerViewOffset - 1 }
-
-                        Right ->
-                            DatePicker { model | rightPickerViewOffset = model.rightPickerViewOffset - 1 }
-
-                NextYear leftOrRight ->
-                    case leftOrRight of
-                        Left ->
-                            DatePicker { model | leftPickerViewOffset = model.leftPickerViewOffset + 12 }
-
-                        Right ->
-                            DatePicker { model | rightPickerViewOffset = model.rightPickerViewOffset + 12 }
-
-                PrevYear leftOrRight ->
-                    case leftOrRight of
-                        Left ->
-                            DatePicker { model | leftPickerViewOffset = model.leftPickerViewOffset - 12 }
-
-                        Right ->
-                            DatePicker { model | rightPickerViewOffset = model.rightPickerViewOffset - 12 }
+                PrevYear ->
+                    ( DatePicker { model | pickerOffset = model.pickerOffset - 12 }, Nothing )
 
                 SetHoveredDay time ->
-                    case ( model.pickedStartDay, model.pickedEndDay ) of
-                        ( Nothing, Nothing ) ->
-                            DatePicker model
-
-                        ( Just _, Nothing ) ->
-                            DatePicker { model | hovered = Just time }
-
-                        ( Nothing, Just _ ) ->
-                            DatePicker { model | hovered = Just time }
-
-                        ( Just _, Just _ ) ->
-                            DatePicker model
+                    ( DatePicker { model | hovered = Just time }, Nothing )
 
                 ClearHoveredDay ->
-                    DatePicker { model | hovered = Nothing }
+                    ( DatePicker { model | hovered = Nothing }, Nothing )
 
-                SetDay time ->
-                    case ( model.pickedStartDay, model.pickedEndDay ) of
-                        ( Nothing, Nothing ) ->
-                            let
-                                ( leftPickerOffset, rightPickerOffset ) =
-                                    calculatePickerOffsets baseTime (Just time) Nothing
-                            in
-                            DatePicker { model | pickedStartDay = Just time, leftPickerViewOffset = leftPickerOffset, rightPickerViewOffset = rightPickerOffset }
+                SetRange dayClicked ( start, end ) ->
+                    case ( model.pickedStart, model.pickedEnd ) of
+                        ( Just s, Just e ) ->
+                            if Utilities.doDaysMatch e dayClicked then
+                                ( DatePicker { model | pickedStart = start, pickedEnd = Nothing }, Nothing )
 
-                        ( Just start, Nothing ) ->
-                            let
-                                sParts =
-                                    Time.posixToParts Time.utc start
-
-                                tParts =
-                                    Time.posixToParts Time.utc time
-
-                                ( leftPickerOffset, rightPickerOffset ) =
-                                    calculatePickerOffsets baseTime (Just start) (Just time)
-
-                                ( switchedLeftPickerOffset, switchedRightPickerOffset ) =
-                                    calculatePickerOffsets baseTime (Just time) (Just start)
-                            in
-                            if Time.posixToMillis time < Time.posixToMillis start then
-                                let
-                                    ( newEnd, newStart ) =
-                                        Utilities.switchTimes sParts tParts
-                                in
-                                DatePicker { model | pickedStartDay = Just newStart, pickedEndDay = Just newEnd, leftPickerViewOffset = switchedLeftPickerOffset, rightPickerViewOffset = switchedRightPickerOffset }
+                            else if Utilities.doDaysMatch s dayClicked then
+                                ( DatePicker { model | pickedStart = Nothing, pickedEnd = end }, Nothing )
 
                             else
-                                DatePicker { model | pickedStartDay = Just start, pickedEndDay = Just time, leftPickerViewOffset = leftPickerOffset, rightPickerViewOffset = rightPickerOffset }
+                                ( DatePicker { model | pickedStart = Just dayClicked, pickedEnd = Nothing }, Nothing )
 
-                        ( Nothing, Just end ) ->
+                        _ ->
                             let
-                                eParts =
-                                    Time.posixToParts Time.utc end
-
-                                tParts =
-                                    Time.posixToParts Time.utc time
-
-                                ( leftPickerOffset, rightPickerOffset ) =
-                                    calculatePickerOffsets baseTime (Just time) (Just end)
-
-                                ( switchedLeftPickerOffset, switchedRightPickerOffset ) =
-                                    calculatePickerOffsets baseTime (Just end) (Just time)
+                                runtime =
+                                    validRuntimeOrNothing start end
                             in
-                            if Time.posixToMillis time < Time.posixToMillis end then
-                                DatePicker { model | pickedStartDay = Just time, pickedEndDay = Just end, leftPickerViewOffset = leftPickerOffset, rightPickerViewOffset = rightPickerOffset }
-
-                            else
-                                let
-                                    ( newStart, newEnd ) =
-                                        Utilities.switchTimes eParts tParts
-                                in
-                                DatePicker { model | pickedStartDay = Just newStart, pickedEndDay = Just newEnd, leftPickerViewOffset = switchedLeftPickerOffset, rightPickerViewOffset = switchedRightPickerOffset }
-
-                        ( Just start, Just end ) ->
-                            let
-                                sParts =
-                                    Time.posixToParts Time.utc start
-
-                                eParts =
-                                    Time.posixToParts Time.utc end
-
-                                tParts =
-                                    Time.posixToParts Time.utc time
-
-                                isDayStart =
-                                    Utilities.doDaysMatch sParts tParts
-
-                                isDayEnd =
-                                    Utilities.doDaysMatch eParts tParts
-                            in
-                            if isDayStart then
-                                DatePicker { model | pickedStartDay = Nothing }
-
-                            else if isDayEnd then
-                                DatePicker { model | pickedEndDay = Nothing }
-
-                            else
-                                let
-                                    ( leftPickerOffset, rightPickerOffset ) =
-                                        calculatePickerOffsets baseTime (Just time) Nothing
-                                in
-                                DatePicker { model | pickedStartDay = Just time, pickedEndDay = Nothing, leftPickerViewOffset = leftPickerOffset, rightPickerViewOffset = rightPickerOffset }
+                            ( DatePicker { model | pickedStart = start, pickedEnd = end }, runtime )
 
                 SetHour startOrEnd hour ->
                     case startOrEnd of
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setHourNotDay hour (Maybe.withDefault flooredBaseTime model.pickedStartTime)
+                                    Utilities.setHourNotDay hour (Maybe.withDefault flooredBaseTime model.pickedStart)
                             in
-                            DatePicker { model | pickedStartTime = Just newTime }
+                            ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing (Just newTime) model.pickedEnd )
 
                         End ->
                             let
+                                defaultTime =
+                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault flooredBaseTime
+
                                 newTime =
-                                    Utilities.setHourNotDay hour (Maybe.withDefault flooredBaseTime model.pickedEndTime)
+                                    Utilities.setHourNotDay hour (Maybe.withDefault defaultTime model.pickedEnd)
                             in
-                            DatePicker { model | pickedEndTime = Just newTime }
+                            ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing model.pickedStart (Just newTime) )
 
                 SetMinute startOrEnd minute ->
                     case startOrEnd of
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setMinuteNotDay minute (Maybe.withDefault flooredBaseTime model.pickedStartTime)
+                                    Utilities.setMinuteNotDay minute (Maybe.withDefault flooredBaseTime model.pickedStart)
                             in
-                            DatePicker { model | pickedStartTime = Just newTime }
+                            ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing (Just newTime) model.pickedEnd )
 
                         End ->
                             let
+                                defaultTime =
+                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault flooredBaseTime
+
                                 newTime =
-                                    Utilities.setMinuteNotDay minute (Maybe.withDefault flooredBaseTime model.pickedEndTime)
+                                    Utilities.setMinuteNotDay minute (Maybe.withDefault defaultTime model.pickedEnd)
                             in
-                            DatePicker { model | pickedEndTime = Just newTime }
+                            ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing model.pickedStart (Just newTime) )
 
                 Close ->
-                    DatePicker { model | status = Closed }
+                    ( DatePicker { model | status = Closed }, Nothing )
 
         Closed ->
-            DatePicker model
+            ( DatePicker model, Nothing )
 
 
 classPrefix : String
 classPrefix =
     "elm-datetimepicker-duration--"
+
+
+determineDisplayDateTimes : Settings msg -> Model -> ( Maybe Posix, Maybe Posix )
+determineDisplayDateTimes settings model =
+    case ( model.pickedStart, model.pickedEnd ) of
+        ( Nothing, Nothing ) ->
+            ( model.hovered, Nothing )
+
+        ( Just start, Nothing ) ->
+            case model.hovered of
+                Just hovered ->
+                    if firstLessThanOrEqualsSecond start hovered then
+                        ( Just start, Just hovered )
+
+                    else
+                        let
+                            ( newStart, newEnd ) =
+                                Utilities.switchTimes hovered start
+                        in
+                        ( Just newStart, Just newEnd )
+
+                Nothing ->
+                    ( Just start, Nothing )
+
+        ( Nothing, Just end ) ->
+            case model.hovered of
+                Just hovered ->
+                    if firstLessThanOrEqualsSecond hovered end then
+                        ( Just hovered, Just end )
+
+                    else
+                        let
+                            ( newStart, newEnd ) =
+                                Utilities.switchTimes end hovered
+                        in
+                        ( Just newStart, Just newEnd )
+
+                Nothing ->
+                    ( Nothing, Just end )
+
+        ( Just start, Just end ) ->
+            ( Just start, Just end )
 
 
 {-| The date picker view. Simply pass it the configured settings
@@ -493,10 +383,10 @@ view settings (DatePicker model) =
         Open baseTime ->
             let
                 leftViewTime =
-                    Time.add Month model.leftPickerViewOffset Time.utc baseTime
+                    Time.add Month model.pickerOffset Time.utc baseTime
 
                 rightViewTime =
-                    Time.add Month model.rightPickerViewOffset Time.utc baseTime
+                    Time.add Month (model.pickerOffset + 1) Time.utc baseTime
             in
             div
                 [ id datePickerId, class (classPrefix ++ "picker-container") ]
@@ -505,11 +395,11 @@ view settings (DatePicker model) =
                     [ class (classPrefix ++ "calendars-container") ]
                     [ div
                         [ class (classPrefix ++ "calendar") ]
-                        [ viewCalendar settings model Left ( leftViewTime, model.leftPickerViewOffset, model.rightPickerViewOffset ) ]
+                        [ viewCalendar settings model leftViewTime ]
                     , div [ class (classPrefix ++ "calendar-spacer") ] []
                     , div
                         [ class (classPrefix ++ "calendar") ]
-                        [ viewCalendar settings model Right ( rightViewTime, model.leftPickerViewOffset, model.rightPickerViewOffset ) ]
+                        [ viewCalendar settings model rightViewTime ]
                     ]
                 , div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings baseTime model ]
                 ]
@@ -520,121 +410,75 @@ view settings (DatePicker model) =
 
 viewPickerHeader : Settings msg -> Model -> Html msg
 viewPickerHeader settings model =
-    div [ class (classPrefix ++ "picker-header") ]
-        [ div
-            [ class (classPrefix ++ "picker-header-chevron")
-            , onClick <| settings.internalMsg <| update BothViewsPrevMonth (DatePicker model)
+    div []
+        [ div [ class (classPrefix ++ "picker-header-chevrons") ]
+            [ div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update PrevMonth (DatePicker model)
+                ]
+                [ Icons.chevronLeft
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
+            , div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update NextMonth (DatePicker model)
+                ]
+                [ Icons.chevronRight
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
             ]
-            [ Icons.chevronLeft
-                |> Icons.withSize 15
-                |> Icons.toHtml []
-            ]
-        , div
-            [ class (classPrefix ++ "picker-header-chevron")
-            , onClick <| settings.internalMsg <| update BothViewsNextMonth (DatePicker model)
-            ]
-            [ Icons.chevronRight
-                |> Icons.withSize 15
-                |> Icons.toHtml []
+        , div [ class (classPrefix ++ "picker-header-chevrons") ]
+            [ div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update PrevYear (DatePicker model)
+                ]
+                [ Icons.chevronsLeft
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
+            , div
+                [ class (classPrefix ++ "picker-header-chevron")
+                , onClick <| settings.internalMsg <| update NextYear (DatePicker model)
+                ]
+                [ Icons.chevronsRight
+                    |> Icons.withSize 15
+                    |> Icons.toHtml []
+                ]
             ]
         ]
 
 
-viewCalendar : Settings msg -> Model -> LeftOrRight -> ( Posix, Int, Int ) -> Html msg
-viewCalendar settings model leftOrRight ( viewTime, leftPointer, rightPointer ) =
+viewCalendar : Settings msg -> Model -> Posix -> Html msg
+viewCalendar settings model viewTime =
     div
         []
-        [ viewCalendarHeader settings model leftOrRight viewTime leftPointer rightPointer
+        [ viewCalendarHeader settings model viewTime
         , viewMonth settings model viewTime
         ]
 
 
-viewCalendarHeader : Settings msg -> Model -> LeftOrRight -> Posix -> Int -> Int -> Html msg
-viewCalendarHeader settings model leftOrRight viewTime leftPointer rightPointer =
+viewCalendarHeader : Settings msg -> Model -> Posix -> Html msg
+viewCalendarHeader settings model viewTime =
     let
         monthName =
             Time.toMonth Time.utc viewTime |> settings.formattedMonth
 
         year =
             Time.toYear Time.utc viewTime |> String.fromInt
-
-        ( ( prevMonthChevCls, prevYearChevCls ), ( nextMonthChevCls, nextYearChevCls ) ) =
-            let
-                baseChevronClass =
-                    classPrefix ++ "calendar-header-chevron"
-            in
-            case leftOrRight of
-                Left ->
-                    let
-                        nextMonthCls =
-                            if leftPointer + 1 >= rightPointer then
-                                classPrefix ++ "calendar-header-chevron " ++ classPrefix ++ "hidden"
-
-                            else
-                                baseChevronClass
-
-                        nextYearCls =
-                            if leftPointer + 12 >= rightPointer then
-                                classPrefix ++ "calendar-header-chevron " ++ classPrefix ++ "hidden"
-
-                            else
-                                baseChevronClass
-                    in
-                    ( ( baseChevronClass, baseChevronClass ), ( nextMonthCls, nextYearCls ) )
-
-                Right ->
-                    let
-                        prevMonthCls =
-                            if rightPointer - 1 <= leftPointer then
-                                classPrefix ++ "calendar-header-chevron " ++ classPrefix ++ "hidden"
-
-                            else
-                                baseChevronClass
-
-                        prevYearCls =
-                            if rightPointer - 12 <= leftPointer then
-                                classPrefix ++ "calendar-header-chevron " ++ classPrefix ++ "hidden"
-
-                            else
-                                baseChevronClass
-                    in
-                    ( ( prevMonthCls, prevYearCls ), ( baseChevronClass, baseChevronClass ) )
     in
     div
         [ class (classPrefix ++ "calendar-header") ]
         [ div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
-                [ class prevMonthChevCls, onClick <| settings.internalMsg <| update (PrevMonth leftOrRight) (DatePicker model) ]
-                [ Icons.chevronLeft
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
-                ]
-            , div
                 [ class (classPrefix ++ "calendar-header-text") ]
                 [ div [] [ text monthName ] ]
-            , div
-                [ class nextMonthChevCls, onClick <| settings.internalMsg <| update (NextMonth leftOrRight) (DatePicker model) ]
-                [ Icons.chevronRight
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
-                ]
             ]
         , div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
-                [ class prevYearChevCls, onClick <| settings.internalMsg <| update (PrevYear leftOrRight) (DatePicker model) ]
-                [ Icons.chevronsLeft
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
-                ]
-            , div
                 [ class (classPrefix ++ "calendar-header-text") ]
                 [ div [] [ text year ] ]
-            , div
-                [ class nextYearChevCls, onClick <| settings.internalMsg <| update (NextYear leftOrRight) (DatePicker model) ]
-                [ Icons.chevronsRight
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
-                ]
             ]
         , viewWeekHeader settings [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
         ]
@@ -682,11 +526,14 @@ viewDay : Settings msg -> Model -> Month -> Parts -> Html msg
 viewDay settings model currentMonth day =
     let
         isToday =
-            Maybe.map (\tday -> Utilities.doDaysMatch day (Time.posixToParts Time.utc tday)) settings.today
+            Maybe.map (\tday -> Utilities.doDaysMatch (Time.partsToPosix Time.utc day) tday) settings.today
                 |> Maybe.withDefault False
 
+        ( displayStart, displayEnd ) =
+            determineDisplayDateTimes settings model
+
         ( isPicked, isBetween ) =
-            Utilities.durationDayPickedOrBetween day model.hovered ( model.pickedStartDay, model.pickedEndDay )
+            Utilities.durationDayPickedOrBetween (Time.partsToPosix Time.utc day) model.hovered ( model.pickedStart, model.pickedEnd )
 
         isDisabled =
             settings.dayDisabled (Time.partsToPosix Time.utc day)
@@ -704,150 +551,80 @@ viewDay settings model currentMonth day =
                 baseAttrs
 
             else
-                baseAttrs ++ [ onClick <| settings.internalMsg (update (SetDay (Time.partsToPosix Time.utc day)) (DatePicker model)) ]
+                baseAttrs ++ [ onClick <| settings.internalMsg (update (SetRange (Time.partsToPosix Time.utc day) ( displayStart, displayEnd )) (DatePicker model)) ]
     in
     div
         attrs
         [ text (String.fromInt day.day) ]
 
 
+viewDateTime : Settings msg -> String -> Posix -> Html msg
+viewDateTime settings classString dateTime =
+    span []
+        [ text (settings.dateStringFn dateTime)
+        , span [ class (classPrefix ++ classString) ] [ text (settings.timeStringFn dateTime) ]
+        ]
+
+
+viewEmpty : Html msg
+viewEmpty =
+    span [] [ text "" ]
+
+
+determineDateTimeViews : Settings msg -> ( Maybe Posix, Maybe Posix ) -> ( Html msg, Html msg )
+determineDateTimeViews settings ( displayStart, displayEnd ) =
+    case ( displayStart, displayEnd ) of
+        ( Nothing, Nothing ) ->
+            ( viewEmpty, viewEmpty )
+
+        ( Just start, Nothing ) ->
+            ( viewDateTime settings "selection-time" start, viewEmpty )
+
+        ( Nothing, Just end ) ->
+            ( viewEmpty, viewDateTime settings "selection-time" end )
+
+        ( Just start, Just end ) ->
+            if start == end then
+                ( viewDateTime settings "selection-time" start, viewDateTime settings "selection-time-danger" end )
+
+            else if Time.posixToMillis start > Time.posixToMillis end then
+                ( viewDateTime settings "selection-time-danger" start, viewDateTime settings "selection-time" end )
+
+            else
+                ( viewDateTime settings "selection-time" start, viewDateTime settings "selection-time" end )
+
+
 viewFooter : Settings msg -> Posix -> Model -> Html msg
 viewFooter settings baseTime model =
+    let
+        ( startDate, endDate ) =
+            determineDisplayDateTimes settings model
+
+        ( startDisplayDate, endDisplayDate ) =
+            determineDateTimeViews settings ( startDate, endDate )
+    in
     div
         [ class (classPrefix ++ "footer") ]
         [ div [ class (classPrefix ++ "time-pickers-container") ]
-            [ div []
+            [ div [ class (classPrefix ++ "time-picker-information-container") ]
                 [ div
                     [ class (classPrefix ++ "time-picker-container") ]
-                    [ text "Start", viewTimePicker settings model Start model.pickedStartTime ]
+                    [ text "Start", viewTimePicker settings model Start startDate ]
+                , div [ class (classPrefix ++ "date-display-container") ] [ startDisplayDate ]
                 ]
-            , div []
+            , div [ class (classPrefix ++ "time-picker-information-container") ]
                 [ div
                     [ class (classPrefix ++ "time-picker-container") ]
-                    [ text "End", viewTimePicker settings model End model.pickedEndTime ]
+                    [ text "End", viewTimePicker settings model End endDate ]
+                , div [ class (classPrefix ++ "date-display-container") ] [ endDisplayDate ]
                 ]
             ]
-        , div [ class (classPrefix ++ "confirm-button-container") ] [ viewConfirmButton settings baseTime model ]
         ]
 
 
-startTimeBeforeEndTime : Posix -> Posix -> Bool
-startTimeBeforeEndTime startTime endTime =
-    let
-        startParts =
-            Time.posixToParts Time.utc startTime
-
-        endParts =
-            Time.posixToParts Time.utc endTime
-    in
-    if startParts.hour == endParts.hour then
-        startParts.minute < endParts.minute
-
-    else
-        startParts.hour < endParts.hour
-
-
-maybeValidTimes : Posix -> Maybe Posix -> Maybe Posix -> Maybe ( Posix, Posix )
-maybeValidTimes baseTime pickedStartTime pickedEndTime =
-    -- We don't use Maybe.map2 here because only the end time needs to be selected
-    -- the start time can default to 00:00 without being explicitly selected
-    Maybe.map
-        (\endTime ->
-            let
-                startTime =
-                    Maybe.withDefault (Time.floor Day Time.utc baseTime) pickedStartTime
-            in
-            ( startTime, endTime )
-        )
-        pickedEndTime
-
-
-uniteDayAndTime : Posix -> Posix -> Posix
-uniteDayAndTime dayPosix timePosix =
-    let
-        dayParts =
-            Time.posixToParts Time.utc dayPosix
-
-        timeParts =
-            Time.posixToParts Time.utc timePosix
-    in
-    Time.partsToPosix Time.utc { dayParts | hour = timeParts.hour, minute = timeParts.minute }
-
-
-unifyTimesWithDays : Maybe ( Posix, Posix ) -> ( Posix, Posix ) -> Maybe ( Posix, Posix )
-unifyTimesWithDays startEndDayTuple ( startTime, endTime ) =
-    if startTimeBeforeEndTime startTime endTime then
-        case startEndDayTuple of
-            Just ( startDay, endDay ) ->
-                Just ( uniteDayAndTime startDay startTime, uniteDayAndTime endDay endTime )
-
-            Nothing ->
-                Just ( startTime, endTime )
-
-    else
-        Nothing
-
-
-produceClassStringActionTuple : Settings msg -> Maybe ( Posix, Posix ) -> ( String, List (Html.Attribute msg) )
-produceClassStringActionTuple settings startEndDateTimeTuple =
-    case startEndDateTimeTuple of
-        Just ( startDateTime, endDateTime ) ->
-            ( classPrefix ++ "confirm-button", [ onClick <| settings.selectedMsg startDateTime endDateTime ] )
-
-        Nothing ->
-            ( classPrefix ++ "confirm-button " ++ classPrefix ++ "disabled", [] )
-
-
-viewConfirmButton : Settings msg -> Posix -> Model -> Html msg
-viewConfirmButton settings baseTime model =
-    let
-        ( classStr, confirmAction ) =
-            case ( model.pickedStartDay, model.pickedEndDay ) of
-                ( Nothing, Nothing ) ->
-                    maybeValidTimes baseTime model.pickedStartTime model.pickedEndTime
-                        |> Maybe.andThen (unifyTimesWithDays Nothing)
-                        |> produceClassStringActionTuple settings
-
-                ( Just startDay, Nothing ) ->
-                    maybeValidTimes baseTime model.pickedStartTime model.pickedEndTime
-                        |> Maybe.andThen (unifyTimesWithDays <| Just ( startDay, startDay ))
-                        |> produceClassStringActionTuple settings
-
-                ( Nothing, Just endDay ) ->
-                    maybeValidTimes baseTime model.pickedStartTime model.pickedEndTime
-                        |> Maybe.andThen (unifyTimesWithDays <| Just ( endDay, endDay ))
-                        |> produceClassStringActionTuple settings
-
-                ( Just startDay, Just endDay ) ->
-                    if Utilities.doDaysMatch (Time.posixToParts Time.utc startDay) (Time.posixToParts Time.utc endDay) then
-                        maybeValidTimes baseTime model.pickedStartTime model.pickedEndTime
-                            |> Maybe.andThen (unifyTimesWithDays <| Just ( startDay, endDay ))
-                            |> produceClassStringActionTuple settings
-
-                    else
-                        let
-                            startTime =
-                                Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedStartTime
-
-                            endTime =
-                                Maybe.withDefault (Time.floor Day Time.utc baseTime) model.pickedEndTime
-
-                            unifiedStart =
-                                uniteDayAndTime startDay startTime
-
-                            unifiedEnd =
-                                uniteDayAndTime endDay endTime
-                        in
-                        ( classPrefix ++ "confirm-button", [ onClick <| settings.selectedMsg unifiedStart unifiedEnd ] )
-
-        confirmAttrs =
-            [ class classStr, type_ "button", attribute "aria-label" "confirm" ] ++ confirmAction
-    in
-    button confirmAttrs
-        [ Icons.check
-            |> Icons.withSize 16
-            |> Icons.toHtml []
-        ]
+firstLessThanOrEqualsSecond : Posix -> Posix -> Bool
+firstLessThanOrEqualsSecond first second =
+    Time.posixToMillis first <= Time.posixToMillis second
 
 
 viewTimePicker : Settings msg -> Model -> StartOrEnd -> Maybe Posix -> Html msg
