@@ -28,14 +28,14 @@ import Browser.Events
 import DatePicker.Icons as Icons
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities
-import Html exposing (Html, button, div, select, span, text)
-import Html.Attributes exposing (attribute, class, id, type_)
+import Html exposing (Html, div, select, span, text)
+import Html.Attributes exposing (class, disabled, id)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..))
-import Time.Extra as Time exposing (Interval(..), Parts)
+import Time.Extra as Time exposing (Interval(..))
 
 
 type alias Model =
@@ -62,8 +62,18 @@ type alias Settings msg =
     -- * hide prev and next year chevrons
     { formattedDay : Weekday -> String
     , formattedMonth : Month -> String
-    , today : Maybe Posix
-    , dayDisabled : Posix -> Bool
+    , focusedDate : Maybe Posix
+    , dateTimeProcessor :
+        { isDayDisabled : Posix -> Bool
+        , allowedTimesOfDay :
+            Posix
+            ->
+                { startHour : Int
+                , startMinute : Int
+                , endHour : Int
+                , endMinute : Int
+                }
+        }
     , internalMsg : ( DatePicker, Maybe ( Posix, Posix ) ) -> msg
     , dateStringFn : Posix -> String
     , timeStringFn : Posix -> String
@@ -93,12 +103,24 @@ defaultSettings : (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> Settings ms
 defaultSettings internalMsg =
     { formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
-    , today = Nothing
-    , dayDisabled = always False
+    , focusedDate = Nothing
+    , dateTimeProcessor =
+        { isDayDisabled = always False
+        , allowedTimesOfDay = \_ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 }
+        }
     , internalMsg = internalMsg
     , dateStringFn = \_ -> ""
     , timeStringFn = \_ -> ""
     }
+
+
+areAllowedTimesValid : { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int } -> Bool
+areAllowedTimesValid { startHour, startMinute, endHour, endMinute } =
+    if startHour == endHour then
+        startMinute < endMinute
+
+    else
+        startHour < endHour
 
 
 {-| Instantiates and returns a date picker.
@@ -121,23 +143,23 @@ datePickerId =
 
 {-| Events external to the picker to which it is subscribed.
 -}
-subscriptions : (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> DatePicker -> Sub msg
-subscriptions internalMsg (DatePicker model) =
+subscriptions : Settings msg -> (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> DatePicker -> Sub msg
+subscriptions settings internalMsg (DatePicker model) =
     case model.status of
         Open _ ->
-            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId internalMsg (DatePicker model))
+            Browser.Events.onMouseDown (clickedOutsidePicker settings datePickerId internalMsg (DatePicker model))
 
         Closed ->
             Sub.none
 
 
-clickedOutsidePicker : String -> (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> DatePicker -> Decode.Decoder msg
-clickedOutsidePicker componentId internalMsg datePicker =
+clickedOutsidePicker : Settings msg -> String -> (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> DatePicker -> Decode.Decoder msg
+clickedOutsidePicker settings componentId internalMsg datePicker =
     Decode.field "target" (Utilities.eventIsOutsideComponent componentId)
         |> Decode.andThen
             (\isOutside ->
                 if isOutside then
-                    Decode.succeed <| internalMsg (update Close datePicker)
+                    Decode.succeed <| internalMsg (update settings Close datePicker)
 
                 else
                     Decode.fail "inside component"
@@ -212,17 +234,24 @@ type Msg
     | PrevYear
     | SetHoveredDay Posix
     | ClearHoveredDay
-    | SetRange Posix ( Maybe Posix, Maybe Posix )
+    | SetRange
     | SetHour StartOrEnd Int
     | SetMinute StartOrEnd Int
     | Close
 
 
-validRuntimeOrNothing : Maybe Posix -> Maybe Posix -> Maybe ( Posix, Posix )
-validRuntimeOrNothing start end =
+validRuntimeOrNothing : Settings msg -> Maybe Posix -> Maybe Posix -> Maybe ( Posix, Posix )
+validRuntimeOrNothing settings start end =
     Maybe.map2
         (\s e ->
-            if Time.posixToMillis s < Time.posixToMillis e then
+            if
+                Time.posixToMillis s
+                    < Time.posixToMillis e
+                    && timeWithinBoundariesOfGivenDay settings s
+                    && timeWithinBoundariesOfGivenDay settings e
+                    && not (settings.dateTimeProcessor.isDayDisabled s)
+                    && not (settings.dateTimeProcessor.isDayDisabled e)
+            then
                 Just ( s, e )
 
             else
@@ -233,16 +262,13 @@ validRuntimeOrNothing start end =
         |> Maybe.withDefault Nothing
 
 
-update : Msg -> DatePicker -> ( DatePicker, Maybe ( Posix, Posix ) )
-update msg (DatePicker model) =
+update : Settings msg -> Msg -> DatePicker -> ( DatePicker, Maybe ( Posix, Posix ) )
+update settings msg (DatePicker model) =
     case model.status of
         Open baseTime ->
             let
-                -- this serves as the basis for time (not day) selection. In the event there is no previously picked DateTime, we use the baseTime
-                -- passed into the picker on open to serve as a default. However, the time of day of the baseTime is not always guaranteed to be at 00:00,
-                -- so here we ensure that the default time is 00:00 by flooring it.
-                flooredBaseTime =
-                    Time.floor Day Time.utc baseTime
+                boundedBaseTime =
+                    Utilities.enforceTimeBoundaries baseTime settings.dateTimeProcessor.allowedTimesOfDay
             in
             case msg of
                 NextMonth ->
@@ -258,67 +284,72 @@ update msg (DatePicker model) =
                     ( DatePicker { model | pickerOffset = model.pickerOffset - 12 }, Nothing )
 
                 SetHoveredDay time ->
-                    ( DatePicker { model | hovered = Just time }, Nothing )
+                    ( DatePicker { model | hovered = Just <| Utilities.enforceTimeBoundaries time settings.dateTimeProcessor.allowedTimesOfDay }, Nothing )
 
                 ClearHoveredDay ->
                     ( DatePicker { model | hovered = Nothing }, Nothing )
 
-                SetRange dayClicked ( start, end ) ->
+                SetRange ->
                     case ( model.pickedStart, model.pickedEnd ) of
                         ( Just s, Just e ) ->
-                            if Utilities.doDaysMatch e dayClicked then
-                                ( DatePicker { model | pickedStart = start, pickedEnd = Nothing }, Nothing )
+                            Maybe.map
+                                (\hovered ->
+                                    if Utilities.doDaysMatch e hovered then
+                                        ( DatePicker { model | pickedStart = Just s, pickedEnd = Nothing }, Nothing )
 
-                            else if Utilities.doDaysMatch s dayClicked then
-                                ( DatePicker { model | pickedStart = Nothing, pickedEnd = end }, Nothing )
+                                    else if Utilities.doDaysMatch s hovered then
+                                        ( DatePicker { model | pickedStart = Nothing, pickedEnd = Just e }, Nothing )
 
-                            else
-                                ( DatePicker { model | pickedStart = Just dayClicked, pickedEnd = Nothing }, Nothing )
+                                    else
+                                        ( DatePicker { model | pickedStart = Just hovered, pickedEnd = Nothing }, Nothing )
+                                )
+                                model.hovered
+                                |> Maybe.withDefault ( DatePicker model, Nothing )
 
                         _ ->
                             let
-                                runtime =
-                                    validRuntimeOrNothing start end
+                                ( start, end ) =
+                                    determineDateTimeRange settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
                             in
-                            ( DatePicker { model | pickedStart = start, pickedEnd = end }, runtime )
+                            ( DatePicker { model | pickedStart = start, pickedEnd = end }, validRuntimeOrNothing settings start end )
 
                 SetHour startOrEnd hour ->
                     case startOrEnd of
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setHourNotDay hour (Maybe.withDefault flooredBaseTime model.pickedStart)
+                                    Utilities.setHourNotDay hour (Maybe.withDefault boundedBaseTime model.pickedStart)
                             in
-                            ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing (Just newTime) model.pickedEnd )
+                            ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing settings (Just newTime) model.pickedEnd )
 
                         End ->
                             let
                                 defaultTime =
-                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault flooredBaseTime
+                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault boundedBaseTime
 
                                 newTime =
                                     Utilities.setHourNotDay hour (Maybe.withDefault defaultTime model.pickedEnd)
                             in
-                            ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing model.pickedStart (Just newTime) )
+                            ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing settings model.pickedStart (Just newTime) )
 
                 SetMinute startOrEnd minute ->
                     case startOrEnd of
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setMinuteNotDay minute (Maybe.withDefault flooredBaseTime model.pickedStart)
+                                    Utilities.setMinuteNotDay minute (Maybe.withDefault boundedBaseTime model.pickedStart)
                             in
-                            ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing (Just newTime) model.pickedEnd )
+                            ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing settings (Just newTime) model.pickedEnd )
 
                         End ->
                             let
                                 defaultTime =
-                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault flooredBaseTime
+                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault boundedBaseTime
 
                                 newTime =
                                     Utilities.setMinuteNotDay minute (Maybe.withDefault defaultTime model.pickedEnd)
                             in
-                            ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing model.pickedStart (Just newTime) )
+                            ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing settings model.pickedStart (Just newTime) )
 
                 Close ->
                     ( DatePicker { model | status = Closed }, Nothing )
@@ -332,46 +363,41 @@ classPrefix =
     "elm-datetimepicker-duration--"
 
 
-determineDisplayDateTimes : Settings msg -> Model -> ( Maybe Posix, Maybe Posix )
-determineDisplayDateTimes settings model =
-    case ( model.pickedStart, model.pickedEnd ) of
-        ( Nothing, Nothing ) ->
-            ( model.hovered, Nothing )
+determineDateTimeRange : (Posix -> Bool) -> Maybe Posix -> Maybe Posix -> Maybe Posix -> ( Maybe Posix, Maybe Posix )
+determineDateTimeRange isDayDisabled pickedStart pickedEnd hoveredDate =
+    case hoveredDate of
+        Just hovered ->
+            let
+                maybeHovered =
+                    if isDayDisabled hovered then
+                        Nothing
 
-        ( Just start, Nothing ) ->
-            case model.hovered of
-                Just hovered ->
+                    else
+                        Just hovered
+            in
+            case ( pickedStart, pickedEnd ) of
+                ( Just start, Just end ) ->
+                    ( Just start, Just end )
+
+                ( Just start, Nothing ) ->
                     if firstLessThanOrEqualsSecond start hovered then
-                        ( Just start, Just hovered )
+                        ( Just start, maybeHovered )
 
                     else
-                        let
-                            ( newStart, newEnd ) =
-                                Utilities.switchTimes hovered start
-                        in
-                        ( Just newStart, Just newEnd )
+                        ( maybeHovered, Just start )
 
-                Nothing ->
-                    ( Just start, Nothing )
-
-        ( Nothing, Just end ) ->
-            case model.hovered of
-                Just hovered ->
+                ( Nothing, Just end ) ->
                     if firstLessThanOrEqualsSecond hovered end then
-                        ( Just hovered, Just end )
+                        ( maybeHovered, Just end )
 
                     else
-                        let
-                            ( newStart, newEnd ) =
-                                Utilities.switchTimes end hovered
-                        in
-                        ( Just newStart, Just newEnd )
+                        ( Just end, maybeHovered )
 
-                Nothing ->
-                    ( Nothing, Just end )
+                ( Nothing, Nothing ) ->
+                    ( maybeHovered, Nothing )
 
-        ( Just start, Just end ) ->
-            ( Just start, Just end )
+        Nothing ->
+            ( pickedStart, pickedEnd )
 
 
 {-| The date picker view. Simply pass it the configured settings
@@ -401,7 +427,7 @@ view settings (DatePicker model) =
                         [ class (classPrefix ++ "calendar") ]
                         [ viewCalendar settings model rightViewTime ]
                     ]
-                , div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings baseTime model ]
+                , div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings model ]
                 ]
 
         Closed ->
@@ -414,7 +440,7 @@ viewPickerHeader settings model =
         [ div [ class (classPrefix ++ "picker-header-chevrons") ]
             [ div
                 [ class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update PrevMonth (DatePicker model)
+                , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
                 ]
                 [ Icons.chevronLeft
                     |> Icons.withSize 15
@@ -422,7 +448,7 @@ viewPickerHeader settings model =
                 ]
             , div
                 [ class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update NextMonth (DatePicker model)
+                , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
                 ]
                 [ Icons.chevronRight
                     |> Icons.withSize 15
@@ -432,7 +458,7 @@ viewPickerHeader settings model =
         , div [ class (classPrefix ++ "picker-header-chevrons") ]
             [ div
                 [ class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update PrevYear (DatePicker model)
+                , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
                 ]
                 [ Icons.chevronsLeft
                     |> Icons.withSize 15
@@ -440,7 +466,7 @@ viewPickerHeader settings model =
                 ]
             , div
                 [ class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update NextYear (DatePicker model)
+                , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
                 ]
                 [ Icons.chevronsRight
                     |> Icons.withSize 15
@@ -454,13 +480,13 @@ viewCalendar : Settings msg -> Model -> Posix -> Html msg
 viewCalendar settings model viewTime =
     div
         []
-        [ viewCalendarHeader settings model viewTime
+        [ viewCalendarHeader settings viewTime
         , viewMonth settings model viewTime
         ]
 
 
-viewCalendarHeader : Settings msg -> Model -> Posix -> Html msg
-viewCalendarHeader settings model viewTime =
+viewCalendarHeader : Settings msg -> Posix -> Html msg
+viewCalendarHeader settings viewTime =
     let
         monthName =
             Time.toMonth Time.utc viewTime |> settings.formattedMonth
@@ -511,51 +537,49 @@ viewMonth settings model viewTime =
             List.reverse (Utilities.splitIntoWeeks monthRenderData [])
     in
     div
-        [ class (classPrefix ++ "calendar-month"), onMouseOut <| settings.internalMsg (update ClearHoveredDay (DatePicker model)) ]
+        [ class (classPrefix ++ "calendar-month"), onMouseOut <| settings.internalMsg (update settings ClearHoveredDay (DatePicker model)) ]
         [ div [] (List.map (viewWeek settings model currentMonth) weeks)
         ]
 
 
-viewWeek : Settings msg -> Model -> Month -> List Parts -> Html msg
+viewWeek : Settings msg -> Model -> Month -> List Posix -> Html msg
 viewWeek settings model currentMonth week =
     div [ class (classPrefix ++ "calendar-week") ]
         (List.map (viewDay settings model currentMonth) week)
 
 
-viewDay : Settings msg -> Model -> Month -> Parts -> Html msg
+viewDay : Settings msg -> Model -> Month -> Posix -> Html msg
 viewDay settings model currentMonth day =
     let
+        dayParts =
+            Time.posixToParts Time.utc day
+
         isToday =
-            Maybe.map (\tday -> Utilities.doDaysMatch (Time.partsToPosix Time.utc day) tday) settings.today
+            Maybe.map (\tday -> Utilities.doDaysMatch day tday) settings.focusedDate
                 |> Maybe.withDefault False
 
-        ( displayStart, displayEnd ) =
-            determineDisplayDateTimes settings model
-
         ( isPicked, isBetween ) =
-            Utilities.durationDayPickedOrBetween (Time.partsToPosix Time.utc day) model.hovered ( model.pickedStart, model.pickedEnd )
+            Utilities.durationDayPickedOrBetween day model.hovered ( model.pickedStart, model.pickedEnd )
 
         isDisabled =
-            settings.dayDisabled (Time.partsToPosix Time.utc day)
+            settings.dateTimeProcessor.isDayDisabled day || not (areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay day))
 
         dayClasses =
-            DatePicker.Styles.durationDayClasses classPrefix (day.month /= currentMonth) isDisabled isPicked isToday isBetween
-
-        baseAttrs =
-            [ class dayClasses
-            , onMouseOver <| settings.internalMsg (update (SetHoveredDay (Time.partsToPosix Time.utc day)) (DatePicker model))
-            ]
+            DatePicker.Styles.durationDayClasses classPrefix (dayParts.month /= currentMonth) isDisabled isPicked isToday isBetween
 
         attrs =
             if isDisabled then
-                baseAttrs
+                [ class dayClasses ]
 
             else
-                baseAttrs ++ [ onClick <| settings.internalMsg (update (SetRange (Time.partsToPosix Time.utc day) ( displayStart, displayEnd )) (DatePicker model)) ]
+                [ class dayClasses
+                , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
+                , onClick <| settings.internalMsg (update settings SetRange (DatePicker model))
+                ]
     in
     div
         attrs
-        [ text (String.fromInt day.day) ]
+        [ text (String.fromInt dayParts.day) ]
 
 
 viewDateTime : Settings msg -> String -> Posix -> Html msg
@@ -571,17 +595,56 @@ viewEmpty =
     span [] [ text "" ]
 
 
+timeWithinBoundariesOfGivenDay : Settings msg -> Posix -> Bool
+timeWithinBoundariesOfGivenDay settings time =
+    let
+        { hour, minute } =
+            Time.posixToParts Time.utc time
+
+        { startHour, startMinute, endHour, endMinute } =
+            settings.dateTimeProcessor.allowedTimesOfDay time
+    in
+    if startHour == hour && endHour /= hour then
+        startMinute <= minute
+
+    else if startHour /= hour && endHour == hour then
+        minute <= endMinute
+
+    else if startHour == hour && endHour == hour then
+        startMinute <= minute && minute <= endMinute
+
+    else
+        startHour < hour && hour < endHour
+
+
 determineDateTimeViews : Settings msg -> ( Maybe Posix, Maybe Posix ) -> ( Html msg, Html msg )
 determineDateTimeViews settings ( displayStart, displayEnd ) =
+    let
+        startWithinBoundaries =
+            \start ->
+                timeWithinBoundariesOfGivenDay settings start
+
+        endWithinBoundaries =
+            \end ->
+                timeWithinBoundariesOfGivenDay settings end
+    in
     case ( displayStart, displayEnd ) of
         ( Nothing, Nothing ) ->
             ( viewEmpty, viewEmpty )
 
         ( Just start, Nothing ) ->
-            ( viewDateTime settings "selection-time" start, viewEmpty )
+            if startWithinBoundaries start then
+                ( viewDateTime settings "selection-time" start, viewEmpty )
+
+            else
+                ( viewDateTime settings "selection-time-danger" start, viewEmpty )
 
         ( Nothing, Just end ) ->
-            ( viewEmpty, viewDateTime settings "selection-time" end )
+            if endWithinBoundaries end then
+                ( viewEmpty, viewDateTime settings "selection-time" end )
+
+            else
+                ( viewEmpty, viewDateTime settings "selection-time-danger" end )
 
         ( Just start, Just end ) ->
             if start == end then
@@ -590,15 +653,24 @@ determineDateTimeViews settings ( displayStart, displayEnd ) =
             else if Time.posixToMillis start > Time.posixToMillis end then
                 ( viewDateTime settings "selection-time-danger" start, viewDateTime settings "selection-time" end )
 
+            else if not (startWithinBoundaries start) && endWithinBoundaries end then
+                ( viewDateTime settings "selection-time-danger" start, viewDateTime settings "selection-time" end )
+
+            else if startWithinBoundaries start && not (endWithinBoundaries end) then
+                ( viewDateTime settings "selection-time" start, viewDateTime settings "selection-time-danger" end )
+
+            else if not (startWithinBoundaries start) && not (endWithinBoundaries end) then
+                ( viewDateTime settings "selection-time-danger" start, viewDateTime settings "selection-time-danger" end )
+
             else
                 ( viewDateTime settings "selection-time" start, viewDateTime settings "selection-time" end )
 
 
-viewFooter : Settings msg -> Posix -> Model -> Html msg
-viewFooter settings baseTime model =
+viewFooter : Settings msg -> Model -> Html msg
+viewFooter settings model =
     let
         ( startDate, endDate ) =
-            determineDisplayDateTimes settings model
+            determineDateTimeRange settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
 
         ( startDisplayDate, endDisplayDate ) =
             determineDateTimeViews settings ( startDate, endDate )
@@ -630,17 +702,15 @@ firstLessThanOrEqualsSecond first second =
 viewTimePicker : Settings msg -> Model -> StartOrEnd -> Maybe Posix -> Html msg
 viewTimePicker settings model startOrEnd pickedTime =
     let
-        ( hour, minute ) =
-            Maybe.map
-                (\time ->
-                    let
-                        timeParts =
-                            Time.posixToParts Time.utc time
-                    in
-                    ( timeParts.hour, timeParts.minute )
-                )
-                pickedTime
-                |> Maybe.withDefault ( 0, 0 )
+        selectEnabled =
+            Maybe.map (\time -> areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay time)) pickedTime |> Maybe.withDefault False
+
+        { selectedHour, selectableHours, selectedMinute, selectableMinutes } =
+            if selectEnabled then
+                Utilities.selectedAndSelectableTimeParts pickedTime settings.dateTimeProcessor.allowedTimesOfDay
+
+            else
+                { selectedHour = 0, selectableHours = [ 0 ], selectedMinute = 0, selectableMinutes = [ 0 ] }
     in
     div
         [ class (classPrefix ++ "time-picker") ]
@@ -651,8 +721,8 @@ viewTimePicker settings model startOrEnd pickedTime =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map (SetHour startOrEnd) targetValueIntParse))) ] (Utilities.generateHourOptions hour) ]
+            [ div [ class (classPrefix ++ "select") ] [ select [ disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetHour startOrEnd) targetValueIntParse))) ] (Utilities.generateHourOptions selectableHours selectedHour) ]
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update msg (DatePicker model)) (Decode.map (SetMinute startOrEnd) targetValueIntParse))) ] (Utilities.generateMinuteOptions minute) ]
+            , div [ class (classPrefix ++ "select") ] [ select [ disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetMinute startOrEnd) targetValueIntParse))) ] (Utilities.generateMinuteOptions selectableMinutes selectedMinute) ]
             ]
         ]

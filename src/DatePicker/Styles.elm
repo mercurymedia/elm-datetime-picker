@@ -12,11 +12,11 @@ durationDayClasses classPrefix isHidden isDisabled isPicked isToday isBetween =
     else if isPicked then
         classPrefix ++ "calendar-day " ++ classPrefix ++ "picked"
 
-    else if isToday then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "today"
-
     else if isBetween && isToday then
         classPrefix ++ "calendar-day " ++ classPrefix ++ "today-between"
+
+    else if isToday then
+        classPrefix ++ "calendar-day " ++ classPrefix ++ "today"
 
     else if isBetween then
         classPrefix ++ "calendar-day " ++ classPrefix ++ "between"

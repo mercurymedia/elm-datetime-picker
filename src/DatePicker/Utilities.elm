@@ -1,14 +1,14 @@
-module DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, monthData, monthToNameString, setDayNotTime, setHourNotDay, setMinuteNotDay, splitIntoWeeks, switchTimes, toUtcDateTimeString)
+module DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, enforceTimeBoundaries, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, monthData, monthToNameString, selectedAndSelectableTimeParts, setDayNotTime, setHourNotDay, setMinuteNotDay, splitIntoWeeks)
 
 import Html exposing (Html, option, text)
 import Html.Attributes exposing (selected, value)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..))
-import Time.Extra as Time exposing (Interval(..), Parts)
+import Time.Extra as Time exposing (Interval(..))
 
 
-monthData : Posix -> List Parts
+monthData : Posix -> List Posix
 monthData time =
     let
         monthStart =
@@ -71,14 +71,10 @@ monthData time =
                 Sun ->
                     []
     in
-    (frontPad |> List.map (Time.posixToParts Time.utc))
-        ++ (Time.range Day 1 Time.utc monthStart nextMonthStart
-                |> List.map (Time.posixToParts Time.utc)
-           )
-        ++ (endPad |> List.map (Time.posixToParts Time.utc))
+    frontPad ++ Time.range Day 1 Time.utc monthStart nextMonthStart ++ endPad
 
 
-splitIntoWeeks : List Parts -> List (List Parts) -> List (List Parts)
+splitIntoWeeks : List Posix -> List (List Posix) -> List (List Posix)
 splitIntoWeeks days weeks =
     if List.length days <= 7 then
         days :: weeks
@@ -245,85 +241,6 @@ doDaysMatch dateTimeOne dateTimeTwo =
     oneParts.day == twoParts.day && oneParts.month == twoParts.month && oneParts.year == twoParts.year
 
 
-switchTimes : Posix -> Posix -> ( Posix, Posix )
-switchTimes dateTimeOne dateTimeTwo =
-    let
-        oneParts =
-            Time.posixToParts Time.utc dateTimeOne
-
-        twoParts =
-            Time.posixToParts Time.utc dateTimeTwo
-
-        newOne =
-            { oneParts | hour = twoParts.hour, minute = twoParts.minute } |> Time.partsToPosix Time.utc
-
-        newTwo =
-            { twoParts | hour = oneParts.hour, minute = oneParts.minute } |> Time.partsToPosix Time.utc
-    in
-    ( newOne, newTwo )
-
-
-monthToNmbString : Month -> String
-monthToNmbString month =
-    case month of
-        Jan ->
-            "01"
-
-        Feb ->
-            "02"
-
-        Mar ->
-            "03"
-
-        Apr ->
-            "04"
-
-        May ->
-            "05"
-
-        Jun ->
-            "06"
-
-        Jul ->
-            "07"
-
-        Aug ->
-            "08"
-
-        Sep ->
-            "09"
-
-        Oct ->
-            "10"
-
-        Nov ->
-            "11"
-
-        Dec ->
-            "12"
-
-
-toUtcDateString : Posix -> String
-toUtcDateString date =
-    addLeadingZero (Time.toDay Time.utc date)
-        ++ "."
-        ++ monthToNmbString (Time.toMonth Time.utc date)
-        ++ "."
-        ++ addLeadingZero (Time.toYear Time.utc date)
-
-
-toUtcDateTimeString : Posix -> String
-toUtcDateTimeString datetime =
-    toUtcDateString datetime
-        ++ " "
-        ++ addLeadingZero (Time.toHour Time.utc datetime)
-        ++ ":"
-        ++ addLeadingZero (Time.toMinute Time.utc datetime)
-        ++ ":"
-        ++ addLeadingZero (Time.toSecond Time.utc datetime)
-        ++ " (UTC)"
-
-
 {-| Set the day (month and year) of the previously selected dateTime to match that of the newly selected dateTime
 -}
 setDayNotTime : Posix -> Posix -> Posix
@@ -363,15 +280,15 @@ setMinuteNotDay minute timeToUpdate =
     Time.partsToPosix Time.utc newParts
 
 
-generateHourOptions : Int -> List (Html msg)
-generateHourOptions selectedHour =
-    List.range 0 23
+generateHourOptions : List Int -> Int -> List (Html msg)
+generateHourOptions selectableHours selectedHour =
+    selectableHours
         |> List.map (\hour -> option [ value (String.fromInt hour), selected (selectedHour == hour) ] [ text (addLeadingZero hour) ])
 
 
-generateMinuteOptions : Int -> List (Html msg)
-generateMinuteOptions selectedMinute =
-    List.range 0 59
+generateMinuteOptions : List Int -> Int -> List (Html msg)
+generateMinuteOptions selectableMinutes selectedMinute =
+    selectableMinutes
         |> List.map (\minute -> option [ value (String.fromInt minute), selected (selectedMinute == minute) ] [ text (addLeadingZero minute) ])
 
 
@@ -394,3 +311,65 @@ eventIsOutsideComponent componentId =
         -- fallback if all previous decoders failed
         , Decode.succeed True
         ]
+
+
+filterSelectableHours : Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
+filterSelectableHours dateTimeBeingProcessed allowableTimesFn =
+    let
+        { startHour, endHour } =
+            allowableTimesFn dateTimeBeingProcessed
+    in
+    List.range startHour endHour
+
+
+filterSelectableMinutes : Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
+filterSelectableMinutes dateTimeBeingProcessed allowableTimesFn =
+    let
+        { startHour, startMinute, endHour, endMinute } =
+            allowableTimesFn dateTimeBeingProcessed
+
+        hour =
+            Time.toHour Time.utc dateTimeBeingProcessed
+
+        filterBefore =
+            if startHour == hour then
+                startMinute
+
+            else
+                0
+
+        filterAfter =
+            if endHour == hour then
+                endMinute
+
+            else
+                59
+    in
+    List.range filterBefore filterAfter
+
+
+selectedAndSelectableTimeParts : Maybe Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> { selectedHour : Int, selectableHours : List Int, selectedMinute : Int, selectableMinutes : List Int }
+selectedAndSelectableTimeParts pickedDateTime allowableTimesFn =
+    Maybe.map
+        (\time ->
+            let
+                timeParts =
+                    Time.posixToParts Time.utc time
+            in
+            { selectedHour = timeParts.hour
+            , selectableHours = filterSelectableHours time allowableTimesFn
+            , selectedMinute = timeParts.minute
+            , selectableMinutes = filterSelectableMinutes time allowableTimesFn
+            }
+        )
+        pickedDateTime
+        |> Maybe.withDefault { selectedHour = 0, selectableHours = List.range 0 23, selectedMinute = 0, selectableMinutes = List.range 0 59 }
+
+
+enforceTimeBoundaries : Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> Posix
+enforceTimeBoundaries dateTimeBeingProcessed allowableTimesFn =
+    let
+        { startHour, startMinute } =
+            allowableTimesFn dateTimeBeingProcessed
+    in
+    Time.posixToParts Time.utc dateTimeBeingProcessed |> (\parts -> { parts | hour = startHour, minute = startMinute } |> Time.partsToPosix Time.utc)

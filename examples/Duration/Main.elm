@@ -47,7 +47,28 @@ userDefinedDatePickerSettings today =
         defaults =
             defaultSettings UpdatePicker
     in
-    { defaults | dayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime, today = Just today, dateStringFn = posixToDateString, timeStringFn = posixToTimeString }
+    { defaults
+        | dateTimeProcessor =
+            { isDayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime
+            , allowedTimesOfDay =
+                \datetime ->
+                    let
+                        processingParts =
+                            Time.posixToParts Time.utc datetime
+
+                        todayParts =
+                            Time.posixToParts Time.utc today
+                    in
+                    if processingParts.day == todayParts.day && processingParts.month == todayParts.month && processingParts.year == todayParts.year then
+                        { startHour = todayParts.hour, startMinute = todayParts.minute, endHour = 16, endMinute = 30 }
+
+                    else
+                        { startHour = 8, startMinute = 0, endHour = 16, endMinute = 30 }
+            }
+        , focusedDate = Just today
+        , dateStringFn = posixToDateString
+        , timeStringFn = posixToTimeString
+    }
 
 
 view : Model -> Html Msg
@@ -86,7 +107,7 @@ init currentTime =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    DurationDatePicker.subscriptions UpdatePicker model.picker
+    DurationDatePicker.subscriptions (userDefinedDatePickerSettings model.today) UpdatePicker model.picker
 
 
 main : Program Int Model Msg
