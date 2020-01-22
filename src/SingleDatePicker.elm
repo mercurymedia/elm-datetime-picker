@@ -29,7 +29,7 @@ import DatePicker.Icons as Icons
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities
 import Html exposing (Html, div, select, span, text)
-import Html.Attributes exposing (class, id)
+import Html.Attributes exposing (class, disabled, id)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
@@ -106,6 +106,15 @@ defaultSettings internalMsg =
     , dateStringFn = \_ -> ""
     , timeStringFn = \_ -> ""
     }
+
+
+areAllowedTimesValid : { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int } -> Bool
+areAllowedTimesValid { startHour, startMinute, endHour, endMinute } =
+    if startHour == endHour then
+        startMinute < endMinute
+
+    else
+        startHour < endHour
 
 
 {-| Instantiates and returns a date picker.
@@ -457,22 +466,20 @@ viewDay settings model currentMonth pickedTime day =
                     False
 
         isDisabled =
-            settings.dateTimeProcessor.isDayDisabled day
+            settings.dateTimeProcessor.isDayDisabled day || not (areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay day))
 
         dayClasses =
             DatePicker.Styles.singleDayClasses classPrefix (dayParts.month /= currentMonth) isDisabled isPicked isToday
 
-        baseAttrs =
-            [ class dayClasses
-            , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
-            ]
-
         attrs =
             if isDisabled then
-                baseAttrs
+                [ class dayClasses ]
 
             else
-                baseAttrs ++ [ onClick <| settings.internalMsg (update settings SetDay (DatePicker model)) ]
+                [ class dayClasses
+                , onClick <| settings.internalMsg (update settings SetDay (DatePicker model))
+                , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
+                ]
     in
     div
         attrs
@@ -554,8 +561,15 @@ viewFooter settings model =
 viewTimePicker : Settings msg -> Model -> Maybe Posix -> Html msg
 viewTimePicker settings model pickedTime =
     let
+        selectEnabled =
+            Maybe.map (\time -> areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay time)) pickedTime |> Maybe.withDefault False
+
         { selectedHour, selectableHours, selectedMinute, selectableMinutes } =
-            Utilities.selectedAndSelectableTimeParts pickedTime settings.dateTimeProcessor.allowedTimesOfDay
+            if selectEnabled then
+                Utilities.selectedAndSelectableTimeParts pickedTime settings.dateTimeProcessor.allowedTimesOfDay
+
+            else
+                { selectedHour = 0, selectableHours = [ 0 ], selectedMinute = 0, selectableMinutes = [ 0 ] }
     in
     div
         [ class (classPrefix ++ "time-picker") ]
@@ -566,8 +580,8 @@ viewTimePicker settings model pickedTime =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ] (Utilities.generateHourOptions selectableHours selectedHour) ]
+            [ div [ class (classPrefix ++ "select") ] [ select [ disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ] (Utilities.generateHourOptions selectableHours selectedHour) ]
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , div [ class (classPrefix ++ "select") ] [ select [ on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ] (Utilities.generateMinuteOptions selectableMinutes selectedMinute) ]
+            , div [ class (classPrefix ++ "select") ] [ select [ disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ] (Utilities.generateMinuteOptions selectableMinutes selectedMinute) ]
             ]
         ]
