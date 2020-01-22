@@ -116,7 +116,7 @@ This is the settings type to be used when configuring the `datepicker`. More con
 type alias Settings msg =
     { formattedDay : Weekday -> String
     , formattedMonth : Month -> String
-    , today : Maybe Posix
+    , focusedDate : Maybe Posix
     , dayDisabled : Posix -> Bool
     , internalMsg : ( DatePicker, Maybe Posix ) -> msg
     }
