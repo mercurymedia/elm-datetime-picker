@@ -40,16 +40,16 @@ init =
     )
 ```
 
-2) One message needs to be defined that expects an updated `DatePicker` instance as well as a `Maybe Posix` representing a datetime selection. This message is added to the picker settings.
+2) One message needs to be defined that expects an updated `DatePicker` instance as well as a `Maybe Posix` representing a datetime selection. This message is added to the picker settings along with a `Zone`.
 
 ```elm
 type Msg
     = ...
     | UpdatePicker ( DatePicker.DatePicker, Maybe Posix )
 
-userDefinedDatePickerSettings : DatePicker.Settings Msg
-userDefinedDatePickerSettings =
-    DatePicker.defaultSettings UpdatePicker
+userDefinedDatePickerSettings : Zone -> DatePicker.Settings Msg
+userDefinedDatePickerSettings timeZone =
+    DatePicker.defaultSettings timeZone UpdatePicker
 ```
     
 3) We call the `DatePicker.view` function, passing it the defined settings and the `DatePicker` instance to be operated on. Because the messages for handling picker updates are defined in the calling module and passed in via the settings, we do not need to worry about `Html.map`ping!
@@ -73,6 +73,7 @@ While we are on the topic of the `DatePicker.view`, it is worth noting that this
 type alias Model =
     { ...
     , today : Posix
+    , zone : Zone
     , pickedTime : Maybe Posix
     , picker : DatePicker.DatePicker
     }
@@ -88,13 +89,13 @@ update msg model =
         ...
 
         OpenPicker ->
-            ( { model | picker = DatePicker.openPicker model.today model.pickedTime model.picker }, Cmd.none )
+            ( { model | picker = DatePicker.openPicker model.zone model.today model.pickedTime model.picker }, Cmd.none )
 
         UpdatePicker ( newPicker, maybeNewTime ) ->
             ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
 ```
 
-The user is responsible for defining his or her own `Open` picker message and placing the relevant event listener where he or she pleases. When handling this message in the `update` as seen above, we call `DatePicker.openPicker` which simply returns an updated picker instance to be stored on the model (`DatePicker.closePicker` is also provided and returns an updated picker instance like `openPicker` does). `DatePicker.openPicker` takes a `Posix` (the base time), a `Maybe Posix` (the picked time), and the `DatePicker` instance we wish to open. The base time is used to inform the picker what day it should center on in the event no datetime has been selected yet. This could be the current date or another date of the implementer's choosing.
+The user is responsible for defining his or her own `Open` picker message and placing the relevant event listener where he or she pleases. When handling this message in the `update` as seen above, we call `DatePicker.openPicker` which simply returns an updated picker instance to be stored on the model (`DatePicker.closePicker` is also provided and returns an updated picker instance like `openPicker` does). `DatePicker.openPicker` takes a `Zone` (the time zone in which to display the picker), `Posix` (the base time), a `Maybe Posix` (the picked time), and the `DatePicker` instance we wish to open. The base time is used to inform the picker what day it should center on in the event no datetime has been selected yet. This could be the current date or another date of the implementer's choosing.
 
 Remember that message we passed into the `DatePicker` settings? Here is where it comes into play. `UpdatePicker` let's us know that an update of the `DatePicker` instance's internal state has occured. Seeing as we don't need to do any additional processing here, the `UpdatePicker` message simply carries the updated `DatePicker` instance along with it to save in the model of the calling module. Additionally, we get a `Maybe Posix`. In the case of `Just` a time, we set that on the model as the new `pickedTime` otherwise we default to the current `pickedTime`.
 

@@ -4,46 +4,46 @@ import Html exposing (Html, option, text)
 import Html.Attributes exposing (selected, value)
 import Json.Decode as Decode
 import List.Extra as List
-import Time exposing (Month(..), Posix, Weekday(..))
+import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
 
-monthData : Posix -> List Posix
-monthData time =
+monthData : Zone -> Posix -> List Posix
+monthData zone time =
     let
         monthStart =
-            Time.floor Month Time.utc time
+            Time.floor Month zone time
 
         monthStartDay =
-            Time.toWeekday Time.utc monthStart
+            Time.toWeekday zone monthStart
 
         nextMonthStart =
             -- we add a day to monthStart to guarantee next month, Time.ceiling
             -- with monthStart was producing the same month, not next month
-            Time.ceiling Month Time.utc (Time.add Day 1 Time.utc monthStart)
+            Time.ceiling Month zone (Time.add Day 1 zone monthStart)
 
         nextMonthStartDay =
-            Time.toWeekday Time.utc nextMonthStart
+            Time.toWeekday zone nextMonthStart
 
         frontPad =
             case monthStartDay of
                 Mon ->
-                    Time.range Day 1 Time.utc (Time.add Day -1 Time.utc monthStart) monthStart
+                    Time.range Day 1 zone (Time.add Day -1 zone monthStart) monthStart
 
                 Tue ->
-                    Time.range Day 1 Time.utc (Time.add Day -2 Time.utc monthStart) monthStart
+                    Time.range Day 1 zone (Time.add Day -2 zone monthStart) monthStart
 
                 Wed ->
-                    Time.range Day 1 Time.utc (Time.add Day -3 Time.utc monthStart) monthStart
+                    Time.range Day 1 zone (Time.add Day -3 zone monthStart) monthStart
 
                 Thu ->
-                    Time.range Day 1 Time.utc (Time.add Day -4 Time.utc monthStart) monthStart
+                    Time.range Day 1 zone (Time.add Day -4 zone monthStart) monthStart
 
                 Fri ->
-                    Time.range Day 1 Time.utc (Time.add Day -5 Time.utc monthStart) monthStart
+                    Time.range Day 1 zone (Time.add Day -5 zone monthStart) monthStart
 
                 Sat ->
-                    Time.range Day 1 Time.utc (Time.add Day -6 Time.utc monthStart) monthStart
+                    Time.range Day 1 zone (Time.add Day -6 zone monthStart) monthStart
 
                 Sun ->
                     []
@@ -51,27 +51,27 @@ monthData time =
         endPad =
             case nextMonthStartDay of
                 Mon ->
-                    Time.range Day 1 Time.utc nextMonthStart (Time.add Day 6 Time.utc nextMonthStart)
+                    Time.range Day 1 zone nextMonthStart (Time.add Day 6 zone nextMonthStart)
 
                 Tue ->
-                    Time.range Day 1 Time.utc nextMonthStart (Time.add Day 5 Time.utc nextMonthStart)
+                    Time.range Day 1 zone nextMonthStart (Time.add Day 5 zone nextMonthStart)
 
                 Wed ->
-                    Time.range Day 1 Time.utc nextMonthStart (Time.add Day 4 Time.utc nextMonthStart)
+                    Time.range Day 1 zone nextMonthStart (Time.add Day 4 zone nextMonthStart)
 
                 Thu ->
-                    Time.range Day 1 Time.utc nextMonthStart (Time.add Day 3 Time.utc nextMonthStart)
+                    Time.range Day 1 zone nextMonthStart (Time.add Day 3 zone nextMonthStart)
 
                 Fri ->
-                    Time.range Day 1 Time.utc nextMonthStart (Time.add Day 2 Time.utc nextMonthStart)
+                    Time.range Day 1 zone nextMonthStart (Time.add Day 2 zone nextMonthStart)
 
                 Sat ->
-                    Time.range Day 1 Time.utc nextMonthStart (Time.add Day 1 Time.utc nextMonthStart)
+                    Time.range Day 1 zone nextMonthStart (Time.add Day 1 zone nextMonthStart)
 
                 Sun ->
                     []
     in
-    frontPad ++ Time.range Day 1 Time.utc monthStart nextMonthStart ++ endPad
+    frontPad ++ Time.range Day 1 zone monthStart nextMonthStart ++ endPad
 
 
 splitIntoWeeks : List Posix -> List (List Posix) -> List (List Posix)
@@ -168,8 +168,8 @@ addLeadingZero value =
         string
 
 
-durationDayPickedOrBetween : Posix -> Maybe Posix -> ( Maybe Posix, Maybe Posix ) -> ( Bool, Bool )
-durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
+durationDayPickedOrBetween : Zone -> Posix -> Maybe Posix -> ( Maybe Posix, Maybe Posix ) -> ( Bool, Bool )
+durationDayPickedOrBetween zone day hovered ( pickedStart, pickedEnd ) =
     case ( pickedStart, pickedEnd ) of
         ( Nothing, Nothing ) ->
             ( False, False )
@@ -177,7 +177,7 @@ durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
         ( Just start, Nothing ) ->
             let
                 picked =
-                    doDaysMatch day start
+                    doDaysMatch zone day start
 
                 between =
                     case hovered of
@@ -192,7 +192,7 @@ durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
         ( Nothing, Just end ) ->
             let
                 picked =
-                    doDaysMatch day end
+                    doDaysMatch zone day end
 
                 between =
                     case hovered of
@@ -207,7 +207,7 @@ durationDayPickedOrBetween day hovered ( pickedStart, pickedEnd ) =
         ( Just start, Just end ) ->
             let
                 picked =
-                    doDaysMatch day end || doDaysMatch day start
+                    doDaysMatch zone day end || doDaysMatch zone day start
 
                 between =
                     isDayBetweenDates day start end
@@ -229,55 +229,55 @@ isDayBetweenDates day dateOne dateTwo =
            )
 
 
-doDaysMatch : Posix -> Posix -> Bool
-doDaysMatch dateTimeOne dateTimeTwo =
+doDaysMatch : Zone -> Posix -> Posix -> Bool
+doDaysMatch zone dateTimeOne dateTimeTwo =
     let
         oneParts =
-            Time.posixToParts Time.utc dateTimeOne
+            Time.posixToParts zone dateTimeOne
 
         twoParts =
-            Time.posixToParts Time.utc dateTimeTwo
+            Time.posixToParts zone dateTimeTwo
     in
     oneParts.day == twoParts.day && oneParts.month == twoParts.month && oneParts.year == twoParts.year
 
 
 {-| Set the day (month and year) of the previously selected dateTime to match that of the newly selected dateTime
 -}
-setDayNotTime : Posix -> Posix -> Posix
-setDayNotTime newPickedDT prevPickedDT =
+setDayNotTime : Zone -> Posix -> Posix -> Posix
+setDayNotTime zone newPickedDT prevPickedDT =
     let
         newPickedParts =
-            Time.posixToParts Time.utc newPickedDT
+            Time.posixToParts zone newPickedDT
     in
-    Time.posixToParts Time.utc prevPickedDT |> (\parts -> { parts | day = newPickedParts.day, month = newPickedParts.month, year = newPickedParts.year }) |> Time.partsToPosix Time.utc
+    Time.posixToParts zone prevPickedDT |> (\parts -> { parts | day = newPickedParts.day, month = newPickedParts.month, year = newPickedParts.year }) |> Time.partsToPosix zone
 
 
 {-| Set only the hour of the provided dateTime
 -}
-setHourNotDay : Int -> Posix -> Posix
-setHourNotDay hour timeToUpdate =
+setHourNotDay : Zone -> Int -> Posix -> Posix
+setHourNotDay zone hour timeToUpdate =
     let
         parts =
-            Time.posixToParts Time.utc timeToUpdate
+            Time.posixToParts zone timeToUpdate
 
         newParts =
             { parts | hour = hour }
     in
-    Time.partsToPosix Time.utc newParts
+    Time.partsToPosix zone newParts
 
 
 {-| Set only the minute of the provided dateTime
 -}
-setMinuteNotDay : Int -> Posix -> Posix
-setMinuteNotDay minute timeToUpdate =
+setMinuteNotDay : Zone -> Int -> Posix -> Posix
+setMinuteNotDay zone minute timeToUpdate =
     let
         parts =
-            Time.posixToParts Time.utc timeToUpdate
+            Time.posixToParts zone timeToUpdate
 
         newParts =
             { parts | minute = minute }
     in
-    Time.partsToPosix Time.utc newParts
+    Time.partsToPosix zone newParts
 
 
 generateHourOptions : List Int -> Int -> List (Html msg)
@@ -313,23 +313,23 @@ eventIsOutsideComponent componentId =
         ]
 
 
-filterSelectableHours : Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
-filterSelectableHours dateTimeBeingProcessed allowableTimesFn =
+filterSelectableHours : Zone -> Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
+filterSelectableHours zone dateTimeBeingProcessed allowableTimesFn =
     let
         { startHour, endHour } =
-            allowableTimesFn dateTimeBeingProcessed
+            allowableTimesFn zone dateTimeBeingProcessed
     in
     List.range startHour endHour
 
 
-filterSelectableMinutes : Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
-filterSelectableMinutes dateTimeBeingProcessed allowableTimesFn =
+filterSelectableMinutes : Zone -> Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
+filterSelectableMinutes zone dateTimeBeingProcessed allowableTimesFn =
     let
         { startHour, startMinute, endHour, endMinute } =
-            allowableTimesFn dateTimeBeingProcessed
+            allowableTimesFn zone dateTimeBeingProcessed
 
         hour =
-            Time.toHour Time.utc dateTimeBeingProcessed
+            Time.toHour zone dateTimeBeingProcessed
 
         filterBefore =
             if startHour == hour then
@@ -348,28 +348,28 @@ filterSelectableMinutes dateTimeBeingProcessed allowableTimesFn =
     List.range filterBefore filterAfter
 
 
-selectedAndSelectableTimeParts : Maybe Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> { selectedHour : Int, selectableHours : List Int, selectedMinute : Int, selectableMinutes : List Int }
-selectedAndSelectableTimeParts pickedDateTime allowableTimesFn =
+selectedAndSelectableTimeParts : Zone -> Maybe Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> { selectedHour : Int, selectableHours : List Int, selectedMinute : Int, selectableMinutes : List Int }
+selectedAndSelectableTimeParts zone pickedDateTime allowableTimesFn =
     Maybe.map
         (\time ->
             let
                 timeParts =
-                    Time.posixToParts Time.utc time
+                    Time.posixToParts zone time
             in
             { selectedHour = timeParts.hour
-            , selectableHours = filterSelectableHours time allowableTimesFn
+            , selectableHours = filterSelectableHours zone time allowableTimesFn
             , selectedMinute = timeParts.minute
-            , selectableMinutes = filterSelectableMinutes time allowableTimesFn
+            , selectableMinutes = filterSelectableMinutes zone time allowableTimesFn
             }
         )
         pickedDateTime
         |> Maybe.withDefault { selectedHour = 0, selectableHours = List.range 0 23, selectedMinute = 0, selectableMinutes = List.range 0 59 }
 
 
-enforceTimeBoundaries : Posix -> (Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> Posix
-enforceTimeBoundaries dateTimeBeingProcessed allowableTimesFn =
+enforceTimeBoundaries : Zone -> Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> Posix
+enforceTimeBoundaries zone dateTimeBeingProcessed allowableTimesFn =
     let
         { startHour, startMinute } =
-            allowableTimesFn dateTimeBeingProcessed
+            allowableTimesFn zone dateTimeBeingProcessed
     in
-    Time.posixToParts Time.utc dateTimeBeingProcessed |> (\parts -> { parts | hour = startHour, minute = startMinute } |> Time.partsToPosix Time.utc)
+    Time.posixToParts zone dateTimeBeingProcessed |> (\parts -> { parts | hour = startHour, minute = startMinute } |> Time.partsToPosix zone)
