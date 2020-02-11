@@ -5,17 +5,21 @@ import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import SingleDatePicker exposing (Settings, defaultSettings)
-import Time exposing (Month(..), Posix)
+import Task
+import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as Time exposing (Interval(..))
 
 
 type Msg
     = OpenPicker
     | UpdatePicker ( SingleDatePicker.DatePicker, Maybe Posix )
+    | AdjustTimeZone Zone
+    | Tick Posix
 
 
 type alias Model =
-    { today : Posix
+    { currentTime : Posix
+    , zone : Zone
     , pickedTime : Maybe Posix
     , picker : SingleDatePicker.DatePicker
     }
@@ -25,10 +29,16 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OpenPicker ->
-            ( { model | picker = SingleDatePicker.openPicker model.today model.pickedTime model.picker }, Cmd.none )
+            ( { model | picker = SingleDatePicker.openPicker model.zone model.currentTime model.pickedTime model.picker }, Cmd.none )
 
         UpdatePicker ( newPicker, maybeNewTime ) ->
             ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+
+        AdjustTimeZone newZone ->
+            ( { model | zone = newZone }, Cmd.none )
+
+        Tick newTime ->
+            ( { model | currentTime = newTime }, Cmd.none )
 
 
 isDateBeforeToday : Posix -> Posix -> Bool
@@ -36,29 +46,17 @@ isDateBeforeToday today datetime =
     Time.posixToMillis today > Time.posixToMillis datetime
 
 
-userDefinedDatePickerSettings : Posix -> Settings Msg
-userDefinedDatePickerSettings today =
+userDefinedDatePickerSettings : Zone -> Posix -> Settings Msg
+userDefinedDatePickerSettings zone today =
     let
         defaults =
-            defaultSettings UpdatePicker
+            defaultSettings zone UpdatePicker
     in
     { defaults
         | dateTimeProcessor =
-            { isDayDisabled = \datetime -> isDateBeforeToday (Time.floor Day Time.utc today) datetime
+            { isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
             , allowedTimesOfDay =
-                \datetime ->
-                    let
-                        processingParts =
-                            Time.posixToParts Time.utc datetime
-
-                        todayParts =
-                            Time.posixToParts Time.utc today
-                    in
-                    if processingParts.day == todayParts.day && processingParts.month == todayParts.month && processingParts.year == todayParts.year then
-                        { startHour = todayParts.hour, startMinute = todayParts.minute, endHour = 16, endMinute = 30 }
-
-                    else
-                        { startHour = 8, startMinute = 0, endHour = 16, endMinute = 30 }
+                \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
             }
         , focusedDate = Just today
         , dateStringFn = posixToDateString
@@ -74,11 +72,11 @@ view model =
             [ style "width" "500px", style "display" "inline-flex" ]
             [ div []
                 [ button [ style "margin-right" "10px", onClick <| OpenPicker ] [ text "Picker" ]
-                , SingleDatePicker.view (userDefinedDatePickerSettings model.today) model.picker
+                , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                 ]
             , case model.pickedTime of
                 Just date ->
-                    text (posixToDateString date ++ " " ++ posixToTimeString date)
+                    text (posixToDateString model.zone date ++ " " ++ posixToTimeString model.zone date)
 
                 Nothing ->
                     text "No date selected yet!"
@@ -86,26 +84,26 @@ view model =
         ]
 
 
-init : Int -> ( Model, Cmd Msg )
-init currentTime =
-    let
-        today =
-            Time.millisToPosix currentTime
-    in
-    ( { today = today
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( { currentTime = Time.millisToPosix 0
+      , zone = Time.utc
       , pickedTime = Nothing
       , picker = SingleDatePicker.init
       }
-    , Cmd.none
+    , Task.perform AdjustTimeZone Time.here
     )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    SingleDatePicker.subscriptions (userDefinedDatePickerSettings model.today) UpdatePicker model.picker
+    Sub.batch
+        [ SingleDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) UpdatePicker model.picker
+        , Time.every 1000 Tick
+        ]
 
 
-main : Program Int Model Msg
+main : Program () Model Msg
 main =
     Browser.element
         { init = init
@@ -172,20 +170,72 @@ monthToNmbString month =
             "12"
 
 
-posixToDateString : Posix -> String
-posixToDateString date =
-    addLeadingZero (Time.toDay Time.utc date)
-        ++ "."
-        ++ monthToNmbString (Time.toMonth Time.utc date)
-        ++ "."
-        ++ addLeadingZero (Time.toYear Time.utc date)
+{-| The goal of this naive function is to adjust
+the allowed time boundaries within the baseZone
+to the time zone in which the picker is running
+(clientZone) for the current day being processed
+(datetime).
+
+For example, the allowed times of day could be
+9am - 5pm EST. However, if someone is using the
+picker in MST (2 hours behind EST), the allowed
+times of day displayed in the picker should be
+7am - 3pm.
+
+There is likely a better way to do this, but it
+is suitable as an example.
+
+-}
+adjustAllowedTimesOfDayToClientZone : Zone -> Zone -> Posix -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }
+adjustAllowedTimesOfDayToClientZone baseZone clientZone today datetimeBeingProcessed =
+    let
+        processingPartsInClientZone =
+            Time.posixToParts clientZone datetimeBeingProcessed
+
+        todayPartsInClientZone =
+            Time.posixToParts clientZone today
+
+        startPartsAdjustedForBaseZone =
+            Time.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 8, minute = 0 })
+                |> Time.posixToParts clientZone
+
+        endPartsAdjustedForBaseZone =
+            Time.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 16, minute = 30 })
+                |> Time.posixToParts clientZone
+
+        bounds =
+            { startHour = startPartsAdjustedForBaseZone.hour
+            , startMinute = startPartsAdjustedForBaseZone.minute
+            , endHour = endPartsAdjustedForBaseZone.hour
+            , endMinute = endPartsAdjustedForBaseZone.minute
+            }
+    in
+    if processingPartsInClientZone.day == todayPartsInClientZone.day && processingPartsInClientZone.month == todayPartsInClientZone.month && processingPartsInClientZone.year == todayPartsInClientZone.year then
+        if todayPartsInClientZone.hour > bounds.startHour || (todayPartsInClientZone.hour == bounds.startHour && todayPartsInClientZone.minute > bounds.startMinute) then
+            { startHour = todayPartsInClientZone.hour, startMinute = todayPartsInClientZone.minute, endHour = bounds.endHour, endMinute = bounds.endMinute }
+
+        else
+            bounds
+
+    else
+        bounds
 
 
-posixToTimeString : Posix -> String
-posixToTimeString datetime =
-    addLeadingZero (Time.toHour Time.utc datetime)
+posixToDateString : Zone -> Posix -> String
+posixToDateString zone date =
+    addLeadingZero (Time.toDay zone date)
+        ++ "."
+        ++ monthToNmbString (Time.toMonth zone date)
+        ++ "."
+        ++ addLeadingZero (Time.toYear zone date)
+
+
+posixToTimeString : Zone -> Posix -> String
+posixToTimeString zone datetime =
+    addLeadingZero (Time.toHour zone datetime)
         ++ ":"
-        ++ addLeadingZero (Time.toMinute Time.utc datetime)
+        ++ addLeadingZero (Time.toMinute zone datetime)
         ++ ":"
-        ++ addLeadingZero (Time.toSecond Time.utc datetime)
-        ++ " (UTC)"
+        ++ addLeadingZero (Time.toSecond zone datetime)

@@ -22,6 +22,11 @@ module DurationDatePicker exposing
 
 @docs openPicker, closePicker
 
+
+# Query
+
+@docs isOpen
+
 -}
 
 import Browser.Events
@@ -34,7 +39,7 @@ import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
-import Time exposing (Month(..), Posix, Weekday(..))
+import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
 
@@ -54,6 +59,16 @@ type DatePicker
 
 
 {-| The type facilitating the configuration of the datepicker settings.
+
+Because it could be the case that a picker is being used in a different
+timezone than the home timezone of the implementor, the subfunctions of
+the `dateTimeProcessor` both ingest a `Zone` in addition to a `Posix`. The
+`Zone` represents the time zone in which the picker is being used. An
+implementor can leverage this to compare against a base time zone when
+enforcing allowable times of day, etc.
+
+More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
+
 -}
 type alias Settings msg =
     -- this will get more advanced as we develop the api.
@@ -64,9 +79,10 @@ type alias Settings msg =
     , formattedMonth : Month -> String
     , focusedDate : Maybe Posix
     , dateTimeProcessor :
-        { isDayDisabled : Posix -> Bool
+        { isDayDisabled : Zone -> Posix -> Bool
         , allowedTimesOfDay :
-            Posix
+            Zone
+            -> Posix
             ->
                 { startHour : Int
                 , startMinute : Int
@@ -75,8 +91,9 @@ type alias Settings msg =
                 }
         }
     , internalMsg : ( DatePicker, Maybe ( Posix, Posix ) ) -> msg
-    , dateStringFn : Posix -> String
-    , timeStringFn : Posix -> String
+    , dateStringFn : Zone -> Posix -> String
+    , timeStringFn : Zone -> Posix -> String
+    , zone : Zone
     }
 
 
@@ -93,24 +110,26 @@ type StartOrEnd
 {-| A record of default settings for the date picker. Extend this if
 you want to further customize the date picker.
 
-Requires a `msg` that expects a tuple containing a datepicker instance
-and a `Maybe` tuple representing a selected duration.
+Requires a `Zone` to inform the picker in which time zone it should
+display the selected duration as well as a `msg` that expects a tuple containing
+a datepicker instance and a `Maybe` tuple representing a selected duration.
 
     ( DatePicker, Maybe ( Posix, Posix ) ) -> msg
 
 -}
-defaultSettings : (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> Settings msg
-defaultSettings internalMsg =
+defaultSettings : Zone -> (( DatePicker, Maybe ( Posix, Posix ) ) -> msg) -> Settings msg
+defaultSettings zone internalMsg =
     { formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
     , focusedDate = Nothing
     , dateTimeProcessor =
-        { isDayDisabled = always False
-        , allowedTimesOfDay = \_ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 }
+        { isDayDisabled = \_ _ -> False
+        , allowedTimesOfDay = \_ _ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 }
         }
     , internalMsg = internalMsg
-    , dateStringFn = \_ -> ""
-    , timeStringFn = \_ -> ""
+    , dateStringFn = \_ _ -> ""
+    , timeStringFn = \_ _ -> ""
+    , zone = zone
     }
 
 
@@ -166,11 +185,11 @@ clickedOutsidePicker settings componentId internalMsg datePicker =
             )
 
 
-calculatePickerOffset : Posix -> Maybe Posix -> Int
-calculatePickerOffset baseTime pickedStartTime =
+calculatePickerOffset : Zone -> Posix -> Maybe Posix -> Int
+calculatePickerOffset zone baseTime pickedStartTime =
     let
         flooredBase =
-            Time.floor Month Time.utc baseTime
+            Time.floor Month zone baseTime
     in
     case pickedStartTime of
         Nothing ->
@@ -179,13 +198,13 @@ calculatePickerOffset baseTime pickedStartTime =
         Just time ->
             let
                 flooredStart =
-                    Time.floor Month Time.utc time
+                    Time.floor Month zone time
             in
             if Time.posixToMillis flooredBase <= Time.posixToMillis flooredStart then
-                Time.diff Month Time.utc flooredBase flooredStart
+                Time.diff Month zone flooredBase flooredStart
 
             else
-                0 - Time.diff Month Time.utc flooredStart flooredBase
+                0 - Time.diff Month zone flooredStart flooredBase
 
 
 {-| Open the provided date picker and receive the updated picker instance. Also
@@ -193,11 +212,11 @@ takes a default time the picker should center on (in the event a time has not ye
 been picked) as well as the picked start and end times. A common example of a default time
 would be the datetime for the current day.
 -}
-openPicker : Posix -> Maybe Posix -> Maybe Posix -> DatePicker -> DatePicker
-openPicker baseTime start end (DatePicker model) =
+openPicker : Zone -> Posix -> Maybe Posix -> Maybe Posix -> DatePicker -> DatePicker
+openPicker zone baseTime start end (DatePicker model) =
     let
         pickerOffset =
-            calculatePickerOffset baseTime start
+            calculatePickerOffset zone baseTime start
     in
     DatePicker
         { model
@@ -249,8 +268,8 @@ validRuntimeOrNothing settings start end =
                     < Time.posixToMillis e
                     && timeWithinBoundariesOfGivenDay settings s
                     && timeWithinBoundariesOfGivenDay settings e
-                    && not (settings.dateTimeProcessor.isDayDisabled s)
-                    && not (settings.dateTimeProcessor.isDayDisabled e)
+                    && not (settings.dateTimeProcessor.isDayDisabled settings.zone s)
+                    && not (settings.dateTimeProcessor.isDayDisabled settings.zone e)
             then
                 Just ( s, e )
 
@@ -268,7 +287,7 @@ update settings msg (DatePicker model) =
         Open baseTime ->
             let
                 boundedBaseTime =
-                    Utilities.enforceTimeBoundaries baseTime settings.dateTimeProcessor.allowedTimesOfDay
+                    Utilities.enforceTimeBoundaries settings.zone baseTime settings.dateTimeProcessor.allowedTimesOfDay
             in
             case msg of
                 NextMonth ->
@@ -284,7 +303,7 @@ update settings msg (DatePicker model) =
                     ( DatePicker { model | pickerOffset = model.pickerOffset - 12 }, Nothing )
 
                 SetHoveredDay time ->
-                    ( DatePicker { model | hovered = Just <| Utilities.enforceTimeBoundaries time settings.dateTimeProcessor.allowedTimesOfDay }, Nothing )
+                    ( DatePicker { model | hovered = Just <| Utilities.enforceTimeBoundaries settings.zone time settings.dateTimeProcessor.allowedTimesOfDay }, Nothing )
 
                 ClearHoveredDay ->
                     ( DatePicker { model | hovered = Nothing }, Nothing )
@@ -294,10 +313,10 @@ update settings msg (DatePicker model) =
                         ( Just s, Just e ) ->
                             Maybe.map
                                 (\hovered ->
-                                    if Utilities.doDaysMatch e hovered then
+                                    if Utilities.doDaysMatch settings.zone e hovered then
                                         ( DatePicker { model | pickedStart = Just s, pickedEnd = Nothing }, Nothing )
 
-                                    else if Utilities.doDaysMatch s hovered then
+                                    else if Utilities.doDaysMatch settings.zone s hovered then
                                         ( DatePicker { model | pickedStart = Nothing, pickedEnd = Just e }, Nothing )
 
                                     else
@@ -309,7 +328,7 @@ update settings msg (DatePicker model) =
                         _ ->
                             let
                                 ( start, end ) =
-                                    determineDateTimeRange settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
+                                    determineDateTimeRange settings.zone settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
                             in
                             ( DatePicker { model | pickedStart = start, pickedEnd = end }, validRuntimeOrNothing settings start end )
 
@@ -318,17 +337,17 @@ update settings msg (DatePicker model) =
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setHourNotDay hour (Maybe.withDefault boundedBaseTime model.pickedStart)
+                                    Utilities.setHourNotDay settings.zone hour (Maybe.withDefault boundedBaseTime model.pickedStart)
                             in
                             ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing settings (Just newTime) model.pickedEnd )
 
                         End ->
                             let
                                 defaultTime =
-                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault boundedBaseTime
+                                    Maybe.map (Time.floor Day settings.zone) model.pickedStart |> Maybe.withDefault boundedBaseTime
 
                                 newTime =
-                                    Utilities.setHourNotDay hour (Maybe.withDefault defaultTime model.pickedEnd)
+                                    Utilities.setHourNotDay settings.zone hour (Maybe.withDefault defaultTime model.pickedEnd)
                             in
                             ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing settings model.pickedStart (Just newTime) )
 
@@ -337,17 +356,17 @@ update settings msg (DatePicker model) =
                         Start ->
                             let
                                 newTime =
-                                    Utilities.setMinuteNotDay minute (Maybe.withDefault boundedBaseTime model.pickedStart)
+                                    Utilities.setMinuteNotDay settings.zone minute (Maybe.withDefault boundedBaseTime model.pickedStart)
                             in
                             ( DatePicker { model | pickedStart = Just newTime }, validRuntimeOrNothing settings (Just newTime) model.pickedEnd )
 
                         End ->
                             let
                                 defaultTime =
-                                    Maybe.map (Time.floor Day Time.utc) model.pickedStart |> Maybe.withDefault boundedBaseTime
+                                    Maybe.map (Time.floor Day settings.zone) model.pickedStart |> Maybe.withDefault boundedBaseTime
 
                                 newTime =
-                                    Utilities.setMinuteNotDay minute (Maybe.withDefault defaultTime model.pickedEnd)
+                                    Utilities.setMinuteNotDay settings.zone minute (Maybe.withDefault defaultTime model.pickedEnd)
                             in
                             ( DatePicker { model | pickedEnd = Just newTime }, validRuntimeOrNothing settings model.pickedStart (Just newTime) )
 
@@ -363,13 +382,13 @@ classPrefix =
     "elm-datetimepicker-duration--"
 
 
-determineDateTimeRange : (Posix -> Bool) -> Maybe Posix -> Maybe Posix -> Maybe Posix -> ( Maybe Posix, Maybe Posix )
-determineDateTimeRange isDayDisabled pickedStart pickedEnd hoveredDate =
+determineDateTimeRange : Zone -> (Zone -> Posix -> Bool) -> Maybe Posix -> Maybe Posix -> Maybe Posix -> ( Maybe Posix, Maybe Posix )
+determineDateTimeRange zone isDayDisabled pickedStart pickedEnd hoveredDate =
     case hoveredDate of
         Just hovered ->
             let
                 maybeHovered =
-                    if isDayDisabled hovered then
+                    if isDayDisabled zone hovered then
                         Nothing
 
                     else
@@ -409,10 +428,10 @@ view settings (DatePicker model) =
         Open baseTime ->
             let
                 leftViewTime =
-                    Time.add Month model.pickerOffset Time.utc baseTime
+                    Time.add Month model.pickerOffset settings.zone baseTime
 
                 rightViewTime =
-                    Time.add Month (model.pickerOffset + 1) Time.utc baseTime
+                    Time.add Month (model.pickerOffset + 1) settings.zone baseTime
             in
             div
                 [ id datePickerId, class (classPrefix ++ "picker-container") ]
@@ -489,10 +508,10 @@ viewCalendarHeader : Settings msg -> Posix -> Html msg
 viewCalendarHeader settings viewTime =
     let
         monthName =
-            Time.toMonth Time.utc viewTime |> settings.formattedMonth
+            Time.toMonth settings.zone viewTime |> settings.formattedMonth
 
         year =
-            Time.toYear Time.utc viewTime |> String.fromInt
+            Time.toYear settings.zone viewTime |> String.fromInt
     in
     div
         [ class (classPrefix ++ "calendar-header") ]
@@ -528,10 +547,10 @@ viewMonth : Settings msg -> Model -> Posix -> Html msg
 viewMonth settings model viewTime =
     let
         monthRenderData =
-            Utilities.monthData viewTime
+            Utilities.monthData settings.zone viewTime
 
         currentMonth =
-            Time.posixToParts Time.utc viewTime |> .month
+            Time.posixToParts settings.zone viewTime |> .month
 
         weeks =
             List.reverse (Utilities.splitIntoWeeks monthRenderData [])
@@ -552,17 +571,17 @@ viewDay : Settings msg -> Model -> Month -> Posix -> Html msg
 viewDay settings model currentMonth day =
     let
         dayParts =
-            Time.posixToParts Time.utc day
+            Time.posixToParts settings.zone day
 
         isToday =
-            Maybe.map (\tday -> Utilities.doDaysMatch day tday) settings.focusedDate
+            Maybe.map (\tday -> Utilities.doDaysMatch settings.zone day tday) settings.focusedDate
                 |> Maybe.withDefault False
 
         ( isPicked, isBetween ) =
-            Utilities.durationDayPickedOrBetween day model.hovered ( model.pickedStart, model.pickedEnd )
+            Utilities.durationDayPickedOrBetween settings.zone day model.hovered ( model.pickedStart, model.pickedEnd )
 
         isDisabled =
-            settings.dateTimeProcessor.isDayDisabled day || not (areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay day))
+            settings.dateTimeProcessor.isDayDisabled settings.zone day || not (areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay settings.zone day))
 
         dayClasses =
             DatePicker.Styles.durationDayClasses classPrefix (dayParts.month /= currentMonth) isDisabled isPicked isToday isBetween
@@ -585,8 +604,8 @@ viewDay settings model currentMonth day =
 viewDateTime : Settings msg -> String -> Posix -> Html msg
 viewDateTime settings classString dateTime =
     span []
-        [ text (settings.dateStringFn dateTime)
-        , span [ class (classPrefix ++ classString) ] [ text (settings.timeStringFn dateTime) ]
+        [ text (settings.dateStringFn settings.zone dateTime)
+        , span [ class (classPrefix ++ classString) ] [ text (settings.timeStringFn settings.zone dateTime) ]
         ]
 
 
@@ -599,10 +618,10 @@ timeWithinBoundariesOfGivenDay : Settings msg -> Posix -> Bool
 timeWithinBoundariesOfGivenDay settings time =
     let
         { hour, minute } =
-            Time.posixToParts Time.utc time
+            Time.posixToParts settings.zone time
 
         { startHour, startMinute, endHour, endMinute } =
-            settings.dateTimeProcessor.allowedTimesOfDay time
+            settings.dateTimeProcessor.allowedTimesOfDay settings.zone time
     in
     if startHour == hour && endHour /= hour then
         startMinute <= minute
@@ -670,7 +689,7 @@ viewFooter : Settings msg -> Model -> Html msg
 viewFooter settings model =
     let
         ( startDate, endDate ) =
-            determineDateTimeRange settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
+            determineDateTimeRange settings.zone settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
 
         ( startDisplayDate, endDisplayDate ) =
             determineDateTimeViews settings ( startDate, endDate )
@@ -703,11 +722,11 @@ viewTimePicker : Settings msg -> Model -> StartOrEnd -> Maybe Posix -> Html msg
 viewTimePicker settings model startOrEnd pickedTime =
     let
         selectEnabled =
-            Maybe.map (\time -> areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay time)) pickedTime |> Maybe.withDefault False
+            Maybe.map (\time -> areAllowedTimesValid (settings.dateTimeProcessor.allowedTimesOfDay settings.zone time)) pickedTime |> Maybe.withDefault False
 
         { selectedHour, selectableHours, selectedMinute, selectableMinutes } =
             if selectEnabled then
-                Utilities.selectedAndSelectableTimeParts pickedTime settings.dateTimeProcessor.allowedTimesOfDay
+                Utilities.selectedAndSelectableTimeParts settings.zone pickedTime settings.dateTimeProcessor.allowedTimesOfDay
 
             else
                 { selectedHour = 0, selectableHours = [ 0 ], selectedMinute = 0, selectableMinutes = [ 0 ] }
