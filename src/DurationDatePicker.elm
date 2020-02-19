@@ -65,7 +65,8 @@ timezone than the home timezone of the implementor, the subfunctions of
 the `dateTimeProcessor` both ingest a `Zone` in addition to a `Posix`. The
 `Zone` represents the time zone in which the picker is being used. An
 implementor can leverage this to compare against a base time zone when
-enforcing allowable times of day, etc.
+enforcing allowable times of day, etc. You SHOULD assume that the `Posix`
+passed into these functions is floored to the start of its respective `Day`.
 
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
@@ -268,8 +269,8 @@ validRuntimeOrNothing settings start end =
                     < Time.posixToMillis e
                     && timeWithinBoundariesOfGivenDay settings s
                     && timeWithinBoundariesOfGivenDay settings e
-                    && not (settings.dateTimeProcessor.isDayDisabled settings.zone s)
-                    && not (settings.dateTimeProcessor.isDayDisabled settings.zone e)
+                    && not (settings.dateTimeProcessor.isDayDisabled settings.zone (Time.floor Day settings.zone s))
+                    && not (settings.dateTimeProcessor.isDayDisabled settings.zone (Time.floor Day settings.zone e))
             then
                 Just ( s, e )
 

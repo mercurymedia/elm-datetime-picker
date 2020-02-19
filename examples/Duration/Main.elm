@@ -207,7 +207,7 @@ adjustAllowedTimesOfDayToClientZone baseZone clientZone today datetimeBeingProce
 
         endPartsAdjustedForBaseZone =
             Time.posixToParts baseZone datetimeBeingProcessed
-                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 16, minute = 30 })
+                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 17, minute = 30 })
                 |> Time.posixToParts clientZone
 
         bounds =
