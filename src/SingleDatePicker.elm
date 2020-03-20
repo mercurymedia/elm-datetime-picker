@@ -512,7 +512,7 @@ viewDay settings model currentMonth pickedTime day =
                 defaultAttrs
 
             else
-                onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model)) :: defaultAttrs
+                (onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))) :: defaultAttrs
     in
     div
         attrs
