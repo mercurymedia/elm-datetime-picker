@@ -95,6 +95,7 @@ type alias Settings msg =
     , timeStringFn : Zone -> Posix -> String
     , zone : Zone
     , isMouseOverDisabled : Bool
+    , isFooterDisabled : Bool
     }
 
 
@@ -127,6 +128,7 @@ defaultSettings zone internalMsg =
     , timeStringFn = \_ _ -> ""
     , zone = zone
     , isMouseOverDisabled = False
+    , isFooterDisabled = False
     }
 
 
@@ -367,7 +369,11 @@ view settings (DatePicker model) =
                     [ viewCalendarHeader settings model offsetTime
                     , viewMonth settings model model.pickedTime offsetTime
                     ]
-                , viewFooter settings model
+                , if settings.isFooterDisabled then
+                    text ""
+
+                  else
+                    viewFooter settings model
                 ]
 
         Closed ->
