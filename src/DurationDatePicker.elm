@@ -95,6 +95,7 @@ type alias Settings msg =
     , dateStringFn : Zone -> Posix -> String
     , timeStringFn : Zone -> Posix -> String
     , zone : Zone
+    , isMouseOverDisabled : Bool
     }
 
 
@@ -131,6 +132,7 @@ defaultSettings zone internalMsg =
     , dateStringFn = \_ _ -> ""
     , timeStringFn = \_ _ -> ""
     , zone = zone
+    , isMouseOverDisabled = False
     }
 
 
@@ -587,15 +589,20 @@ viewDay settings model currentMonth day =
         dayClasses =
             DatePicker.Styles.durationDayClasses classPrefix (dayParts.month /= currentMonth) isDisabled isPicked isToday isBetween
 
+        defaultAttrs =
+            [ class dayClasses
+            , onClick <| settings.internalMsg (update settings SetRange (DatePicker model))
+            ]
+
         attrs =
             if isDisabled then
                 [ class dayClasses ]
 
+            else if settings.isMouseOverDisabled then
+                defaultAttrs
+
             else
-                [ class dayClasses
-                , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
-                , onClick <| settings.internalMsg (update settings SetRange (DatePicker model))
-                ]
+                onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model)) :: defaultAttrs
     in
     div
         attrs
