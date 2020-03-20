@@ -5,6 +5,7 @@
     font-size: .875rem;
     padding: .75rem;
     border-radius: 5px;
+    z-index: 10;
     box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15)
 }
 
@@ -72,6 +73,7 @@
     background-color: #fff;
     color: #22292f;
     cursor: pointer;
+    border: none;
 }
 
 .elm-datetimepicker-single--calendar-day:hover {

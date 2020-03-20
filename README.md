@@ -92,7 +92,7 @@ update msg model =
             ( { model | picker = DatePicker.openPicker model.zone model.today model.pickedTime model.picker }, Cmd.none )
 
         UpdatePicker ( newPicker, maybeNewTime ) ->
-            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+            ( { model | picker = newPicker, pickedTime = Maybe.withDefault model.pickedTime maybeNewTime }, Cmd.none )
 ```
 
 The user is responsible for defining his or her own `Open` picker message and placing the relevant event listener where he or she pleases. When handling this message in the `update` as seen above, we call `DatePicker.openPicker` which simply returns an updated picker instance to be stored on the model (`DatePicker.closePicker` is also provided and returns an updated picker instance like `openPicker` does). `DatePicker.openPicker` takes a `Zone` (the time zone in which to display the picker), `Posix` (the base time), a `Maybe Posix` (the picked time), and the `DatePicker` instance we wish to open. The base time is used to inform the picker what day it should center on in the event no datetime has been selected yet. This could be the current date or another date of the implementer's choosing.
@@ -106,7 +106,7 @@ In the event you want the picker to close automatically when clicking outside of
 ```elm
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    SingleDatePicker.subscriptions UpdatePicker model.picker
+    SingleDatePicker.subscriptions (userDefinedDatePickerSettings model.zone) UpdatePicker model.picker
 ```
 
 ## Additional Configuration
