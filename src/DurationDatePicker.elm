@@ -440,11 +440,11 @@ view settings (DatePicker model) =
                 , div
                     [ class (classPrefix ++ "calendars-container") ]
                     [ div
-                        [ class (classPrefix ++ "calendar") ]
+                        [ id "left-container", class (classPrefix ++ "calendar") ]
                         [ viewCalendar settings model leftViewTime ]
                     , div [ class (classPrefix ++ "calendar-spacer") ] []
                     , div
-                        [ class (classPrefix ++ "calendar") ]
+                        [ id "right-container", class (classPrefix ++ "calendar") ]
                         [ viewCalendar settings model rightViewTime ]
                     ]
                 , div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings model ]
@@ -459,7 +459,8 @@ viewPickerHeader settings model =
     div []
         [ div [ class (classPrefix ++ "picker-header-chevrons") ]
             [ div
-                [ class (classPrefix ++ "picker-header-chevron")
+                [ id "previous-month"
+                , class (classPrefix ++ "picker-header-chevron")
                 , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
                 ]
                 [ Icons.chevronLeft
@@ -467,7 +468,8 @@ viewPickerHeader settings model =
                     |> Icons.toHtml []
                 ]
             , div
-                [ class (classPrefix ++ "picker-header-chevron")
+                [ id "next-month"
+                , class (classPrefix ++ "picker-header-chevron")
                 , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
                 ]
                 [ Icons.chevronRight
@@ -477,7 +479,8 @@ viewPickerHeader settings model =
             ]
         , div [ class (classPrefix ++ "picker-header-chevrons") ]
             [ div
-                [ class (classPrefix ++ "picker-header-chevron")
+                [ id "previous-year"
+                , class (classPrefix ++ "picker-header-chevron")
                 , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
                 ]
                 [ Icons.chevronsLeft
@@ -485,7 +488,8 @@ viewPickerHeader settings model =
                     |> Icons.toHtml []
                 ]
             , div
-                [ class (classPrefix ++ "picker-header-chevron")
+                [ id "next-year"
+                , class (classPrefix ++ "picker-header-chevron")
                 , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
                 ]
                 [ Icons.chevronsRight
@@ -518,13 +522,15 @@ viewCalendarHeader settings viewTime =
         [ class (classPrefix ++ "calendar-header") ]
         [ div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
-                [ class (classPrefix ++ "calendar-header-text") ]
-                [ div [] [ text monthName ] ]
+                [ class (classPrefix ++ "calendar-header-text")
+                ]
+                [ div [ id "month" ] [ text monthName ] ]
             ]
         , div [ class (classPrefix ++ "calendar-header-row") ]
             [ div
-                [ class (classPrefix ++ "calendar-header-text") ]
-                [ div [] [ text year ] ]
+                [ class (classPrefix ++ "calendar-header-text")
+                ]
+                [ div [ id "year" ] [ text year ] ]
             ]
         , viewWeekHeader settings [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
         ]
@@ -700,13 +706,13 @@ viewFooter settings model =
         [ div [ class (classPrefix ++ "time-pickers-container") ]
             [ div [ class (classPrefix ++ "time-picker-information-container") ]
                 [ div
-                    [ class (classPrefix ++ "time-picker-container") ]
+                    [ id "start-select", class (classPrefix ++ "time-picker-container") ]
                     [ text "Start", viewTimePicker settings model Start startDate ]
                 , div [ class (classPrefix ++ "date-display-container") ] [ startDisplayDate ]
                 ]
             , div [ class (classPrefix ++ "time-picker-information-container") ]
                 [ div
-                    [ class (classPrefix ++ "time-picker-container") ]
+                    [ id "end-select", class (classPrefix ++ "time-picker-container") ]
                     [ text "End", viewTimePicker settings model End endDate ]
                 , div [ class (classPrefix ++ "date-display-container") ] [ endDisplayDate ]
                 ]
@@ -741,8 +747,8 @@ viewTimePicker settings model startOrEnd pickedTime =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ div [ class (classPrefix ++ "select") ] [ select [ disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetHour startOrEnd) targetValueIntParse))) ] (Utilities.generateHourOptions selectableHours selectedHour) ]
+            [ div [ class (classPrefix ++ "select") ] [ select [ class "hour-select", disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetHour startOrEnd) targetValueIntParse))) ] (Utilities.generateHourOptions selectableHours selectedHour) ]
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , div [ class (classPrefix ++ "select") ] [ select [ disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetMinute startOrEnd) targetValueIntParse))) ] (Utilities.generateMinuteOptions selectableMinutes selectedMinute) ]
+            , div [ class (classPrefix ++ "select") ] [ select [ class "minute-select", disabled <| not selectEnabled, on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetMinute startOrEnd) targetValueIntParse))) ] (Utilities.generateMinuteOptions selectableMinutes selectedMinute) ]
             ]
         ]
