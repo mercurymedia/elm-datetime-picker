@@ -61,6 +61,7 @@ userDefinedDatePickerSettings zone today =
         , focusedDate = Just today
         , dateStringFn = posixToDateString
         , timeStringFn = posixToTimeString
+        , isFooterDisabled = True
     }
 
 

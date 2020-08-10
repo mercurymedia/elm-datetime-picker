@@ -94,6 +94,7 @@ type alias Settings msg =
     , dateStringFn : Zone -> Posix -> String
     , timeStringFn : Zone -> Posix -> String
     , zone : Zone
+    , isFooterDisabled : Bool
     }
 
 
@@ -125,6 +126,7 @@ defaultSettings zone internalMsg =
     , dateStringFn = \_ _ -> ""
     , timeStringFn = \_ _ -> ""
     , zone = zone
+    , isFooterDisabled = False
     }
 
 
@@ -365,7 +367,11 @@ view settings (DatePicker model) =
                     [ viewCalendarHeader settings model offsetTime
                     , viewMonth settings model model.pickedTime offsetTime
                     ]
-                , viewFooter settings model
+                , if settings.isFooterDisabled then
+                    text ""
+
+                  else
+                    viewFooter settings model
                 ]
 
         Closed ->
