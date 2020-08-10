@@ -330,8 +330,22 @@ update settings msg (DatePicker model) =
                             let
                                 ( start, end ) =
                                     determineDateTimeRange settings.zone settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
+
+                                startOfDay =
+                                    case start of
+                                        Just _ ->
+                                            Just (Utilities.setHourNotDay settings.zone 0 (Maybe.withDefault boundedBaseTime start))
+                                        Nothing ->
+                                            Nothing
+                                endOfDay =
+                                    case end of
+                                        Just _ ->
+                                            Just (Utilities.setMinuteNotDay settings.zone 59 (Maybe.withDefault boundedBaseTime (Just (Utilities.setHourNotDay settings.zone 23 (Maybe.withDefault boundedBaseTime end)))))
+                                        Nothing ->
+                                            Nothing
+                            
                             in
-                            ( DatePicker { model | pickedStart = start, pickedEnd = end }, validRuntimeOrNothing settings start end )
+                            ( DatePicker { model | pickedStart = startOfDay, pickedEnd = endOfDay }, validRuntimeOrNothing settings startOfDay endOfDay )
 
                 SetHour startOrEnd hour ->
                     case startOrEnd of
