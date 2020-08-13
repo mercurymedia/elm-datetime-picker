@@ -348,10 +348,10 @@ update settings msg (DatePicker model) =
                                                 updatedHour =
                                                     Utilities.setHourNotDay settings.zone 23 (Maybe.withDefault boundedBaseTime end)
 
-                                                updatedMinute =
+                                                updatedHourAndMinute =
                                                     Utilities.setMinuteNotDay settings.zone 59 (Maybe.withDefault boundedBaseTime (Just updatedHour))
                                             in
-                                            Just updatedMinute
+                                            Just updatedHourAndMinute
 
                                         Nothing ->
                                             Nothing
