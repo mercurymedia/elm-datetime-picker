@@ -335,15 +335,24 @@ update settings msg (DatePicker model) =
                                     case start of
                                         Just _ ->
                                             Just (Utilities.setHourNotDay settings.zone 0 (Maybe.withDefault boundedBaseTime start))
+
                                         Nothing ->
                                             Nothing
+
                                 endOfDay =
                                     case end of
                                         Just _ ->
-                                            Just (Utilities.setMinuteNotDay settings.zone 59 (Maybe.withDefault boundedBaseTime (Just (Utilities.setHourNotDay settings.zone 23 (Maybe.withDefault boundedBaseTime end)))))
+                                            let
+                                                updatedHour =
+                                                    Utilities.setHourNotDay settings.zone 23 (Maybe.withDefault boundedBaseTime end)
+
+                                                updatedMinute =
+                                                    Utilities.setMinuteNotDay settings.zone 59 (Maybe.withDefault boundedBaseTime (Just updatedHour))
+                                            in
+                                            Just updatedMinute
+
                                         Nothing ->
                                             Nothing
-                            
                             in
                             ( DatePicker { model | pickedStart = startOfDay, pickedEnd = endOfDay }, validRuntimeOrNothing settings startOfDay endOfDay )
 
