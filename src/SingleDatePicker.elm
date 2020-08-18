@@ -73,7 +73,6 @@ More information can be found in the [examples](https://github.com/mercurymedia/
 type alias Settings msg =
     -- this will get more advanced as we develop the api.
     -- Potential additions:
-    -- * hide time selection (default to midnight)
     -- * hide prev and next year chevrons
     { formattedDay : Weekday -> String
     , formattedMonth : Month -> String
