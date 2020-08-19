@@ -39,6 +39,7 @@ import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
+import Svg.Attributes exposing (end)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -74,7 +75,6 @@ More information can be found in the [examples](https://github.com/mercurymedia/
 type alias Settings msg =
     -- this will get more advanced as we develop the api.
     -- Potential additions:
-    -- * hide time selection (default to midnight)
     -- * hide prev and next year chevrons
     { formattedDay : Weekday -> String
     , formattedMonth : Month -> String
@@ -95,6 +95,8 @@ type alias Settings msg =
     , dateStringFn : Zone -> Posix -> String
     , timeStringFn : Zone -> Posix -> String
     , zone : Zone
+    , isFooterDisabled : Bool
+    , isFullDayEnabled : Bool
     }
 
 
@@ -131,6 +133,8 @@ defaultSettings zone internalMsg =
     , dateStringFn = \_ _ -> ""
     , timeStringFn = \_ _ -> ""
     , zone = zone
+    , isFooterDisabled = False
+    , isFullDayEnabled = False
     }
 
 
@@ -330,8 +334,39 @@ update settings msg (DatePicker model) =
                             let
                                 ( start, end ) =
                                     determineDateTimeRange settings.zone settings.dateTimeProcessor.isDayDisabled model.pickedStart model.pickedEnd model.hovered
+
+                                startOfDay =
+                                    if settings.isFullDayEnabled then
+                                        case start of
+                                            Just _ ->
+                                                Just (Utilities.setHourNotDay settings.zone 0 (Maybe.withDefault boundedBaseTime start))
+
+                                            Nothing ->
+                                                Nothing
+
+                                    else
+                                        start
+
+                                endOfDay =
+                                    if settings.isFullDayEnabled then
+                                        case end of
+                                            Just _ ->
+                                                let
+                                                    updatedHour =
+                                                        Utilities.setHourNotDay settings.zone 23 (Maybe.withDefault boundedBaseTime end)
+
+                                                    updatedHourAndMinute =
+                                                        Utilities.setMinuteNotDay settings.zone 59 (Maybe.withDefault boundedBaseTime (Just updatedHour))
+                                                in
+                                                Just updatedHourAndMinute
+
+                                            Nothing ->
+                                                Nothing
+
+                                    else
+                                        end
                             in
-                            ( DatePicker { model | pickedStart = start, pickedEnd = end }, validRuntimeOrNothing settings start end )
+                            ( DatePicker { model | pickedStart = startOfDay, pickedEnd = endOfDay }, validRuntimeOrNothing settings startOfDay endOfDay )
 
                 SetHour startOrEnd hour ->
                     case startOrEnd of
@@ -447,7 +482,11 @@ view settings (DatePicker model) =
                         [ id "right-container", class (classPrefix ++ "calendar") ]
                         [ viewCalendar settings model rightViewTime ]
                     ]
-                , div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings model ]
+                , if settings.isFooterDisabled then
+                    text ""
+
+                  else
+                    div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings model ]
                 ]
 
         Closed ->
@@ -630,7 +669,10 @@ timeWithinBoundariesOfGivenDay settings time =
         { startHour, startMinute, endHour, endMinute } =
             settings.dateTimeProcessor.allowedTimesOfDay settings.zone time
     in
-    if startHour == hour && endHour /= hour then
+    if settings.isFullDayEnabled then
+        True
+
+    else if startHour == hour && endHour /= hour then
         startMinute <= minute
 
     else if startHour /= hour && endHour == hour then
