@@ -1,4 +1,4 @@
-module DatePicker.Icons exposing (check, chevronLeft, chevronRight, chevronsLeft, chevronsRight, toHtml, withSize)
+module DatePicker.Icons exposing (check, chevronDown, chevronLeft, chevronRight, chevronUp, chevronsLeft, chevronsRight, toHtml, withSize)
 
 import Html exposing (Html)
 import Svg exposing (Svg, svg)
@@ -147,4 +147,24 @@ chevronsRight =
     makeBuilder "chevrons-right"
         [ Svg.polyline [ points "13 17 18 12 13 7" ] []
         , Svg.polyline [ points "6 17 11 12 6 7" ] []
+        ]
+
+
+{-| chevron-up
+![image](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjE4IDE1IDEyIDkgNiAxNSI+PC9wb2x5bGluZT48L3N2Zz4=)
+-}
+chevronUp : Icon
+chevronUp =
+    makeBuilder "chevron-up"
+        [ Svg.polyline [ points "18 15 12 9 6 15" ] []
+        ]
+
+
+{-| chevron-down
+![image](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjYgOSAxMiAxNSAxOCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==)
+-}
+chevronDown : Icon
+chevronDown =
+    makeBuilder "chevron-down"
+        [ Svg.polyline [ points "6 9 12 15 18 9" ] []
         ]
