@@ -81,7 +81,7 @@ selectStartHour zone basePickerDay startSelectionTuple endSelectionTuple newStar
                     in
                     ( basePickerDay, Utilities.setMinuteNotDay zone earliestSelectableMinute updatedHourSelection )
     in
-    Utilities.newOrPreviousSelection zone startSelectionTuple ( selectedPickerDay, selection )
+    Utilities.validSelectionOrDefault zone startSelectionTuple ( selectedPickerDay, selection )
         |> (\subjectSelection -> newOrPreviousDuration ( startSelectionTuple, endSelectionTuple ) ( subjectSelection, endSelectionTuple ))
 
 
@@ -106,7 +106,7 @@ selectEndHour zone basePickerDay startSelectionTuple endSelectionTuple newEndHou
                     in
                     ( basePickerDay, Utilities.setMinuteNotDay zone latestSelectableMinute updatedHourSelection )
     in
-    Utilities.newOrPreviousSelection zone endSelectionTuple ( selectedPickerDay, selection )
+    Utilities.validSelectionOrDefault zone endSelectionTuple ( selectedPickerDay, selection )
         |> (\subjectSelection -> newOrPreviousDuration ( startSelectionTuple, endSelectionTuple ) ( startSelectionTuple, subjectSelection ))
 
 
@@ -124,7 +124,7 @@ selectStartMinute zone basePickerDay startSelectionTuple endSelectionTuple newSt
                 ( Nothing, Nothing ) ->
                     ( basePickerDay, Utilities.setMinuteNotDay zone newStartMinute basePickerDay.start )
     in
-    Utilities.newOrPreviousSelection zone startSelectionTuple ( selectedPickerDay, selection )
+    Utilities.validSelectionOrDefault zone startSelectionTuple ( selectedPickerDay, selection )
         |> (\subjectSelection -> newOrPreviousDuration ( startSelectionTuple, endSelectionTuple ) ( subjectSelection, endSelectionTuple ))
 
 
@@ -142,7 +142,7 @@ selectEndMinute zone basePickerDay startSelectionTuple endSelectionTuple newEndM
                 ( Nothing, Nothing ) ->
                     ( basePickerDay, Utilities.setMinuteNotDay zone newEndMinute basePickerDay.end )
     in
-    Utilities.newOrPreviousSelection zone endSelectionTuple ( selectedPickerDay, selection )
+    Utilities.validSelectionOrDefault zone endSelectionTuple ( selectedPickerDay, selection )
         |> (\subjectSelection -> newOrPreviousDuration ( startSelectionTuple, endSelectionTuple ) ( startSelectionTuple, subjectSelection ))
 
 

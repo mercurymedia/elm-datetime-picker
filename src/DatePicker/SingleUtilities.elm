@@ -1,9 +1,37 @@
-module DatePicker.SingleUtilities exposing (filterSelectableTimes, selectDay, selectHour, selectMinute)
+module DatePicker.SingleUtilities exposing
+    ( selectDay, selectHour, selectMinute
+    , filterSelectableTimes
+    )
+
+{-| Utility functions specific to the SingleDatePicker.
+
+
+# Making a selection
+
+@docs selectDay, selectHour, selectMinute
+
+
+# Queries
+
+@docs filterSelectableTimes
+
+-}
 
 import DatePicker.Utilities as Utilities exposing (PickerDay)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 
 
+{-| Select a day.
+
+If there is a previous selection and the selection's
+time of day falls within the bounds of the newly selected day, the time
+is transferred to the new selection. Otherwise, the start bound of the
+newly selected day is used as the selection time of day.
+
+Returns a tuple containing the selected `PickerDay` and a `Posix` representing
+the full selection (day + time of day).
+
+-}
 selectDay : Zone -> Maybe ( PickerDay, Posix ) -> PickerDay -> ( PickerDay, Posix )
 selectDay zone previousSelectionTuple selectedPickerDay =
     -- this function's logic already ensures valid selections, no need for additional validation
@@ -21,41 +49,66 @@ selectDay zone previousSelectionTuple selectedPickerDay =
         |> Maybe.withDefault ( selectedPickerDay, selectedPickerDay.start )
 
 
+{-| Select an hour.
+
+A non-zero minute of hour may also be selected depending on the
+allowable times for the enclosing day.
+
+For example: if the earliest selectable time for a day is 9:30, and 9 is
+selected, then 30 is selected as the minute if the prior selected
+minute is a value less than 30.
+
+If the resulting selected time does not fall within the allowable
+times for its enclosing day, the prior selection is returned instead.
+
+Returns `Just` a tuple containing the selected `PickerDay` and a `Posix` representing
+the full selection (day + time of day) or `Nothing`.
+
+-}
 selectHour : Zone -> PickerDay -> Maybe ( PickerDay, Posix ) -> Int -> Maybe ( PickerDay, Posix )
 selectHour zone basePickerDay selectionTuple newHour =
-    let
-        ( selectedPickerDay, updatedSelection ) =
-            case selectionTuple of
-                Just ( pickerDay, selection ) ->
-                    ( pickerDay, Utilities.setHourNotDay zone newHour selection )
+    Maybe.withDefault ( basePickerDay, basePickerDay.start ) selectionTuple
+        |> (\( pickerDay, selection ) -> ( pickerDay, Utilities.setHourNotDay zone newHour selection ))
+        |> (\( pickerDay, selection ) ->
+                let
+                    ( earliestSelectableMinute, _ ) =
+                        Utilities.minuteBoundsForSelectedHour zone ( pickerDay, selection )
+                in
+                -- if no prior selection, always select earliest selectable minute for hour
+                if selectionTuple == Nothing then
+                    ( pickerDay, Utilities.setMinuteNotDay zone earliestSelectableMinute selection )
+                    -- if prior selection, only select earliest selectable minute for hour if prior
+                    -- selected minute is less than the earliest selectable minute
 
-                Nothing ->
-                    let
-                        updatedHourSelection =
-                            Utilities.setHourNotDay zone newHour basePickerDay.start
+                else if Time.toMinute zone selection < earliestSelectableMinute then
+                    ( pickerDay, Utilities.setMinuteNotDay zone earliestSelectableMinute selection )
+                    -- otherwise, keep prior selected minute
 
-                        ( earliestSelectableMinute, _ ) =
-                            Utilities.minuteBoundsForSelectedHour zone ( basePickerDay, updatedHourSelection )
-                    in
-                    ( basePickerDay, Utilities.setMinuteNotDay zone earliestSelectableMinute updatedHourSelection )
-    in
-    Utilities.newOrPreviousSelection zone selectionTuple ( selectedPickerDay, updatedSelection )
+                else
+                    ( pickerDay, selection )
+           )
+        |> Utilities.validSelectionOrDefault zone selectionTuple
 
 
+{-| Select a minute.
+
+If the resulting selected time does not fall within the allowable
+times for its enclosing day, the prior selection is returned instead.
+
+Returns `Just` a tuple containing the selected `PickerDay` and a `Posix` representing
+the full selection (day + time of day) or `Nothing`.
+
+-}
 selectMinute : Zone -> PickerDay -> Maybe ( PickerDay, Posix ) -> Int -> Maybe ( PickerDay, Posix )
 selectMinute zone basePickerDay selectionTuple newMinute =
-    let
-        ( selectedPickerDay, updatedSelection ) =
-            case selectionTuple of
-                Just ( pickerDay, selection ) ->
-                    ( pickerDay, Utilities.setMinuteNotDay zone newMinute selection )
-
-                Nothing ->
-                    ( basePickerDay, Utilities.setMinuteNotDay zone newMinute basePickerDay.start )
-    in
-    Utilities.newOrPreviousSelection zone selectionTuple ( selectedPickerDay, updatedSelection )
+    Maybe.withDefault ( basePickerDay, basePickerDay.start ) selectionTuple
+        |> (\( pickerDay, selection ) -> ( pickerDay, Utilities.setMinuteNotDay zone newMinute selection ))
+        |> Utilities.validSelectionOrDefault zone selectionTuple
 
 
+{-| Determine the selectable hours and minutes for either
+the currently selected time of day or the base day start time.
+-}
 filterSelectableTimes : Zone -> PickerDay -> Maybe ( PickerDay, Posix ) -> { selectableHours : List Int, selectableMinutes : List Int }
 filterSelectableTimes zone baseDay selectionTuple =
     case selectionTuple of

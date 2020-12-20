@@ -1,6 +1,7 @@
 module SingleDatePicker exposing
     ( DatePicker, init, view, subscriptions
-    , Settings, defaultSettings, TimePickerVisibility(..), TimePickerSettings, defaultTimePickerSettings
+    , Settings, defaultSettings, TimePickerVisibility(..)
+    , TimePickerSettings, defaultTimePickerSettings
     , openPicker, closePicker
     , isOpen
     )
@@ -15,7 +16,8 @@ module SingleDatePicker exposing
 
 # Settings
 
-@docs Settings, defaultSettings, TimePickerVisibility, TimePickerSettings, defaultTimePickerSettings
+@docs Settings, defaultSettings, TimePickerVisibility
+@docs TimePickerSettings, defaultTimePickerSettings
 
 
 # Externally Triggered Actions
@@ -153,6 +155,9 @@ defaultSettings zone internalMsg =
     }
 
 
+{-| A record of default settings for the time picker. Extend this if
+you want to further customize the time picker.
+-}
 defaultTimePickerSettings : TimePickerSettings
 defaultTimePickerSettings =
     { timeStringFn = \_ _ -> "", allowedTimesOfDay = \_ _ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 } }

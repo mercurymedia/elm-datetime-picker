@@ -1,4 +1,4 @@
-module DatePicker.Utilities exposing (PickerDay, calculateViewOffset, dayToNameString, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, hourBoundsForSelectedDay, minuteBoundsForSelectedHour, monthData, monthToNameString, newOrPreviousSelection, pickerDayFromPosix, selectionWithinPickerDayBoundaries, setHourNotDay, setMinuteNotDay, setTimeOfDay, timeOfDayFromPosix)
+module DatePicker.Utilities exposing (PickerDay, calculateViewOffset, dayToNameString, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, hourBoundsForSelectedDay, minuteBoundsForSelectedHour, monthData, monthToNameString, pickerDayFromPosix, selectionWithinPickerDayBoundaries, setHourNotDay, setMinuteNotDay, setTimeOfDay, timeOfDayFromPosix, validSelectionOrDefault)
 
 import Html exposing (Html, option, text, th, time)
 import Html.Attributes exposing (disabled, selected, value)
@@ -127,13 +127,13 @@ pickerDayFromPosix zone isDisabledFn allowableTimesFn posix =
     }
 
 
-newOrPreviousSelection : Zone -> Maybe ( PickerDay, Posix ) -> ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix )
-newOrPreviousSelection zone previousSelection ( newSelectionPickerDay, newSelection ) =
-    if selectionWithinPickerDayBoundaries zone newSelectionPickerDay newSelection then
-        Just ( newSelectionPickerDay, newSelection )
+validSelectionOrDefault : Zone -> Maybe ( PickerDay, Posix ) -> ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix )
+validSelectionOrDefault zone default ( selectionPickerDay, selection ) =
+    if selectionWithinPickerDayBoundaries zone selectionPickerDay selection && not selectionPickerDay.disabled then
+        Just ( selectionPickerDay, selection )
 
     else
-        previousSelection
+        default
 
 
 selectionWithinPickerDayBoundaries : Zone -> PickerDay -> Posix -> Bool
