@@ -342,7 +342,7 @@ update settings msg (DatePicker model) =
                 SetRange ->
                     Maybe.map
                         (\hovered ->
-                            DurationUtilities.selectDay settings.zone False model.startSelectionTuple model.endSelectionTuple hovered
+                            DurationUtilities.selectDay settings.zone model.startSelectionTuple model.endSelectionTuple hovered
                                 |> processSelection model
                         )
                         model.hovered
@@ -396,7 +396,7 @@ determineDateTimeRange zone startSelectionTuple endSelectionTuple hoveredDay =
     in
     case hovered of
         Just h ->
-            DurationUtilities.selectDay zone True startSelectionTuple endSelectionTuple h
+            DurationUtilities.previewSelection zone startSelectionTuple endSelectionTuple h
 
         Nothing ->
             ( startSelectionTuple, endSelectionTuple )
@@ -774,20 +774,18 @@ viewTimePicker settings model startOrEnd baseDay selectableHours selectableMinut
         [ div [ class (classPrefix ++ "select-container") ]
             -- Eventually we would like to use onInput instead of a custom on "change".
             --
-            -- select [ onInput <| \val -> settings.internalMsg (update (SetHour startOrEnd val) model) ] (generateHourOptions hour)
-            --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
             [ div [ class (classPrefix ++ "select") ]
                 [ select
                     [ class "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetHour startOrEnd) targetValueIntParse))) ]
-                    (Utilities.generateHourOptions settings.zone selectableHours selectionTuple)
+                    (Utilities.generateHourOptions settings.zone selectionTuple selectableHours)
                 ]
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
             , div [ class (classPrefix ++ "select") ]
                 [ select
                     [ class "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetMinute startOrEnd) targetValueIntParse))) ]
-                    (Utilities.generateMinuteOptions settings.zone selectableMinutes selectionTuple)
+                    (Utilities.generateMinuteOptions settings.zone selectionTuple selectableMinutes)
                 ]
             ]
         ]

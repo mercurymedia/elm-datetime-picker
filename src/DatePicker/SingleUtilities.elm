@@ -17,49 +17,57 @@ module DatePicker.SingleUtilities exposing
 
 -}
 
+import DatePicker.DurationUtilities exposing (previewSelection)
 import DatePicker.Utilities as Utilities exposing (PickerDay)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 
 
 {-| Select a day.
 
-If there is a previous selection and the selection's
+If there is a prior selection and the selection's
 time of day falls within the bounds of the newly selected day, the time
 is transferred to the new selection. Otherwise, the start bound of the
 newly selected day is used as the selection time of day.
 
-Returns a tuple containing the selected `PickerDay` and a `Posix` representing
+Returns a `Maybe` tuple containing the selected `PickerDay` and a `Posix` representing
 the full selection (day + time of day).
 
 -}
-selectDay : Zone -> Maybe ( PickerDay, Posix ) -> PickerDay -> ( PickerDay, Posix )
+selectDay : Zone -> Maybe ( PickerDay, Posix ) -> PickerDay -> Maybe ( PickerDay, Posix )
 selectDay zone previousSelectionTuple selectedPickerDay =
-    -- this function's logic already ensures valid selections, no need for additional validation
-    Maybe.map
-        (\( _, previousSelection ) ->
-            if Utilities.selectionWithinPickerDayBoundaries zone selectedPickerDay previousSelection then
-                -- keep previously picked time of day
-                ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone previousSelection) (Time.toMinute zone previousSelection) selectedPickerDay.start )
-
-            else
-                -- use start of picked day
-                ( selectedPickerDay, selectedPickerDay.start )
-        )
+    if selectedPickerDay.disabled then
         previousSelectionTuple
-        |> Maybe.withDefault ( selectedPickerDay, selectedPickerDay.start )
+
+    else
+        case previousSelectionTuple of
+            Just ( _, previousSelection ) ->
+                if Utilities.posixWithinPickerDayBoundaries zone selectedPickerDay previousSelection then
+                    -- keep previously picked time of day
+                    Just ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone previousSelection) (Time.toMinute zone previousSelection) selectedPickerDay.start )
+
+                else
+                    -- use start of picked day
+                    Just ( selectedPickerDay, selectedPickerDay.start )
+
+            Nothing ->
+                Just ( selectedPickerDay, selectedPickerDay.start )
 
 
 {-| Select an hour.
 
-A non-zero minute of hour may also be selected depending on the
-allowable times for the enclosing day.
+With a prior selection:
 
-For example: if the earliest selectable time for a day is 9:30, and 9 is
-selected, then 30 is selected as the minute if the prior selected
-minute is a value less than 30.
+    set: hour -> provided hour
 
-If the resulting selected time does not fall within the allowable
-times for its enclosing day, the prior selection is returned instead.
+    if prior selected minute is selectable in new hour: maintain selected minute
+    else: select earliest selectable minute for new hour
+
+With no prior selection:
+
+    set: day -> base day, hour -> provided hour, minute -> earliest
+    selectable minute for provided hour
+
+If the resulting selected time is not valid, the prior selection is returned instead.
 
 Returns `Just` a tuple containing the selected `PickerDay` and a `Posix` representing
 the full selection (day + time of day) or `Nothing`.
@@ -92,8 +100,15 @@ selectHour zone basePickerDay selectionTuple newHour =
 
 {-| Select a minute.
 
-If the resulting selected time does not fall within the allowable
-times for its enclosing day, the prior selection is returned instead.
+With a prior selection:
+
+    set: minute -> provided minute
+
+With no prior selection:
+
+    set: day -> base day, hour -> base day start hour, minute -> provided minute
+
+If the resulting selected time is not valid, the prior selection is returned instead.
 
 Returns `Just` a tuple containing the selected `PickerDay` and a `Posix` representing
 the full selection (day + time of day) or `Nothing`.

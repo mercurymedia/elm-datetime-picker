@@ -1,155 +1,446 @@
 module UtilitiesTest exposing (suite)
 
-import DatePicker.Utilities as Utilities
+import DatePicker.Utilities as Utilities exposing (timeOfDayFromPosix)
 import Expect
 import Html exposing (option, text)
 import Html.Attributes exposing (selected, value)
 import Test exposing (..)
-import Time exposing (Month(..))
+import Time exposing (Month(..), Posix)
 import Time.Extra as Time exposing (Parts, partsToPosix)
 
 
 suite : Test
 suite =
     let
-        expectedHourOptions =
-            [ option [ value "0", selected False ] [ text "00" ]
-            , option [ value "1", selected False ] [ text "01" ]
-            , option [ value "2", selected False ] [ text "02" ]
-            , option [ value "3", selected False ] [ text "03" ]
-            , option [ value "4", selected False ] [ text "04" ]
-            , option [ value "5", selected False ] [ text "05" ]
-            , option [ value "6", selected False ] [ text "06" ]
-            , option [ value "7", selected False ] [ text "07" ]
-            , option [ value "8", selected False ] [ text "08" ]
-            , option [ value "9", selected False ] [ text "09" ]
-            , option [ value "10", selected False ] [ text "10" ]
-            , option [ value "11", selected False ] [ text "11" ]
-            , option [ value "12", selected True ] [ text "12" ]
-            , option [ value "13", selected False ] [ text "13" ]
-            , option [ value "14", selected False ] [ text "14" ]
-            , option [ value "15", selected False ] [ text "15" ]
-            , option [ value "16", selected False ] [ text "16" ]
-            , option [ value "17", selected False ] [ text "17" ]
-            , option [ value "18", selected False ] [ text "18" ]
-            , option [ value "19", selected False ] [ text "19" ]
-            , option [ value "20", selected False ] [ text "20" ]
-            , option [ value "21", selected False ] [ text "21" ]
-            , option [ value "22", selected False ] [ text "22" ]
-            , option [ value "23", selected False ] [ text "23" ]
-            ]
-
-        expectedMinuteOptions =
-            [ option [ value "0", selected False ] [ text "00" ]
-            , option [ value "1", selected False ] [ text "01" ]
-            , option [ value "2", selected False ] [ text "02" ]
-            , option [ value "3", selected False ] [ text "03" ]
-            , option [ value "4", selected False ] [ text "04" ]
-            , option [ value "5", selected False ] [ text "05" ]
-            , option [ value "6", selected False ] [ text "06" ]
-            , option [ value "7", selected False ] [ text "07" ]
-            , option [ value "8", selected False ] [ text "08" ]
-            , option [ value "9", selected False ] [ text "09" ]
-            , option [ value "10", selected False ] [ text "10" ]
-            , option [ value "11", selected False ] [ text "11" ]
-            , option [ value "12", selected False ] [ text "12" ]
-            , option [ value "13", selected False ] [ text "13" ]
-            , option [ value "14", selected False ] [ text "14" ]
-            , option [ value "15", selected False ] [ text "15" ]
-            , option [ value "16", selected False ] [ text "16" ]
-            , option [ value "17", selected False ] [ text "17" ]
-            , option [ value "18", selected False ] [ text "18" ]
-            , option [ value "19", selected False ] [ text "19" ]
-            , option [ value "20", selected False ] [ text "20" ]
-            , option [ value "21", selected False ] [ text "21" ]
-            , option [ value "22", selected False ] [ text "22" ]
-            , option [ value "23", selected False ] [ text "23" ]
-            , option [ value "24", selected False ] [ text "24" ]
-            , option [ value "25", selected False ] [ text "25" ]
-            , option [ value "26", selected False ] [ text "26" ]
-            , option [ value "27", selected False ] [ text "27" ]
-            , option [ value "28", selected False ] [ text "28" ]
-            , option [ value "29", selected False ] [ text "29" ]
-            , option [ value "30", selected True ] [ text "30" ]
-            , option [ value "31", selected False ] [ text "31" ]
-            , option [ value "32", selected False ] [ text "32" ]
-            , option [ value "33", selected False ] [ text "33" ]
-            , option [ value "34", selected False ] [ text "34" ]
-            , option [ value "35", selected False ] [ text "35" ]
-            , option [ value "36", selected False ] [ text "36" ]
-            , option [ value "37", selected False ] [ text "37" ]
-            , option [ value "38", selected False ] [ text "38" ]
-            , option [ value "39", selected False ] [ text "39" ]
-            , option [ value "40", selected False ] [ text "40" ]
-            , option [ value "41", selected False ] [ text "41" ]
-            , option [ value "42", selected False ] [ text "42" ]
-            , option [ value "43", selected False ] [ text "43" ]
-            , option [ value "44", selected False ] [ text "44" ]
-            , option [ value "45", selected False ] [ text "45" ]
-            , option [ value "46", selected False ] [ text "46" ]
-            , option [ value "47", selected False ] [ text "47" ]
-            , option [ value "48", selected False ] [ text "48" ]
-            , option [ value "49", selected False ] [ text "49" ]
-            , option [ value "50", selected False ] [ text "50" ]
-            , option [ value "51", selected False ] [ text "51" ]
-            , option [ value "52", selected False ] [ text "52" ]
-            , option [ value "53", selected False ] [ text "53" ]
-            , option [ value "54", selected False ] [ text "54" ]
-            , option [ value "55", selected False ] [ text "55" ]
-            , option [ value "56", selected False ] [ text "56" ]
-            , option [ value "57", selected False ] [ text "57" ]
-            , option [ value "58", selected False ] [ text "58" ]
-            , option [ value "59", selected False ] [ text "59" ]
-            ]
+        timeZone =
+            Time.utc
     in
     describe "DatePicker.Utilities"
-        [ describe "setHourNotDay"
+        [ describe "monthData"
+            [ test "generates data for parent month of provided posix split by week" <|
+                \_ ->
+                    let
+                        result =
+                            Utilities.monthData timeZone (\zone posix -> False) Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+
+                        generatedDaysCount =
+                            List.concat result
+                                |> List.foldl
+                                    (\day dayCounter ->
+                                        if Time.toMonth timeZone day.start == Dec && Time.toYear timeZone day.start == 2020 then
+                                            let
+                                                decDays =
+                                                    dayCounter.decDays
+                                            in
+                                            { dayCounter | decDays = decDays + 1 }
+
+                                        else if Time.toMonth timeZone day.start == Jan && Time.toYear timeZone day.start == 2021 then
+                                            let
+                                                janDays =
+                                                    dayCounter.janDays
+                                            in
+                                            { dayCounter | janDays = janDays + 1 }
+
+                                        else if Time.toMonth timeZone day.start == Feb && Time.toYear timeZone day.start == 2021 then
+                                            let
+                                                febDays =
+                                                    dayCounter.febDays
+                                            in
+                                            { dayCounter | febDays = febDays + 1 }
+
+                                        else
+                                            dayCounter
+                                    )
+                                    { decDays = 0, janDays = 0, febDays = 0 }
+                    in
+                    Expect.equal
+                        generatedDaysCount
+                        { decDays = 5, janDays = 31, febDays = 6 }
+            , test "takes disabled function into account" <|
+                \_ ->
+                    let
+                        result =
+                            Utilities.monthData timeZone (\_ _ -> True) Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+
+                        areAllDaysDisabled =
+                            List.concat result
+                                |> List.map (\day -> day.disabled)
+                                |> List.all ((==) True)
+                    in
+                    Expect.equal
+                        True
+                        areAllDaysDisabled
+            , test "takes allowable times function into account" <|
+                \_ ->
+                    let
+                        result =
+                            Utilities.monthData
+                                timeZone
+                                (\_ _ -> False)
+                                (Just (\_ _ -> { startHour = 9, startMinute = 30, endHour = 17, endMinute = 30 }))
+                                (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+
+                        areAllowableTimesAsExpected =
+                            List.concat result
+                                |> List.map
+                                    (\day ->
+                                        let
+                                            startTime =
+                                                timeOfDayFromPosix timeZone day.start
+
+                                            endTime =
+                                                timeOfDayFromPosix timeZone day.end
+                                        in
+                                        startTime == ( 9, 30 ) && endTime == ( 17, 30 )
+                                    )
+                                |> List.all ((==) True)
+                    in
+                    Expect.equal
+                        True
+                        areAllowableTimesAsExpected
+            ]
+        , describe "generateHourOptions"
+            [ test "generates a list of html options for every hour in the provided list." <|
+                \_ ->
+                    Expect.equal
+                        (Utilities.generateHourOptions timeZone Nothing (List.range 0 3))
+                        [ option [ value "0", selected False ] [ text "00" ]
+                        , option [ value "1", selected False ] [ text "01" ]
+                        , option [ value "2", selected False ] [ text "02" ]
+                        , option [ value "3", selected False ] [ text "03" ]
+                        ]
+            , test "if there is a selection and an hour option matches the selected hour, option is marked as selected." <|
+                \_ ->
+                    let
+                        selectionTuple =
+                            ( { start = Time.partsToPosix Time.utc (Parts 2021 Jan 1 0 0 0 0)
+                              , end = Time.partsToPosix Time.utc (Parts 2021 Jan 1 23 59 0 0)
+                              , disabled = False
+                              }
+                            , Time.partsToPosix Time.utc (Parts 2021 Jan 1 0 0 0 0)
+                            )
+                    in
+                    Expect.equal
+                        (Utilities.generateHourOptions
+                            timeZone
+                            (Just selectionTuple)
+                            (List.range 0 3)
+                        )
+                        [ option [ value "0", selected True ] [ text "00" ]
+                        , option [ value "1", selected False ] [ text "01" ]
+                        , option [ value "2", selected False ] [ text "02" ]
+                        , option [ value "3", selected False ] [ text "03" ]
+                        ]
+            ]
+        , describe "generateMinuteOptions"
+            [ test "generates a list of html options for every minute in the provided list." <|
+                \_ ->
+                    Expect.equal
+                        (Utilities.generateMinuteOptions timeZone Nothing (List.range 0 3))
+                        [ option [ value "0", selected False ] [ text "00" ]
+                        , option [ value "1", selected False ] [ text "01" ]
+                        , option [ value "2", selected False ] [ text "02" ]
+                        , option [ value "3", selected False ] [ text "03" ]
+                        ]
+            , test "if there is a selection and a minute option matches the selected minute, option is marked as selected." <|
+                \_ ->
+                    let
+                        selectionTuple =
+                            ( { start = Time.partsToPosix Time.utc (Parts 2021 Jan 1 0 0 0 0)
+                              , end = Time.partsToPosix Time.utc (Parts 2021 Jan 1 23 59 0 0)
+                              , disabled = False
+                              }
+                            , Time.partsToPosix Time.utc (Parts 2021 Jan 1 0 0 0 0)
+                            )
+                    in
+                    Expect.equal
+                        (Utilities.generateMinuteOptions
+                            timeZone
+                            (Just selectionTuple)
+                            (List.range 0 3)
+                        )
+                        [ option [ value "0", selected True ] [ text "00" ]
+                        , option [ value "1", selected False ] [ text "01" ]
+                        , option [ value "2", selected False ] [ text "02" ]
+                        , option [ value "3", selected False ] [ text "03" ]
+                        ]
+            ]
+        , describe "pickerDayFromPosix"
+            [ test "takes disabled function into account" <|
+                \_ ->
+                    Expect.equal
+                        (Utilities.pickerDayFromPosix timeZone (\_ _ -> True) Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)))
+                        { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)
+                        , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 0 0)
+                        , disabled = True
+                        }
+            , test "takes allowable times function into account or defaults to start and end of posix's parent day" <|
+                \_ ->
+                    let
+                        allowableTimesFn =
+                            \_ _ -> { startHour = 9, startMinute = 30, endHour = 17, endMinute = 30 }
+                    in
+                    Expect.equal
+                        [ Utilities.pickerDayFromPosix timeZone (\_ _ -> False) Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                        , Utilities.pickerDayFromPosix timeZone (\_ _ -> False) (Just allowableTimesFn) (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                        ]
+                        [ { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)
+                          , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 0 0)
+                          , disabled = False
+                          }
+                        , { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                          , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                          , disabled = False
+                          }
+                        ]
+            ]
+        , describe "timeOfDayFromPosix"
+            [ test "returns a tuple containing the hour and minute of the provided posix" <|
+                \_ ->
+                    Expect.equal
+                        (Utilities.timeOfDayFromPosix timeZone (Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)))
+                        ( 9, 30 )
+            ]
+        , describe "setTimeOfDay"
+            [ test "updates the hour and minute of the provided Posix" <|
+                \_ ->
+                    let
+                        dateTimeToUpdate =
+                            Time.partsToPosix timeZone (Parts 2019 Sep 19 0 0 0 0)
+
+                        expectedResult =
+                            Time.partsToPosix timeZone (Parts 2019 Sep 19 12 30 0 0)
+                    in
+                    Expect.equal (Utilities.setTimeOfDay timeZone 12 30 dateTimeToUpdate) expectedResult
+            ]
+        , describe "setHourNotDay"
             [ test "updates only the hour of the provided Posix" <|
                 \_ ->
                     let
                         dateTimeToUpdate =
-                            Time.partsToPosix Time.utc (Parts 2019 Sep 19 0 0 0 0)
+                            Time.partsToPosix timeZone (Parts 2019 Sep 19 0 0 0 0)
 
                         expectedResult =
-                            Time.partsToPosix Time.utc (Parts 2019 Sep 19 12 0 0 0)
+                            Time.partsToPosix timeZone (Parts 2019 Sep 19 12 0 0 0)
                     in
-                    Expect.equal (Utilities.setHourNotDay 12 dateTimeToUpdate) expectedResult
+                    Expect.equal (Utilities.setHourNotDay timeZone 12 dateTimeToUpdate) expectedResult
             ]
         , describe "setMinuteNotDay"
             [ test "updates only the minute of the provided Posix" <|
                 \_ ->
                     let
                         dateTimeToUpdate =
-                            Time.partsToPosix Time.utc (Parts 2019 Sep 19 0 0 0 0)
+                            Time.partsToPosix timeZone (Parts 2019 Sep 19 0 0 0 0)
 
                         expectedResult =
-                            Time.partsToPosix Time.utc (Parts 2019 Sep 19 0 30 0 0)
+                            Time.partsToPosix timeZone (Parts 2019 Sep 19 0 30 0 0)
                     in
-                    Expect.equal (Utilities.setMinuteNotDay 30 dateTimeToUpdate) expectedResult
+                    Expect.equal (Utilities.setMinuteNotDay timeZone 30 dateTimeToUpdate) expectedResult
             ]
-        , describe "setDayNotTime"
-            [ test "returns a Posix with the day of the newly selected DateTime while maintaining the time of the previous selection" <|
+        , describe "calculateViewOffset"
+            [ test "returns the offset/difference in months between the reference/base time and the subject/selected time when subject is provided or defaults to 0." <|
+                \_ ->
+                    Expect.equal
+                        [ Utilities.calculateViewOffset
+                            timeZone
+                            (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                            (Just (Time.partsToPosix timeZone (Parts 2021 Feb 1 0 0 0 0)))
+                        , Utilities.calculateViewOffset
+                            timeZone
+                            (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                            (Just (Time.partsToPosix timeZone (Parts 2020 Dec 1 0 0 0 0)))
+                        , Utilities.calculateViewOffset
+                            timeZone
+                            (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                            (Just (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)))
+                        , Utilities.calculateViewOffset
+                            timeZone
+                            (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                            Nothing
+                        ]
+                        [ 1, -1, 0, 0 ]
+            ]
+        , describe "hourBoundsForSelectedDay"
+            [ test "returns the earliest and latest selectable hour for the given picker day" <|
                 \_ ->
                     let
-                        previouslySelectedDateTime =
-                            Time.partsToPosix Time.utc (Parts 2019 Sep 17 13 30 0 0)
+                        pickerDay1 =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 0 0)
+                            , disabled = False
+                            }
 
-                        newSelectedDateTime =
-                            Time.partsToPosix Time.utc (Parts 2019 Sep 19 0 0 0 0)
-
-                        expectedResult =
-                            Time.partsToPosix Time.utc (Parts 2019 Sep 19 13 30 0 0)
+                        pickerDay2 =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = False
+                            }
                     in
-                    Expect.equal (Utilities.setDayNotTime newSelectedDateTime previouslySelectedDateTime) expectedResult
+                    Expect.equal
+                        [ Utilities.hourBoundsForSelectedDay timeZone pickerDay1
+                        , Utilities.hourBoundsForSelectedDay timeZone pickerDay2
+                        ]
+                        [ ( 0, 23 )
+                        , ( 9, 17 )
+                        ]
             ]
-        , describe "generateHourOptions"
-            [ test "generates a list of html options for every hour of the day. The selected option should match the hour passed in." <|
-                \_ ->
-                    Expect.equal (Utilities.generateHourOptions 12) expectedHourOptions
+        , describe "minuteBoundsForSelectedHour"
+            [ describe "when hour is day start bound"
+                [ test "returns the specified picker day start minute to end of hour" <|
+                    \_ ->
+                        let
+                            pickerDay =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                                , disabled = False
+                                }
+                        in
+                        Expect.equal
+                            (Utilities.minuteBoundsForSelectedHour timeZone ( pickerDay, pickerDay.start ))
+                            ( 30, 59 )
+                ]
+            , describe "when hour is day end bound"
+                [ test "returns the start of the hour to the specified picker day end minute" <|
+                    \_ ->
+                        let
+                            pickerDay =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                                , disabled = False
+                                }
+                        in
+                        Expect.equal
+                            (Utilities.minuteBoundsForSelectedHour timeZone ( pickerDay, pickerDay.end ))
+                            ( 0, 30 )
+                ]
+            , describe "when hour is both start and end bound"
+                [ test "returns the specified picker day start minute to the specified picker day end minute" <|
+                    \_ ->
+                        let
+                            pickerDay =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 12 15 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 12 45 0 0)
+                                , disabled = False
+                                }
+                        in
+                        Expect.equal
+                            (Utilities.minuteBoundsForSelectedHour timeZone ( pickerDay, pickerDay.start ))
+                            ( 15, 45 )
+                ]
+            , describe "when hour is not a boundary"
+                [ test "returns the whole hour" <|
+                    \_ ->
+                        let
+                            pickerDay =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                                , disabled = False
+                                }
+                        in
+                        Expect.equal
+                            (Utilities.minuteBoundsForSelectedHour timeZone ( pickerDay, Time.partsToPosix timeZone (Parts 2021 Jan 1 10 0 0 0) ))
+                            ( 0, 59 )
+                ]
             ]
-        , describe "generateMinuteOptions"
-            [ test "generates a list of html options for every minute of an hour. The selected option should match the minute passed in." <|
+        , describe "posixWithinPickerDayBoundaries"
+            [ test "returns True when posix time of day is within picker day allowable time boundaries, otherwise returns False" <|
                 \_ ->
-                    Expect.equal (Utilities.generateMinuteOptions 30) expectedMinuteOptions
+                    let
+                        pickerDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = False
+                            }
+                    in
+                    Expect.equal
+                        [ Utilities.posixWithinPickerDayBoundaries timeZone pickerDay (Time.partsToPosix timeZone (Parts 2021 Jan 1 8 0 0 0))
+                        , Utilities.posixWithinPickerDayBoundaries timeZone pickerDay pickerDay.start
+                        , Utilities.posixWithinPickerDayBoundaries timeZone pickerDay (Time.partsToPosix timeZone (Parts 2021 Jan 1 12 0 0 0))
+                        , Utilities.posixWithinPickerDayBoundaries timeZone pickerDay pickerDay.end
+                        , Utilities.posixWithinPickerDayBoundaries timeZone pickerDay (Time.partsToPosix timeZone (Parts 2021 Jan 1 18 0 0 0))
+                        ]
+                        [ False, True, True, True, False ]
+            , test "returns True when posix time of day is within picker day allowable time boundaries even if posix day and picker day are different" <|
+                \_ ->
+                    let
+                        pickerDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = False
+                            }
+                    in
+                    Expect.equal
+                        (Utilities.posixWithinPickerDayBoundaries timeZone pickerDay (Time.partsToPosix timeZone (Parts 2021 Jan 2 12 0 0 0)))
+                        True
+            ]
+        , describe "validSelectionOrDefault"
+            [ test "returns provided default if selection time is not within day bounds" <|
+                \_ ->
+                    let
+                        pickerDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = False
+                            }
+
+                        invalidSelection =
+                            ( pickerDay
+                            , Time.partsToPosix timeZone (Parts 2021 Jan 1 8 30 0 0)
+                            )
+                    in
+                    Expect.equal
+                        (Utilities.validSelectionOrDefault timeZone Nothing invalidSelection)
+                        Nothing
+            , test "returns provided default if selection day is disabled" <|
+                \_ ->
+                    let
+                        pickerDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = True
+                            }
+
+                        invalidSelection =
+                            ( pickerDay
+                            , Time.partsToPosix timeZone (Parts 2021 Jan 1 8 30 0 0)
+                            )
+                    in
+                    Expect.equal
+                        (Utilities.validSelectionOrDefault timeZone Nothing invalidSelection)
+                        Nothing
+            , test "returns provided default if pickerDay of selection tuple is not same as parent day of selection" <|
+                \_ ->
+                    let
+                        pickerDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = False
+                            }
+
+                        invalidSelection =
+                            ( pickerDay
+                            , Time.partsToPosix timeZone (Parts 2021 Jan 2 9 30 0 0)
+                            )
+                    in
+                    Expect.equal
+                        (Utilities.validSelectionOrDefault timeZone Nothing invalidSelection)
+                        Nothing
+            , test "returns valid selection" <|
+                \_ ->
+                    let
+                        pickerDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = False
+                            }
+
+                        validSelection =
+                            ( pickerDay
+                            , Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            )
+                    in
+                    Expect.equal
+                        (Utilities.validSelectionOrDefault timeZone Nothing validSelection)
+                        (Just validSelection)
             ]
         ]

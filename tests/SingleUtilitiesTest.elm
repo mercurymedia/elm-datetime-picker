@@ -14,7 +14,29 @@ suite =
             Time.utc
     in
     describe "DatePicker.SingleUtilities"
-        [ describe "selectDay"
+        [ describe "when provided day is disabled"
+            [ test "if provided day is disabled: returns prior selections" <|
+                \_ ->
+                    let
+                        pickerDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                            , disabled = True
+                            }
+
+                        priorSelectionTuple =
+                            ( { start = Time.partsToPosix timeZone (Parts 2020 Dec 31 0 0 0 0)
+                              , end = Time.partsToPosix timeZone (Parts 2020 Dec 31 23 59 0 0)
+                              , disabled = False
+                              }
+                            , Time.partsToPosix timeZone (Parts 2020 Dec 31 12 0 0 0)
+                            )
+                    in
+                    Expect.equal
+                        (SingleUtilities.selectDay timeZone (Just priorSelectionTuple) pickerDay)
+                        (Just priorSelectionTuple)
+            ]
+        , describe "selectDay"
             [ describe "without prior selection"
                 [ test "selects the start time of the enclosing (selected) day" <|
                     \_ ->
@@ -27,7 +49,7 @@ suite =
                         in
                         Expect.equal
                             (SingleUtilities.selectDay timeZone Nothing selectedDay)
-                            ( selectedDay, selectedDay.start )
+                            (Just ( selectedDay, selectedDay.start ))
                 ]
             , describe "with prior selection"
                 [ test "maintains the prior selection's time of day if it falls within the bounds of the new selected day" <|
@@ -49,7 +71,7 @@ suite =
                         in
                         Expect.equal
                             (SingleUtilities.selectDay timeZone (Just priorSelectionTuple) selectedDay)
-                            ( selectedDay, Time.partsToPosix timeZone (Parts 2021 Jan 1 12 0 0 0) )
+                            (Just ( selectedDay, Time.partsToPosix timeZone (Parts 2021 Jan 1 12 0 0 0) ))
                 , test "selects the start of the new selected day when the prior selection's time of day does not fall within the bounds of the new selected day" <|
                     \_ ->
                         let
@@ -77,7 +99,7 @@ suite =
                         in
                         Expect.equal
                             [ SingleUtilities.selectDay timeZone (Just priorSelectionTuple1) selectedDay, SingleUtilities.selectDay timeZone (Just priorSelectionTuple2) selectedDay ]
-                            [ ( selectedDay, selectedDay.start ), ( selectedDay, selectedDay.start ) ]
+                            [ Just ( selectedDay, selectedDay.start ), Just ( selectedDay, selectedDay.start ) ]
                 ]
             ]
         , describe "selectHour"
