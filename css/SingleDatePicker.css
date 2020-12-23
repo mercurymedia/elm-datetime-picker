@@ -72,6 +72,8 @@
     background-color: #fff;
     color: #22292f;
     cursor: pointer;
+    border: none;
+    outline: 0;
 }
 
 .elm-datetimepicker-single--calendar-day:hover {

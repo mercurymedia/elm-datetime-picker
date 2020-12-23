@@ -37,8 +37,8 @@ import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (PickerDay)
-import Html exposing (Html, div, select, span, text)
-import Html.Attributes exposing (class, disabled, id)
+import Html exposing (Html, button, div, select, span, text)
+import Html.Attributes exposing (class, disabled, id, type_)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
@@ -277,7 +277,7 @@ type Msg
     | PrevYear
     | SetHoveredDay PickerDay
     | ClearHoveredDay
-    | SetRange
+    | SetRange PickerDay
     | ToggleTimePickerVisibility
     | SetHour StartOrEnd Int
     | SetMinute StartOrEnd Int
@@ -339,14 +339,9 @@ update settings msg (DatePicker model) =
                 ClearHoveredDay ->
                     ( DatePicker { model | hovered = Nothing }, Nothing )
 
-                SetRange ->
-                    Maybe.map
-                        (\hovered ->
-                            DurationUtilities.selectDay settings.zone model.startSelectionTuple model.endSelectionTuple hovered
-                                |> processSelection model
-                        )
-                        model.hovered
-                        |> Maybe.withDefault ( DatePicker model, Nothing )
+                SetRange pickerDay ->
+                    DurationUtilities.selectDay settings.zone model.startSelectionTuple model.endSelectionTuple pickerDay
+                        |> processSelection model
 
                 ToggleTimePickerVisibility ->
                     case settings.timePickerVisibility of
@@ -580,19 +575,14 @@ viewDay settings model currentMonth day =
 
         dayClasses =
             DatePicker.Styles.durationDayClasses classPrefix (dayParts.month /= currentMonth) day.disabled isPicked isFocused isBetween
-
-        attrs =
-            if day.disabled then
-                [ class dayClasses ]
-
-            else
-                [ class dayClasses
-                , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
-                , onClick <| settings.internalMsg (update settings SetRange (DatePicker model))
-                ]
     in
-    div
-        attrs
+    button
+        [ type_ "button"
+        , disabled day.disabled
+        , class dayClasses
+        , onClick <| settings.internalMsg (update settings (SetRange day) (DatePicker model))
+        , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
+        ]
         [ text (String.fromInt dayParts.day) ]
 
 

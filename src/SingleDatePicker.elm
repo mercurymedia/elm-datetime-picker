@@ -36,8 +36,8 @@ import DatePicker.Icons as Icons
 import DatePicker.SingleUtilities as SingleUtilities
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (PickerDay)
-import Html exposing (Html, div, select, span, text)
-import Html.Attributes exposing (class, disabled, id)
+import Html exposing (Html, button, div, select, span, text)
+import Html.Attributes exposing (class, disabled, id, type_)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
@@ -259,7 +259,7 @@ type Msg
     | PrevYear
     | SetHoveredDay PickerDay
     | ClearHoveredDay
-    | SetDay
+    | SetDay PickerDay
     | ToggleTimePickerVisibility
     | SetHour Int
     | SetMinute Int
@@ -312,18 +312,13 @@ update settings msg (DatePicker model) =
                 ClearHoveredDay ->
                     ( DatePicker { model | hovered = Nothing }, Nothing )
 
-                SetDay ->
-                    Maybe.map
-                        (\hovered ->
-                            case SingleUtilities.selectDay settings.zone model.selectionTuple hovered of
-                                Just ( newPickerDay, newSelection ) ->
-                                    ( DatePicker { model | selectionTuple = Just ( newPickerDay, newSelection ) }, Just newSelection )
+                SetDay pickerDay ->
+                    case SingleUtilities.selectDay settings.zone model.selectionTuple pickerDay of
+                        Just ( newPickerDay, newSelection ) ->
+                            ( DatePicker { model | selectionTuple = Just ( newPickerDay, newSelection ) }, Just newSelection )
 
-                                Nothing ->
-                                    ( DatePicker { model | selectionTuple = Nothing }, Nothing )
-                        )
-                        model.hovered
-                        |> Maybe.withDefault ( DatePicker model, Nothing )
+                        Nothing ->
+                            ( DatePicker { model | selectionTuple = Nothing }, Nothing )
 
                 ToggleTimePickerVisibility ->
                     case settings.timePickerVisibility of
@@ -537,19 +532,14 @@ viewDay settings model currentMonth day =
 
         dayClasses =
             DatePicker.Styles.singleDayClasses classPrefix (dayParts.month /= currentMonth) day.disabled isPicked isFocused
-
-        attrs =
-            if day.disabled then
-                [ class dayClasses ]
-
-            else
-                [ class dayClasses
-                , onClick <| settings.internalMsg (update settings SetDay (DatePicker model))
-                , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
-                ]
     in
-    div
-        attrs
+    button
+        [ type_ "button"
+        , disabled day.disabled
+        , class dayClasses
+        , onClick <| settings.internalMsg (update settings (SetDay day) (DatePicker model))
+        , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
+        ]
         [ text (String.fromInt dayParts.day) ]
 
 
