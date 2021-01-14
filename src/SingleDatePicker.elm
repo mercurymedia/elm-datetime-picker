@@ -67,6 +67,15 @@ type Status
 
 {-| The type facilitating the configuration of the datepicker settings.
 
+`internalMsg` - a function that returns a `msg` for the calling module to handle picker updates
+`zone` - the `Zone` in which the date picker is being used (client zone)
+`formattedDay` - a function that returns a string representation for the provided day of the week
+`formattedMonth` - a function that returns a string representation for the provided month
+`isDayDisabled` - a function that determines if the combined `Posix` and `Zone` represent a day that should be disabled in the picker
+`focusedDate` - a `Posix` that represents a day that should be highlighted on the picker (i.e. the current day)
+`dateStringFn` - a function that returns a string representation of the selected day
+`timePickerVisibility` - see below
+
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
 -}
@@ -106,6 +115,8 @@ type TimePickerVisibility
 
 
 {-| The type facilitating the configuration of the timepicker settings.
+
+`timeStringFn` - a function that returns a string representation of the selected time of day
 
 Because it could be the case that a picker is being used in a different
 timezone than the home timezone of the implementor, the `allowedTimesofDay`

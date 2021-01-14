@@ -130,7 +130,7 @@ filterSelectableTimes zone baseDay selectionTuple =
         Just ( pickerDay, selection ) ->
             let
                 ( earliestSelectableHour, latestSelectableHour ) =
-                    Utilities.hourBoundsForSelectedDay zone pickerDay
+                    Utilities.hourBoundsForSelectedMinute zone ( pickerDay, selection )
 
                 ( earliestSelectableMinute, latestSelectableMinute ) =
                     Utilities.minuteBoundsForSelectedHour zone ( pickerDay, selection )
@@ -142,7 +142,7 @@ filterSelectableTimes zone baseDay selectionTuple =
         Nothing ->
             let
                 ( earliestSelectableHour, latestSelectableHour ) =
-                    Utilities.hourBoundsForSelectedDay zone baseDay
+                    Utilities.hourBoundsForSelectedMinute zone ( baseDay, baseDay.start )
 
                 ( earliestSelectableMinute, latestSelectableMinute ) =
                     Utilities.minuteBoundsForSelectedHour zone ( baseDay, baseDay.start )

@@ -272,6 +272,11 @@ suite =
 
                             priorSelectionTuple3 =
                                 ( baseDay
+                                , Time.partsToPosix timeZone (Parts 2021 Jan 1 12 45 0 0)
+                                )
+
+                            priorSelectionTuple4 =
+                                ( baseDay
                                 , Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
                                 )
                         in
@@ -279,9 +284,11 @@ suite =
                             [ SingleUtilities.filterSelectableTimes timeZone baseDay (Just priorSelectionTuple1)
                             , SingleUtilities.filterSelectableTimes timeZone baseDay (Just priorSelectionTuple2)
                             , SingleUtilities.filterSelectableTimes timeZone baseDay (Just priorSelectionTuple3)
+                            , SingleUtilities.filterSelectableTimes timeZone baseDay (Just priorSelectionTuple4)
                             ]
                             [ { selectableHours = List.range 9 17, selectableMinutes = List.range 30 59 }
-                            , { selectableHours = List.range 9 17, selectableMinutes = List.range 0 59 }
+                            , { selectableHours = List.range 10 17, selectableMinutes = List.range 0 59 }
+                            , { selectableHours = List.range 9 16, selectableMinutes = List.range 0 59 }
                             , { selectableHours = List.range 9 17, selectableMinutes = List.range 0 30 }
                             ]
                 ]

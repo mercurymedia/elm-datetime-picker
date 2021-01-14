@@ -456,7 +456,7 @@ filterSelectableTimes zone baseDay startSelectionTuple endSelectionTuple =
         ( Just ( startPickerDay, startSelection ), Nothing ) ->
             let
                 ( earliestSelectableStartHour, latestSelectableStartHour ) =
-                    Utilities.hourBoundsForSelectedDay zone startPickerDay
+                    Utilities.hourBoundsForSelectedMinute zone ( startPickerDay, startSelection )
 
                 ( earliestSelectableStartMinute, latestSelectableStartMinute ) =
                     Utilities.minuteBoundsForSelectedHour zone ( startPickerDay, startSelection )
@@ -473,7 +473,7 @@ filterSelectableTimes zone baseDay startSelectionTuple endSelectionTuple =
         ( Nothing, Just ( endPickerDay, endSelection ) ) ->
             let
                 ( earliestSelectableEndHour, latestSelectableEndHour ) =
-                    Utilities.hourBoundsForSelectedDay zone endPickerDay
+                    Utilities.hourBoundsForSelectedMinute zone ( endPickerDay, endSelection )
 
                 ( earliestSelectableEndMinute, latestSelectableEndMinute ) =
                     Utilities.minuteBoundsForSelectedHour zone ( endPickerDay, endSelection )
@@ -490,7 +490,7 @@ filterSelectableTimes zone baseDay startSelectionTuple endSelectionTuple =
         ( Nothing, Nothing ) ->
             let
                 ( earliestSelectableHour, latestSelectableHour ) =
-                    Utilities.hourBoundsForSelectedDay zone baseDay
+                    Utilities.hourBoundsForSelectedMinute zone ( baseDay, baseDay.start )
 
                 ( earliestSelectableMinute, latestSelectableMinute ) =
                     Utilities.minuteBoundsForSelectedHour zone ( baseDay, baseDay.start )
@@ -506,10 +506,10 @@ selectableHours : Zone -> ( PickerDay, Posix ) -> ( PickerDay, Posix ) -> ( List
 selectableHours zone ( startPickerDay, startSelection ) ( endPickerDay, endSelection ) =
     let
         ( earliestSelectableStartHour, latestSelectableStartHour ) =
-            Utilities.hourBoundsForSelectedDay zone startPickerDay
+            Utilities.hourBoundsForSelectedMinute zone ( startPickerDay, startSelection )
 
         ( earliestSelectableEndHour, latestSelectableEndHour ) =
-            Utilities.hourBoundsForSelectedDay zone endPickerDay
+            Utilities.hourBoundsForSelectedMinute zone ( endPickerDay, endSelection )
 
         selectedStartHour =
             Time.toHour zone startSelection

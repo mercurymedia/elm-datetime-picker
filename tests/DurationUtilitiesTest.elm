@@ -758,7 +758,7 @@ suite =
             [ describe "with prior start and end selection"
                 [ describe "when start and end are same day"
                     [ describe "when start and end are same hour"
-                        [ test "start hours: day start bound - selected end hour, start mins: hour start bound - selected end min, end hours: selected start hour - day end bound, end mins: selected start min - hour end bound" <|
+                        [ test "start hours: earliest selectable hour - selected end hour, start mins: hour start bound - selected end min, end hours: selected start hour - latest selectable hour, end mins: selected start min - hour end bound" <|
                             \_ ->
                                 let
                                     baseDay =
@@ -767,6 +767,8 @@ suite =
                                         , disabled = False
                                         }
 
+                                    -- because the selected minute is less than 30, 9 will not be selectable
+                                    -- start hour
                                     startSelection =
                                         ( baseDay
                                         , Time.partsToPosix timeZone (Parts 2021 Jan 1 13 15 0 0)
@@ -779,14 +781,14 @@ suite =
                                 in
                                 Expect.equal
                                     (DurationUtilities.filterSelectableTimes timeZone baseDay (Just startSelection) (Just endSelection))
-                                    { selectableStartHours = List.range 9 13
+                                    { selectableStartHours = List.range 10 13
                                     , selectableStartMinutes = List.range 0 30
                                     , selectableEndHours = List.range 13 17
                                     , selectableEndMinutes = List.range 15 59
                                     }
                         ]
                     , describe "when start and end are different hours"
-                        [ test "start hours: day start bound - selected end hour, start mins: start hour start bound - start hour end bound, end hours: selected start hour - day end bound, end mins: end hour start bound - end hour end bound" <|
+                        [ test "start hours: earliest selectable hour - selected end hour, start mins: start hour start bound - start hour end bound, end hours: selected start hour - latest selectable hour, end mins: end hour start bound - end hour end bound" <|
                             \_ ->
                                 let
                                     baseDay =
@@ -795,6 +797,8 @@ suite =
                                         , disabled = False
                                         }
 
+                                    -- because the selected minute is less than 30, 9 will not be selectable
+                                    -- start hour
                                     startSelection =
                                         ( baseDay
                                         , Time.partsToPosix timeZone (Parts 2021 Jan 1 13 0 0 0)
@@ -807,7 +811,7 @@ suite =
                                 in
                                 Expect.equal
                                     (DurationUtilities.filterSelectableTimes timeZone baseDay (Just startSelection) (Just endSelection))
-                                    { selectableStartHours = List.range 9 15
+                                    { selectableStartHours = List.range 10 15
                                     , selectableStartMinutes = List.range 0 59
                                     , selectableEndHours = List.range 13 17
                                     , selectableEndMinutes = List.range 0 59
@@ -815,7 +819,7 @@ suite =
                         ]
                     ]
                 , describe "when start and end are different day"
-                    [ test "start hours: start day start bound - start day end bound, start mins: start hour start bound - start hour end bound, end hours: end day start bound - end day end bound, end mins: end hour start bound - end hour end bound" <|
+                    [ test "start hours: earliest selectable hour - lateset selectable hour, start mins: start hour start bound - start hour end bound, end hours: earliest selectable hour - lateset selectable hour, end mins: end hour start bound - end hour end bound" <|
                         \_ ->
                             let
                                 baseDay =
@@ -841,6 +845,8 @@ suite =
                                     , startDay.start
                                     )
 
+                                -- because the selected minute is less than 30, 9 will not be selectable
+                                -- start hour
                                 startSelection2 =
                                     ( startDay
                                     , Time.partsToPosix timeZone (Parts 2021 Jan 1 13 0 0 0)
@@ -851,9 +857,11 @@ suite =
                                     , endDay.end
                                     )
 
+                                -- because the selected minute is more than 30, 17 will not be selectable
+                                -- end hour
                                 endSelection2 =
                                     ( baseDay
-                                    , Time.partsToPosix timeZone (Parts 2021 Jan 1 15 30 0 0)
+                                    , Time.partsToPosix timeZone (Parts 2021 Jan 1 15 45 0 0)
                                     )
                             in
                             Expect.equal
@@ -865,16 +873,16 @@ suite =
                                   , selectableEndHours = List.range 9 17
                                   , selectableEndMinutes = List.range 0 30
                                   }
-                                , { selectableStartHours = List.range 9 17
+                                , { selectableStartHours = List.range 10 17
                                   , selectableStartMinutes = List.range 0 59
-                                  , selectableEndHours = List.range 9 17
+                                  , selectableEndHours = List.range 9 16
                                   , selectableEndMinutes = List.range 0 59
                                   }
                                 ]
                     ]
                 ]
             , describe "with only prior start selection"
-                [ test "start hours: start day start bound - start day end bound, start mins: start hour start bound - start hour end bound, end hours: selected start hour - start day end bound, end mins: selected start min - start hour end bound" <|
+                [ test "start hours: earliest selectable hour - latest selectable hour, start mins: start hour start bound - start hour end bound, end hours: selected start hour - lateset selectable hour, end mins: selected start min - start hour end bound" <|
                     \_ ->
                         let
                             baseDay =
@@ -893,15 +901,25 @@ suite =
                                 , Time.partsToPosix timeZone (Parts 2021 Jan 1 13 30 0 0)
                                 )
 
+                            -- because the selected minute is less than 30, 9 will not be selectable
+                            -- start hour
                             startSelection3 =
                                 ( baseDay
                                 , Time.partsToPosix timeZone (Parts 2021 Jan 1 17 0 0 0)
+                                )
+
+                            -- because the selected minute is more than 30, 17 will not be selectable
+                            -- start/end hour
+                            startSelection4 =
+                                ( baseDay
+                                , Time.partsToPosix timeZone (Parts 2021 Jan 1 13 45 0 0)
                                 )
                         in
                         Expect.equal
                             [ DurationUtilities.filterSelectableTimes timeZone baseDay (Just startSelection1) Nothing
                             , DurationUtilities.filterSelectableTimes timeZone baseDay (Just startSelection2) Nothing
                             , DurationUtilities.filterSelectableTimes timeZone baseDay (Just startSelection3) Nothing
+                            , DurationUtilities.filterSelectableTimes timeZone baseDay (Just startSelection4) Nothing
                             ]
                             [ { selectableStartHours = List.range 9 17
                               , selectableStartMinutes = List.range 30 59
@@ -913,15 +931,20 @@ suite =
                               , selectableEndHours = List.range 13 17
                               , selectableEndMinutes = List.range 30 59
                               }
-                            , { selectableStartHours = List.range 9 17
+                            , { selectableStartHours = List.range 10 17
                               , selectableStartMinutes = List.range 0 30
                               , selectableEndHours = List.range 17 17
                               , selectableEndMinutes = List.range 0 30
                               }
+                            , { selectableStartHours = List.range 9 16
+                              , selectableStartMinutes = List.range 0 59
+                              , selectableEndHours = List.range 13 16
+                              , selectableEndMinutes = List.range 45 59
+                              }
                             ]
                 ]
             , describe "with only prior end selection"
-                [ test "start hours: end day start bound - selected end hour, start mins: end hour start bound - selected end min, end hours: end day start bound - end day end bound, end mins: end hour start bound - end hour end bound" <|
+                [ test "start hours: earliest selectable hour - selected end hour, start mins: end hour start bound - selected end min, end hours: earliest selectable hour - latest selectable hour, end mins: end hour start bound - end hour end bound" <|
                     \_ ->
                         let
                             baseDay =
@@ -940,15 +963,25 @@ suite =
                                 , Time.partsToPosix timeZone (Parts 2021 Jan 1 13 30 0 0)
                                 )
 
+                            -- because the selected minute is more than 30, 17 will not be selectable
+                            -- end hour
                             endSelection3 =
                                 ( baseDay
                                 , Time.partsToPosix timeZone (Parts 2021 Jan 1 9 59 0 0)
+                                )
+
+                            -- because the selected minute is less than 30, 9 will not be selectable
+                            -- start/end hour
+                            endSelection4 =
+                                ( baseDay
+                                , Time.partsToPosix timeZone (Parts 2021 Jan 1 13 15 0 0)
                                 )
                         in
                         Expect.equal
                             [ DurationUtilities.filterSelectableTimes timeZone baseDay Nothing (Just endSelection1)
                             , DurationUtilities.filterSelectableTimes timeZone baseDay Nothing (Just endSelection2)
                             , DurationUtilities.filterSelectableTimes timeZone baseDay Nothing (Just endSelection3)
+                            , DurationUtilities.filterSelectableTimes timeZone baseDay Nothing (Just endSelection4)
                             ]
                             [ { selectableStartHours = List.range 9 17
                               , selectableStartMinutes = List.range 0 30
@@ -962,8 +995,13 @@ suite =
                               }
                             , { selectableStartHours = List.range 9 9
                               , selectableStartMinutes = List.range 30 59
-                              , selectableEndHours = List.range 9 17
+                              , selectableEndHours = List.range 9 16
                               , selectableEndMinutes = List.range 30 59
+                              }
+                            , { selectableStartHours = List.range 10 13
+                              , selectableStartMinutes = List.range 0 15
+                              , selectableEndHours = List.range 10 17
+                              , selectableEndMinutes = List.range 0 59
                               }
                             ]
                 ]
@@ -996,6 +1034,7 @@ suite =
                                 , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
                                 , disabled = False
                                 }
+
                             startDay =
                                 { start = Time.partsToPosix timeZone (Parts 2021 Jan 2 9 30 0 0)
                                 , end = Time.partsToPosix timeZone (Parts 2021 Jan 2 17 30 0 0)
@@ -1015,10 +1054,10 @@ suite =
                                 }
                         in
                         Expect.equal
-                            [ DurationUtilities.dayPickedOrBetween timeZone neitherSelectedNorBetween Nothing ( Just (startDay, startDay.start), Just (endDay, endDay.end))
-                            , DurationUtilities.dayPickedOrBetween timeZone startDay Nothing ( Just (startDay, startDay.start), Just (endDay, endDay.end))
-                            , DurationUtilities.dayPickedOrBetween timeZone betweenDay Nothing ( Just (startDay, startDay.start), Just (endDay, endDay.end))
-                            , DurationUtilities.dayPickedOrBetween timeZone endDay Nothing ( Just (startDay, startDay.start), Just (endDay, endDay.end))
+                            [ DurationUtilities.dayPickedOrBetween timeZone neitherSelectedNorBetween Nothing ( Just ( startDay, startDay.start ), Just ( endDay, endDay.end ) )
+                            , DurationUtilities.dayPickedOrBetween timeZone startDay Nothing ( Just ( startDay, startDay.start ), Just ( endDay, endDay.end ) )
+                            , DurationUtilities.dayPickedOrBetween timeZone betweenDay Nothing ( Just ( startDay, startDay.start ), Just ( endDay, endDay.end ) )
+                            , DurationUtilities.dayPickedOrBetween timeZone endDay Nothing ( Just ( startDay, startDay.start ), Just ( endDay, endDay.end ) )
                             ]
                             [ ( False, False )
                             , ( True, False )
@@ -1035,6 +1074,7 @@ suite =
                                 , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
                                 , disabled = False
                                 }
+
                             startDay =
                                 { start = Time.partsToPosix timeZone (Parts 2021 Jan 2 9 30 0 0)
                                 , end = Time.partsToPosix timeZone (Parts 2021 Jan 2 17 30 0 0)
@@ -1054,10 +1094,10 @@ suite =
                                 }
                         in
                         Expect.equal
-                            [ DurationUtilities.dayPickedOrBetween timeZone neitherSelectedNorBetween (Just endDay) ( Just (startDay, startDay.start), Nothing )
-                            , DurationUtilities.dayPickedOrBetween timeZone startDay (Just endDay) ( Just (startDay, startDay.start), Nothing )
-                            , DurationUtilities.dayPickedOrBetween timeZone betweenDay (Just endDay) ( Just (startDay, startDay.start), Nothing )
-                            , DurationUtilities.dayPickedOrBetween timeZone endDay (Just endDay) ( Just (startDay, startDay.start), Nothing )
+                            [ DurationUtilities.dayPickedOrBetween timeZone neitherSelectedNorBetween (Just endDay) ( Just ( startDay, startDay.start ), Nothing )
+                            , DurationUtilities.dayPickedOrBetween timeZone startDay (Just endDay) ( Just ( startDay, startDay.start ), Nothing )
+                            , DurationUtilities.dayPickedOrBetween timeZone betweenDay (Just endDay) ( Just ( startDay, startDay.start ), Nothing )
+                            , DurationUtilities.dayPickedOrBetween timeZone endDay (Just endDay) ( Just ( startDay, startDay.start ), Nothing )
                             ]
                             [ ( False, False )
                             , ( True, False )

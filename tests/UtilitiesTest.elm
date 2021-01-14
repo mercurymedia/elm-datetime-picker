@@ -260,29 +260,59 @@ suite =
                         ]
                         [ 1, -1, 0, 0 ]
             ]
-        , describe "hourBoundsForSelectedDay"
-            [ test "returns the earliest and latest selectable hour for the given picker day" <|
-                \_ ->
-                    let
-                        pickerDay1 =
-                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)
-                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 0 0)
-                            , disabled = False
-                            }
+        , describe "hourBoundsForSelectedMinute"
+            [ describe "when minute is neither less than nor greater than the day's earliest or latest selectable minute, respectively"
+                [ test "returns the earliest and latest selectable hour for the given picker day" <|
+                    \_ ->
+                        let
+                            pickerDay1 =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 15 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 45 0 0)
+                                , disabled = False
+                                }
 
-                        pickerDay2 =
-                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
-                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
-                            , disabled = False
-                            }
-                    in
-                    Expect.equal
-                        [ Utilities.hourBoundsForSelectedDay timeZone pickerDay1
-                        , Utilities.hourBoundsForSelectedDay timeZone pickerDay2
-                        ]
-                        [ ( 0, 23 )
-                        , ( 9, 17 )
-                        ]
+                            pickerDay2 =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                                , disabled = False
+                                }
+                        in
+                        Expect.equal
+                            [ Utilities.hourBoundsForSelectedMinute timeZone ( pickerDay1, Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0) )
+                            , Utilities.hourBoundsForSelectedMinute timeZone ( pickerDay1, Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0) )
+                            ]
+                            [ ( 9, 17 )
+                            , ( 9, 17 )
+                            ]
+                ]
+            , describe "when minute is less than the day's earliest selectable minute"
+                [ test "returns the earliest selectable hour + 1 and latest selectable hour for the given picker day" <|
+                    \_ ->
+                        let
+                            pickerDay =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 15 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 45 0 0)
+                                , disabled = False
+                                }
+                        in
+                        Expect.equal
+                            (Utilities.hourBoundsForSelectedMinute timeZone ( pickerDay, Time.partsToPosix timeZone (Parts 2021 Jan 1 9 10 0 0) ))
+                            ( 10, 17 )
+                ]
+            , describe "when minute is greater than the day's latest selectable minute"
+                [ test "returns the earliest selectable hour and latest selectable hour - 1 for the given picker day" <|
+                    \_ ->
+                        let
+                            pickerDay =
+                                { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 15 0 0)
+                                , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 45 0 0)
+                                , disabled = False
+                                }
+                        in
+                        Expect.equal
+                            (Utilities.hourBoundsForSelectedMinute timeZone ( pickerDay, Time.partsToPosix timeZone (Parts 2021 Jan 1 9 10 0 0) ))
+                            ( 10, 17 )
+                ]
             ]
         , describe "minuteBoundsForSelectedHour"
             [ describe "when hour is day start bound"

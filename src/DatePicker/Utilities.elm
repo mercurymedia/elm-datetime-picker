@@ -2,7 +2,7 @@ module DatePicker.Utilities exposing
     ( PickerDay, monthData, generateHourOptions, generateMinuteOptions
     , pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
-    , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedDay, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
+    , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
     )
 
 {-| Utility functions for both Pickers.
@@ -25,7 +25,7 @@ module DatePicker.Utilities exposing
 
 # Queries
 
-@docs calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedDay, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
+@docs calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
 
 -}
 
@@ -422,11 +422,45 @@ eventIsOutsideComponent componentId =
         ]
 
 
-{-| Determine the start and end hour boundaries for the provided `PickerDay`.
+{-| Determine the start and end hour boundaries for the selected minute of hour of day.
 -}
-hourBoundsForSelectedDay : Zone -> PickerDay -> ( Int, Int )
-hourBoundsForSelectedDay zone pickerDay =
-    ( Time.toHour zone pickerDay.start, Time.toHour zone pickerDay.end )
+hourBoundsForSelectedMinute : Zone -> ( PickerDay, Posix ) -> ( Int, Int )
+hourBoundsForSelectedMinute zone ( pickerDay, selection ) =
+    let
+        ( startBoundaryHour, startBoundaryMinute ) =
+            timeOfDayFromPosix zone pickerDay.start
+
+        ( endBoundaryHour, endBoundaryMinute ) =
+            timeOfDayFromPosix zone pickerDay.end
+
+        ( _, selectedMinute ) =
+            timeOfDayFromPosix zone selection
+
+        earliestSelectableHour =
+            if selectedMinute < startBoundaryMinute then
+                -- it start and end hour bounds are same hour
+                -- it is impossible to select an invalid minute
+                -- for an hour option, so we can safely assume
+                -- that is not the case here and bump the earliest
+                -- selectable hour back by one
+                startBoundaryHour + 1
+
+            else
+                startBoundaryHour
+
+        latestSelectableHour =
+            if selectedMinute > endBoundaryMinute then
+                -- it start and end hour bounds are same hour
+                -- it is impossible to select an invalid minute
+                -- for an hour option, so we can safely assume
+                -- that is not the case here and bump the latest
+                -- selectable hour forward by one
+                endBoundaryHour - 1
+
+            else
+                endBoundaryHour
+    in
+    ( earliestSelectableHour, latestSelectableHour )
 
 
 {-| Determine the start and end minute boundaries for the selected hour of day.

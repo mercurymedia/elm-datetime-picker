@@ -56,9 +56,12 @@ userDefinedDatePickerSettings zone today =
         | isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
         , focusedDate = Just today
         , dateStringFn = posixToDateString
-        -- , timePickerVisibility = NeverVisible
-        , timePickerVisibility = Toggleable { defaultTimePickerSettings | timeStringFn = posixToTimeString }
-        -- , timePickerVisibility = AlwaysVisible
+        , timePickerVisibility =
+            Toggleable
+                { defaultTimePickerSettings
+                    | timeStringFn = posixToTimeString
+                    , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
+                }
     }
 
 
