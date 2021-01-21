@@ -1,7 +1,7 @@
 module DatePickerExample.Duration.Main exposing (main)
 
 import Browser
-import DurationDatePicker exposing (Settings, defaultSettings)
+import DurationDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
@@ -30,7 +30,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OpenPicker ->
-            ( { model | picker = DurationDatePicker.openPicker model.zone model.currentTime model.pickedStartTime model.pickedEndTime model.picker }, Cmd.none )
+            ( { model | picker = DurationDatePicker.openPicker (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.pickedStartTime model.pickedEndTime model.picker }, Cmd.none )
 
         UpdatePicker ( newPicker, maybeRuntime ) ->
             let
@@ -58,14 +58,15 @@ userDefinedDatePickerSettings zone today =
             defaultSettings zone UpdatePicker
     in
     { defaults
-        | dateTimeProcessor =
-            { isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
-            , allowedTimesOfDay =
-                \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
-            }
+        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
         , focusedDate = Just today
         , dateStringFn = posixToDateString
-        , timeStringFn = posixToTimeString
+        , timePickerVisibility =
+            Toggleable
+                { defaultTimePickerSettings
+                    | timeStringFn = posixToTimeString
+                    , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
+                }
     }
 
 

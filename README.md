@@ -115,11 +115,14 @@ This is the settings type to be used when configuring the `datepicker`. More con
 
 ```elm
 type alias Settings msg =
-    { formattedDay : Weekday -> String
+    { internalMsg : ( DatePicker, Maybe Posix ) -> msg
+    , zone : Zone
+    , formattedDay : Weekday -> String
     , formattedMonth : Month -> String
+    , isDayDisabled : Zone -> Posix -> Bool
     , focusedDate : Maybe Posix
-    , dayDisabled : Posix -> Bool
-    , internalMsg : ( DatePicker, Maybe Posix ) -> msg
+    , dateStringFn : Zone -> Posix -> String
+    , timePickerVisibility : TimePickerVisibility
     }
 ```
 

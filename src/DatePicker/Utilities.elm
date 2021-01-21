@@ -1,15 +1,73 @@
-module DatePicker.Utilities exposing (addLeadingZero, dayToNameString, doDaysMatch, durationDayPickedOrBetween, enforceTimeBoundaries, eventIsOutsideComponent, generateHourOptions, generateMinuteOptions, monthData, monthToNameString, selectedAndSelectableTimeParts, setDayNotTime, setHourNotDay, setMinuteNotDay, splitIntoWeeks)
+module DatePicker.Utilities exposing
+    ( PickerDay, monthData, generateHourOptions, generateMinuteOptions
+    , pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
+    , setTimeOfDay, setHourNotDay, setMinuteNotDay
+    , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
+    )
 
-import Html exposing (Html, option, text)
-import Html.Attributes exposing (selected, value)
+{-| Utility functions for both Pickers.
+
+
+# View Types & Functions
+
+@docs PickerDay, monthData, generateHourOptions, generateMinuteOptions
+
+
+# Conversions
+
+@docs pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
+
+
+# Making a selection
+
+@docs setTimeOfDay, setHourNotDay, setMinuteNotDay
+
+
+# Queries
+
+@docs calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
+
+-}
+
+import Html exposing (Html, option, text, th, time)
+import Html.Attributes exposing (disabled, selected, value)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
 
-monthData : Zone -> Posix -> List Posix
-monthData zone time =
+
+-- VIEW TYPES & FUNCTIONS
+
+
+{-| The type representing a day within the picker.
+
+Includes selectable time boundaries & whether or
+not the day is disabled (not selectable).
+
+-}
+type alias PickerDay =
+    { start : Posix
+    , end : Posix
+    , disabled : Bool
+    }
+
+
+{-| Generate a month to be rendered by the picker
+based on the provided `Posix` time.
+
+Returns a list of weeks which are themselves a
+list of `PickerDay`s
+
+-}
+monthData :
+    Zone
+    -> (Zone -> Posix -> Bool)
+    -> Maybe (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int })
+    -> Posix
+    -> List (List PickerDay)
+monthData zone isDisabledFn allowableTimesFn time =
     let
         monthStart =
             Time.floor Month zone time
@@ -71,11 +129,31 @@ monthData zone time =
                 Sun ->
                     []
     in
-    frontPad ++ Time.range Day 1 zone monthStart nextMonthStart ++ endPad
+    (frontPad
+        ++ Time.range Day 1 zone monthStart nextMonthStart
+        ++ endPad
+    )
+        |> monthDataToPickerDays zone isDisabledFn allowableTimesFn
+        |> splitIntoWeeks []
+        |> List.reverse
 
 
-splitIntoWeeks : List Posix -> List (List Posix) -> List (List Posix)
-splitIntoWeeks days weeks =
+monthDataToPickerDays :
+    Zone
+    -> (Zone -> Posix -> Bool)
+    -> Maybe (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int })
+    -> List Posix
+    -> List PickerDay
+monthDataToPickerDays zone isDisabledFn allowableTimesFn posixList =
+    List.map
+        (\posix ->
+            pickerDayFromPosix zone isDisabledFn allowableTimesFn posix
+        )
+        posixList
+
+
+splitIntoWeeks : List (List PickerDay) -> List PickerDay -> List (List PickerDay)
+splitIntoWeeks weeks days =
     if List.length days <= 7 then
         days :: weeks
 
@@ -87,9 +165,97 @@ splitIntoWeeks days weeks =
             newWeeks =
                 week :: weeks
         in
-        splitIntoWeeks restOfDays newWeeks
+        splitIntoWeeks newWeeks restOfDays
 
 
+{-| Generate a list of Html `option`s representing
+selectable hours based on the provided selectable hours
+list.
+-}
+generateHourOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html msg)
+generateHourOptions zone selectionTuple selectableHours =
+    let
+        isSelected =
+            \h -> Maybe.map (\( _, selection ) -> Time.toHour zone selection == h) selectionTuple |> Maybe.withDefault False
+    in
+    selectableHours
+        |> List.map (\hour -> option [ value (String.fromInt hour), selected (isSelected hour) ] [ text (addLeadingZero hour) ])
+
+
+{-| Generate a list of Html `option`s representing
+selectable minutes based on the provided selectable minutes
+list.
+-}
+generateMinuteOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html msg)
+generateMinuteOptions zone selectionTuple selectableMinutes =
+    let
+        isSelected =
+            \m -> Maybe.map (\( _, selection ) -> Time.toMinute zone selection == m) selectionTuple |> Maybe.withDefault False
+    in
+    selectableMinutes
+        |> List.map (\minute -> option [ value (String.fromInt minute), selected (isSelected minute) ] [ text (addLeadingZero minute) ])
+
+
+addLeadingZero : Int -> String
+addLeadingZero value =
+    let
+        string =
+            String.fromInt value
+    in
+    if String.length string == 1 then
+        "0" ++ string
+
+    else
+        string
+
+
+
+-- CONVERSIONS
+
+
+{-| Convert the provided `Posix` into a `PickerDay`.
+Uses the provided functions to determine whether or
+not the day should be disabled in the picker as well
+as to determine the allowable times of day.
+
+If no allowable times function is provided the boundary
+times default to the start and end of the day (i.e.
+00:00 & 23:59)
+
+-}
+pickerDayFromPosix :
+    Zone
+    -> (Zone -> Posix -> Bool)
+    -> Maybe (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int })
+    -> Posix
+    -> PickerDay
+pickerDayFromPosix zone isDisabledFn allowableTimesFn posix =
+    let
+        flooredPosix =
+            Time.floor Day zone posix
+
+        allowableTimes =
+            Maybe.map (\fn -> fn zone flooredPosix) allowableTimesFn
+                |> Maybe.withDefault { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 }
+    in
+    { start = setTimeOfDay zone allowableTimes.startHour allowableTimes.startMinute flooredPosix
+    , end = setTimeOfDay zone allowableTimes.endHour allowableTimes.endMinute flooredPosix
+    , disabled = isDisabledFn zone (Time.floor Day zone flooredPosix)
+    }
+
+
+{-| Convert the provided `Posix` into a tuple of
+integers representing the selected hour of day and
+minute of the hour, in that order.
+-}
+timeOfDayFromPosix : Zone -> Posix -> ( Int, Int )
+timeOfDayFromPosix zone posix =
+    ( Time.toHour zone posix, Time.toMinute zone posix )
+
+
+{-| Convert the provided `Month` type into a string
+representing the `Month`'s name.
+-}
 monthToNameString : Month -> String
 monthToNameString month =
     case month of
@@ -130,6 +296,9 @@ monthToNameString month =
             "Dec"
 
 
+{-| Convert the provided `Weekday` type into a string
+representing the `Weekday`'s name.
+-}
 dayToNameString : Weekday -> String
 dayToNameString day =
     case day of
@@ -155,104 +324,25 @@ dayToNameString day =
             "Su"
 
 
-addLeadingZero : Int -> String
-addLeadingZero value =
-    let
-        string =
-            String.fromInt value
-    in
-    if String.length string == 1 then
-        "0" ++ string
 
-    else
-        string
+-- MAKING A SELECTION
 
 
-durationDayPickedOrBetween : Zone -> Posix -> Maybe Posix -> ( Maybe Posix, Maybe Posix ) -> ( Bool, Bool )
-durationDayPickedOrBetween zone day hovered ( pickedStart, pickedEnd ) =
-    case ( pickedStart, pickedEnd ) of
-        ( Nothing, Nothing ) ->
-            ( False, False )
-
-        ( Just start, Nothing ) ->
-            let
-                picked =
-                    doDaysMatch zone day start
-
-                between =
-                    case hovered of
-                        Just hoveredTime ->
-                            isDayBetweenDates day start hoveredTime
-
-                        Nothing ->
-                            False
-            in
-            ( picked, between )
-
-        ( Nothing, Just end ) ->
-            let
-                picked =
-                    doDaysMatch zone day end
-
-                between =
-                    case hovered of
-                        Just hoveredTime ->
-                            isDayBetweenDates day end hoveredTime
-
-                        Nothing ->
-                            False
-            in
-            ( picked, between )
-
-        ( Just start, Just end ) ->
-            let
-                picked =
-                    doDaysMatch zone day end || doDaysMatch zone day start
-
-                between =
-                    isDayBetweenDates day start end
-            in
-            ( picked, between )
-
-
-isDayBetweenDates : Posix -> Posix -> Posix -> Bool
-isDayBetweenDates day dateOne dateTwo =
-    (Time.posixToMillis dateOne
-        > Time.posixToMillis day
-        && Time.posixToMillis day
-        > Time.posixToMillis dateTwo
-    )
-        || (Time.posixToMillis dateOne
-                < Time.posixToMillis day
-                && Time.posixToMillis day
-                < Time.posixToMillis dateTwo
-           )
-
-
-doDaysMatch : Zone -> Posix -> Posix -> Bool
-doDaysMatch zone dateTimeOne dateTimeTwo =
-    let
-        oneParts =
-            Time.posixToParts zone dateTimeOne
-
-        twoParts =
-            Time.posixToParts zone dateTimeTwo
-    in
-    oneParts.day == twoParts.day && oneParts.month == twoParts.month && oneParts.year == twoParts.year
-
-
-{-| Set the day (month and year) of the previously selected dateTime to match that of the newly selected dateTime
+{-| Set the hour and minute of the provided dateTime.
 -}
-setDayNotTime : Zone -> Posix -> Posix -> Posix
-setDayNotTime zone newPickedDT prevPickedDT =
+setTimeOfDay : Zone -> Int -> Int -> Posix -> Posix
+setTimeOfDay zone hour minute timeToUpdate =
     let
-        newPickedParts =
-            Time.posixToParts zone newPickedDT
+        parts =
+            Time.posixToParts zone timeToUpdate
+
+        newParts =
+            { parts | hour = hour, minute = minute }
     in
-    Time.posixToParts zone prevPickedDT |> (\parts -> { parts | day = newPickedParts.day, month = newPickedParts.month, year = newPickedParts.year }) |> Time.partsToPosix zone
+    Time.partsToPosix zone newParts
 
 
-{-| Set only the hour of the provided dateTime
+{-| Set only the hour of the provided dateTime.
 -}
 setHourNotDay : Zone -> Int -> Posix -> Posix
 setHourNotDay zone hour timeToUpdate =
@@ -266,7 +356,7 @@ setHourNotDay zone hour timeToUpdate =
     Time.partsToPosix zone newParts
 
 
-{-| Set only the minute of the provided dateTime
+{-| Set only the minute of the provided dateTime.
 -}
 setMinuteNotDay : Zone -> Int -> Posix -> Posix
 setMinuteNotDay zone minute timeToUpdate =
@@ -280,18 +370,37 @@ setMinuteNotDay zone minute timeToUpdate =
     Time.partsToPosix zone newParts
 
 
-generateHourOptions : List Int -> Int -> List (Html msg)
-generateHourOptions selectableHours selectedHour =
-    selectableHours
-        |> List.map (\hour -> option [ value (String.fromInt hour), selected (selectedHour == hour) ] [ text (addLeadingZero hour) ])
+
+-- QUERIES
 
 
-generateMinuteOptions : List Int -> Int -> List (Html msg)
-generateMinuteOptions selectableMinutes selectedMinute =
-    selectableMinutes
-        |> List.map (\minute -> option [ value (String.fromInt minute), selected (selectedMinute == minute) ] [ text (addLeadingZero minute) ])
+{-| Determine the offset in months between the base/reference time
+and the selected time, if any.
+-}
+calculateViewOffset : Zone -> Posix -> Maybe Posix -> Int
+calculateViewOffset zone referenceTime subjectTime =
+    let
+        flooredReference =
+            Time.floor Month zone referenceTime
+    in
+    case subjectTime of
+        Nothing ->
+            0
+
+        Just time ->
+            let
+                flooredSubject =
+                    Time.floor Month zone time
+            in
+            if Time.posixToMillis flooredReference <= Time.posixToMillis flooredSubject then
+                Time.diff Month zone flooredReference flooredSubject
+
+            else
+                0 - Time.diff Month zone flooredSubject flooredReference
 
 
+{-| Determine if the user has clicked outside of the datepicker component.
+-}
 eventIsOutsideComponent : String -> Decode.Decoder Bool
 eventIsOutsideComponent componentId =
     Decode.oneOf
@@ -313,63 +422,124 @@ eventIsOutsideComponent componentId =
         ]
 
 
-filterSelectableHours : Zone -> Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
-filterSelectableHours zone dateTimeBeingProcessed allowableTimesFn =
+{-| Determine the start and end hour boundaries for the selected minute of hour of day.
+-}
+hourBoundsForSelectedMinute : Zone -> ( PickerDay, Posix ) -> ( Int, Int )
+hourBoundsForSelectedMinute zone ( pickerDay, selection ) =
     let
-        { startHour, endHour } =
-            allowableTimesFn zone dateTimeBeingProcessed
+        ( startBoundaryHour, startBoundaryMinute ) =
+            timeOfDayFromPosix zone pickerDay.start
+
+        ( endBoundaryHour, endBoundaryMinute ) =
+            timeOfDayFromPosix zone pickerDay.end
+
+        ( _, selectedMinute ) =
+            timeOfDayFromPosix zone selection
+
+        earliestSelectableHour =
+            if selectedMinute < startBoundaryMinute then
+                -- it start and end hour bounds are same hour
+                -- it is impossible to select an invalid minute
+                -- for an hour option, so we can safely assume
+                -- that is not the case here and bump the earliest
+                -- selectable hour back by one
+                startBoundaryHour + 1
+
+            else
+                startBoundaryHour
+
+        latestSelectableHour =
+            if selectedMinute > endBoundaryMinute then
+                -- it start and end hour bounds are same hour
+                -- it is impossible to select an invalid minute
+                -- for an hour option, so we can safely assume
+                -- that is not the case here and bump the latest
+                -- selectable hour forward by one
+                endBoundaryHour - 1
+
+            else
+                endBoundaryHour
     in
-    List.range startHour endHour
+    ( earliestSelectableHour, latestSelectableHour )
 
 
-filterSelectableMinutes : Zone -> Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> List Int
-filterSelectableMinutes zone dateTimeBeingProcessed allowableTimesFn =
+{-| Determine the start and end minute boundaries for the selected hour of day.
+-}
+minuteBoundsForSelectedHour : Zone -> ( PickerDay, Posix ) -> ( Int, Int )
+minuteBoundsForSelectedHour zone ( pickerDay, selection ) =
     let
-        { startHour, startMinute, endHour, endMinute } =
-            allowableTimesFn zone dateTimeBeingProcessed
+        ( startBoundaryHour, startBoundaryMinute ) =
+            timeOfDayFromPosix zone pickerDay.start
 
-        hour =
-            Time.toHour zone dateTimeBeingProcessed
+        ( endBoundaryHour, endBoundaryMinute ) =
+            timeOfDayFromPosix zone pickerDay.end
 
-        filterBefore =
-            if startHour == hour then
-                startMinute
+        ( selectedHour, selectedMinute ) =
+            timeOfDayFromPosix zone selection
+
+        earliestSelectableMinute =
+            if startBoundaryHour == selectedHour then
+                startBoundaryMinute
 
             else
                 0
 
-        filterAfter =
-            if endHour == hour then
-                endMinute
+        latestSelectableMinute =
+            if endBoundaryHour == selectedHour then
+                endBoundaryMinute
 
             else
                 59
     in
-    List.range filterBefore filterAfter
+    ( earliestSelectableMinute, latestSelectableMinute )
 
 
-selectedAndSelectableTimeParts : Zone -> Maybe Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> { selectedHour : Int, selectableHours : List Int, selectedMinute : Int, selectableMinutes : List Int }
-selectedAndSelectableTimeParts zone pickedDateTime allowableTimesFn =
-    Maybe.map
-        (\time ->
-            let
-                timeParts =
-                    Time.posixToParts zone time
-            in
-            { selectedHour = timeParts.hour
-            , selectableHours = filterSelectableHours zone time allowableTimesFn
-            , selectedMinute = timeParts.minute
-            , selectableMinutes = filterSelectableMinutes zone time allowableTimesFn
-            }
-        )
-        pickedDateTime
-        |> Maybe.withDefault { selectedHour = 0, selectableHours = List.range 0 23, selectedMinute = 0, selectableMinutes = List.range 0 59 }
+{-| Determine if the provided `Posix` falls within the provided `PickerDay` time boundaries.
 
+Will return True even if the `Posix` is from a different calendar day. All this function
+cares about is that the provided `Posix` time of day falls within the \`PickerDay\`\`
+allowable times.
 
-enforceTimeBoundaries : Zone -> Posix -> (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }) -> Posix
-enforceTimeBoundaries zone dateTimeBeingProcessed allowableTimesFn =
+-}
+posixWithinPickerDayBoundaries : Zone -> PickerDay -> Posix -> Bool
+posixWithinPickerDayBoundaries zone pickerDay selection =
     let
-        { startHour, startMinute } =
-            allowableTimesFn zone dateTimeBeingProcessed
+        ( startHour, startMinute ) =
+            timeOfDayFromPosix zone pickerDay.start
+
+        ( endHour, endMinute ) =
+            timeOfDayFromPosix zone pickerDay.end
+
+        ( selectionHour, selectionMinute ) =
+            timeOfDayFromPosix zone selection
     in
-    Time.posixToParts zone dateTimeBeingProcessed |> (\parts -> { parts | hour = startHour, minute = startMinute } |> Time.partsToPosix zone)
+    (startHour == selectionHour && startMinute <= selectionMinute)
+        || (startHour < selectionHour && selectionHour < endHour)
+        || (selectionHour == endHour && selectionMinute <= endMinute)
+
+
+{-| Determine if the provided `Posix` falls within the provided `PickerDay`.
+-}
+validSelectionOrDefault : Zone -> Maybe ( PickerDay, Posix ) -> ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix )
+validSelectionOrDefault zone default ( selectionPickerDay, selection ) =
+    let
+        selectionDayEqualsPickerDay =
+            doDaysMatch zone selection selectionPickerDay.start
+    in
+    if posixWithinPickerDayBoundaries zone selectionPickerDay selection && not selectionPickerDay.disabled && selectionDayEqualsPickerDay then
+        Just ( selectionPickerDay, selection )
+
+    else
+        default
+
+
+doDaysMatch : Zone -> Posix -> Posix -> Bool
+doDaysMatch zone dateTimeOne dateTimeTwo =
+    let
+        oneParts =
+            Time.posixToParts zone dateTimeOne
+
+        twoParts =
+            Time.posixToParts zone dateTimeTwo
+    in
+    oneParts.day == twoParts.day && oneParts.month == twoParts.month && oneParts.year == twoParts.year

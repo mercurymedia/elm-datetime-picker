@@ -4,7 +4,7 @@ import Browser
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
-import SingleDatePicker exposing (Settings, defaultSettings)
+import SingleDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Task
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as Time exposing (Interval(..))
@@ -29,7 +29,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OpenPicker ->
-            ( { model | picker = SingleDatePicker.openPicker model.zone model.currentTime model.pickedTime model.picker }, Cmd.none )
+            ( { model | picker = SingleDatePicker.openPicker (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.pickedTime model.picker }, Cmd.none )
 
         UpdatePicker ( newPicker, maybeNewTime ) ->
             ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
@@ -53,14 +53,15 @@ userDefinedDatePickerSettings zone today =
             defaultSettings zone UpdatePicker
     in
     { defaults
-        | dateTimeProcessor =
-            { isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
-            , allowedTimesOfDay =
-                \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
-            }
+        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
         , focusedDate = Just today
         , dateStringFn = posixToDateString
-        , timeStringFn = posixToTimeString
+        , timePickerVisibility =
+            Toggleable
+                { defaultTimePickerSettings
+                    | timeStringFn = posixToTimeString
+                    , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
+                }
     }
 
 
