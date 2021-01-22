@@ -1,10 +1,9 @@
 module DurationDatePicker exposing
     ( DatePicker, init, view, subscriptions
-    , Settings, defaultSettings
+    , Settings, defaultSettings, TimePickerVisibility(..)
     , TimePickerSettings, defaultTimePickerSettings
     , openPicker, closePicker
     , isOpen
-    , TimePickerVisibility(..)
     )
 
 {-| A date picker component for picking a datetime range.
@@ -17,7 +16,7 @@ module DurationDatePicker exposing
 
 # Settings
 
-@docs Settings, defaultSettings, TimePickerVisibility(..)
+@docs Settings, defaultSettings, TimePickerVisibility
 @docs TimePickerSettings, defaultTimePickerSettings
 
 
