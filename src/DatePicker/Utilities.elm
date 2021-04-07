@@ -1,5 +1,5 @@
 module DatePicker.Utilities exposing
-    ( PickerDay, monthData, generateHourOptions, generateMinuteOptions
+    ( PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
     , pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
@@ -10,7 +10,7 @@ module DatePicker.Utilities exposing
 
 # View Types & Functions
 
-@docs PickerDay, monthData, generateHourOptions, generateMinuteOptions
+@docs PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
 
 
 # Conversions
@@ -64,10 +64,11 @@ list of `PickerDay`s
 monthData :
     Zone
     -> (Zone -> Posix -> Bool)
+    -> Weekday
     -> Maybe (Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int })
     -> Posix
     -> List (List PickerDay)
-monthData zone isDisabledFn allowableTimesFn time =
+monthData zone isDisabledFn firstWeekDay allowableTimesFn time =
     let
         monthStart =
             Time.floor Month zone time
@@ -84,50 +85,10 @@ monthData zone isDisabledFn allowableTimesFn time =
             Time.toWeekday zone nextMonthStart
 
         frontPad =
-            case monthStartDay of
-                Mon ->
-                    Time.range Day 1 zone (Time.add Day -1 zone monthStart) monthStart
-
-                Tue ->
-                    Time.range Day 1 zone (Time.add Day -2 zone monthStart) monthStart
-
-                Wed ->
-                    Time.range Day 1 zone (Time.add Day -3 zone monthStart) monthStart
-
-                Thu ->
-                    Time.range Day 1 zone (Time.add Day -4 zone monthStart) monthStart
-
-                Fri ->
-                    Time.range Day 1 zone (Time.add Day -5 zone monthStart) monthStart
-
-                Sat ->
-                    Time.range Day 1 zone (Time.add Day -6 zone monthStart) monthStart
-
-                Sun ->
-                    []
+            Time.range Day 1 zone (Time.add Day (calculatePad firstWeekDay monthStartDay True) zone monthStart) monthStart
 
         endPad =
-            case nextMonthStartDay of
-                Mon ->
-                    Time.range Day 1 zone nextMonthStart (Time.add Day 6 zone nextMonthStart)
-
-                Tue ->
-                    Time.range Day 1 zone nextMonthStart (Time.add Day 5 zone nextMonthStart)
-
-                Wed ->
-                    Time.range Day 1 zone nextMonthStart (Time.add Day 4 zone nextMonthStart)
-
-                Thu ->
-                    Time.range Day 1 zone nextMonthStart (Time.add Day 3 zone nextMonthStart)
-
-                Fri ->
-                    Time.range Day 1 zone nextMonthStart (Time.add Day 2 zone nextMonthStart)
-
-                Sat ->
-                    Time.range Day 1 zone nextMonthStart (Time.add Day 1 zone nextMonthStart)
-
-                Sun ->
-                    []
+            Time.range Day 1 zone nextMonthStart (Time.add Day (calculatePad firstWeekDay nextMonthStartDay False) zone nextMonthStart)
     in
     (frontPad
         ++ Time.range Day 1 zone monthStart nextMonthStart
@@ -166,6 +127,34 @@ splitIntoWeeks weeks days =
                 week :: weeks
         in
         splitIntoWeeks newWeeks restOfDays
+
+
+{-| Generate a list of Weekday based on the first week day
+set in the settings.
+-}
+generateListOfWeekDay : Weekday -> List Weekday
+generateListOfWeekDay firstWeekDay =
+    case firstWeekDay of
+        Mon ->
+            [ Mon, Tue, Wed, Thu, Fri, Sat, Sun ]
+
+        Tue ->
+            [ Tue, Wed, Thu, Fri, Sat, Sun, Mon ]
+
+        Wed ->
+            [ Wed, Thu, Fri, Sat, Sun, Mon, Tue ]
+
+        Thu ->
+            [ Thu, Fri, Sat, Sun, Mon, Tue, Wed ]
+
+        Fri ->
+            [ Fri, Sat, Sun, Mon, Tue, Wed, Thu ]
+
+        Sat ->
+            [ Sat, Sun, Mon, Tue, Wed, Thu, Fri ]
+
+        Sun ->
+            [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
 
 
 {-| Generate a list of Html `option`s representing
@@ -543,3 +532,24 @@ doDaysMatch zone dateTimeOne dateTimeTwo =
             Time.posixToParts zone dateTimeTwo
     in
     oneParts.day == twoParts.day && oneParts.month == twoParts.month && oneParts.year == twoParts.year
+
+
+calculatePad : Weekday -> Weekday -> Bool -> Int
+calculatePad firstWeekDay monthStartDay isFrontPad =
+    let
+        listOfWeekday =
+            generateListOfWeekDay firstWeekDay
+
+        calculatedPadInt =
+            case List.elemIndex monthStartDay listOfWeekday of
+                Just val ->
+                    if isFrontPad then
+                        -val
+
+                    else
+                        7 - val
+
+                Nothing ->
+                    0
+    in
+    calculatedPadInt

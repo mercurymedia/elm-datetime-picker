@@ -82,6 +82,7 @@ More information can be found in the [examples](https://github.com/mercurymedia/
 type alias Settings msg =
     { internalMsg : ( DatePicker, Maybe Posix ) -> msg
     , zone : Zone
+    , firstWeekDay : Weekday
     , formattedDay : Weekday -> String
     , formattedMonth : Month -> String
     , isDayDisabled : Zone -> Posix -> Bool
@@ -157,6 +158,7 @@ defaultSettings : Zone -> (( DatePicker, Maybe Posix ) -> msg) -> Settings msg
 defaultSettings zone internalMsg =
     { internalMsg = internalMsg
     , zone = zone
+    , firstWeekDay = Mon
     , formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
     , isDayDisabled = \_ _ -> False
@@ -485,15 +487,15 @@ viewCalendarHeader settings model time =
                     |> Icons.toHtml []
                 ]
             ]
-        , viewWeekHeader settings [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
+        , viewWeekHeader settings
         ]
 
 
-viewWeekHeader : Settings msg -> List Weekday -> Html msg
-viewWeekHeader settings days =
+viewWeekHeader : Settings msg -> Html msg
+viewWeekHeader settings =
     div
         [ class (classPrefix ++ "calendar-header-week") ]
-        (List.map (viewHeaderDay settings.formattedDay) days)
+        (List.map (viewHeaderDay settings.formattedDay) (Utilities.generateListOfWeekDay settings.firstWeekDay))
 
 
 viewHeaderDay : (Weekday -> String) -> Weekday -> Html msg
@@ -510,7 +512,7 @@ viewMonth settings model viewTime =
             Maybe.map .allowedTimesOfDay (getTimePickerSettings settings)
 
         weeks =
-            Utilities.monthData settings.zone settings.isDayDisabled allowedTimesOfDayFn viewTime
+            Utilities.monthData settings.zone settings.isDayDisabled settings.firstWeekDay allowedTimesOfDayFn viewTime
 
         currentMonth =
             Time.posixToParts settings.zone viewTime |> .month

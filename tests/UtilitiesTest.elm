@@ -5,7 +5,7 @@ import Expect
 import Html exposing (option, text)
 import Html.Attributes exposing (selected, value)
 import Test exposing (..)
-import Time exposing (Month(..), Posix)
+import Time exposing (Month(..), Posix, Weekday(..))
 import Time.Extra as Time exposing (Parts, partsToPosix)
 
 
@@ -21,7 +21,7 @@ suite =
                 \_ ->
                     let
                         result =
-                            Utilities.monthData timeZone (\zone posix -> False) Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                            Utilities.monthData timeZone (\zone posix -> False) Sun Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
 
                         generatedDaysCount =
                             List.concat result
@@ -60,7 +60,7 @@ suite =
                 \_ ->
                     let
                         result =
-                            Utilities.monthData timeZone (\_ _ -> True) Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
+                            Utilities.monthData timeZone (\_ _ -> True) Sun Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
 
                         areAllDaysDisabled =
                             List.concat result
@@ -77,6 +77,7 @@ suite =
                             Utilities.monthData
                                 timeZone
                                 (\_ _ -> False)
+                                Mon
                                 (Just (\_ _ -> { startHour = 9, startMinute = 30, endHour = 17, endMinute = 30 }))
                                 (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
 
