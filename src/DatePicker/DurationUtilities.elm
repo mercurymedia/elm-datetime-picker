@@ -108,7 +108,7 @@ selectDay zone previousStartSelectionTuple previousEndSelectionTuple selectedPic
 
                 else if Utilities.posixWithinPickerDayBoundaries zone selectedPickerDay selectionStart then
                     -- keep previously picked time of day
-                    ( Just ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone selectionStart) (Time.toMinute zone selectionStart) selectedPickerDay.start )
+                    ( Just ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone selectionStart) (Time.toMinute zone selectionStart) 0 selectedPickerDay.start )
                     , Just ( startPickerDay, startPickerDay.end )
                     )
 
@@ -125,7 +125,7 @@ selectDay zone previousStartSelectionTuple previousEndSelectionTuple selectedPic
                 else if Utilities.posixWithinPickerDayBoundaries zone selectedPickerDay selectionEnd then
                     -- keep previously picked time of day
                     ( Just ( endPickerDay, endPickerDay.start )
-                    , Just ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone selectionEnd) (Time.toMinute zone selectionEnd) selectedPickerDay.end )
+                    , Just ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone selectionEnd) (Time.toMinute zone selectionEnd) 59 selectedPickerDay.end )
                     )
 
                 else

@@ -227,8 +227,8 @@ pickerDayFromPosix zone isDisabledFn allowableTimesFn posix =
             Maybe.map (\fn -> fn zone flooredPosix) allowableTimesFn
                 |> Maybe.withDefault { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 }
     in
-    { start = setTimeOfDay zone allowableTimes.startHour allowableTimes.startMinute flooredPosix
-    , end = setTimeOfDay zone allowableTimes.endHour allowableTimes.endMinute flooredPosix
+    { start = setTimeOfDay zone allowableTimes.startHour allowableTimes.startMinute 0 flooredPosix
+    , end = setTimeOfDay zone allowableTimes.endHour allowableTimes.endMinute 59 flooredPosix
     , disabled = isDisabledFn zone (Time.floor Day zone flooredPosix)
     }
 
@@ -319,14 +319,14 @@ dayToNameString day =
 
 {-| Set the hour and minute of the provided dateTime.
 -}
-setTimeOfDay : Zone -> Int -> Int -> Posix -> Posix
-setTimeOfDay zone hour minute timeToUpdate =
+setTimeOfDay : Zone -> Int -> Int -> Int -> Posix -> Posix
+setTimeOfDay zone hour minute second timeToUpdate =
     let
         parts =
             Time.posixToParts zone timeToUpdate
 
         newParts =
-            { parts | hour = hour, minute = minute }
+            { parts | hour = hour, minute = minute, second = second }
     in
     Time.partsToPosix zone newParts
 

@@ -172,7 +172,7 @@ suite =
                     Expect.equal
                         (Utilities.pickerDayFromPosix timeZone (\_ _ -> True) Nothing (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)))
                         { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)
-                        , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 0 0)
+                        , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 59 0)
                         , disabled = True
                         }
             , test "takes allowable times function into account or defaults to start and end of posix's parent day" <|
@@ -186,11 +186,11 @@ suite =
                         , Utilities.pickerDayFromPosix timeZone (\_ _ -> False) (Just allowableTimesFn) (Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0))
                         ]
                         [ { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 0 0 0 0)
-                          , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 0 0)
+                          , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 23 59 59 0)
                           , disabled = False
                           }
                         , { start = Time.partsToPosix timeZone (Parts 2021 Jan 1 9 30 0 0)
-                          , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 0 0)
+                          , end = Time.partsToPosix timeZone (Parts 2021 Jan 1 17 30 59 0)
                           , disabled = False
                           }
                         ]
@@ -203,7 +203,7 @@ suite =
                         ( 9, 30 )
             ]
         , describe "setTimeOfDay"
-            [ test "updates the hour and minute of the provided Posix" <|
+            [ test "updates the hour, minute, and second of the provided Posix" <|
                 \_ ->
                     let
                         dateTimeToUpdate =
@@ -212,7 +212,7 @@ suite =
                         expectedResult =
                             Time.partsToPosix timeZone (Parts 2019 Sep 19 12 30 0 0)
                     in
-                    Expect.equal (Utilities.setTimeOfDay timeZone 12 30 dateTimeToUpdate) expectedResult
+                    Expect.equal (Utilities.setTimeOfDay timeZone 12 30 0 dateTimeToUpdate) expectedResult
             ]
         , describe "setHourNotDay"
             [ test "updates only the hour of the provided Posix" <|
