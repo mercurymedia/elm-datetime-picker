@@ -2,13 +2,15 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [5.0.1]
+
+Automatically sets the lastest seconds when selecting an end date in the `DurationDatePicker` (e.g. 12:30:59).
 
 ## [4.0.1]
 
 ### **PATCH**
 
 Fix `DurationDatePicker` docs.
-
 
 ## [4.0.0]
 
@@ -96,7 +98,6 @@ New:
 ```elm
 openPicker : Settings msg -> Posix -> Maybe Posix -> DatePicker -> DatePicker
 ```
-
 
 ## [3.0.0]
 
@@ -213,7 +214,6 @@ New functions:
 `dateStringFn` - function to represent the selected day
 `timeStringFn` - function to represent the selected time of day
 
-
 Additionally, the dateTime picker now takes time zones into account. As such, the `Settings` type now expects a `Time.Zone` to be provided to it. The `defaultSettings` fn, `allowedTimesOfDay` fn, `dateStringFn`, and `timeStringFn` all require a `Time.Zone` to be passed as the first argument.
 
 Old settings:
@@ -229,8 +229,8 @@ type alias Settings msg =
     }
 
 type alias MsgConfig msg =
-    { internalMsg : DatePicker -> msg	
-    , externalMsg : Posix -> msg	
+    { internalMsg : DatePicker -> msg
+    , externalMsg : Posix -> msg
     }
 
 defaultSettings : MsgConfig msg -> Settings msg
@@ -310,4 +310,4 @@ Add `isOpen` function to both pickers to allow a user to query if the picker is 
 
 ### **PATCH**
 
-Add tests for Utilities 
+Add tests for Utilities

@@ -256,7 +256,7 @@ suite =
                             in
                             Expect.equal
                                 (DurationUtilities.selectDay timeZone Nothing (Just priorEndSelection) pickerDay)
-                                ( Just ( endDay, endDay.start ), Just ( pickerDay, Time.partsToPosix timeZone (Parts 2021 Jan 2 16 0 0 0) ) )
+                                ( Just ( endDay, endDay.start ), Just ( pickerDay, Time.partsToPosix timeZone (Parts 2021 Jan 2 16 0 59 0) ) )
                     , test "provided day becomes new end and end time is provided day end if prior end time not selectable in provided day." <|
                         \_ ->
                             let

@@ -43,7 +43,7 @@ selectDay zone previousSelectionTuple selectedPickerDay =
             Just ( _, previousSelection ) ->
                 if Utilities.posixWithinPickerDayBoundaries zone selectedPickerDay previousSelection then
                     -- keep previously picked time of day
-                    Just ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone previousSelection) (Time.toMinute zone previousSelection) selectedPickerDay.start )
+                    Just ( selectedPickerDay, Utilities.setTimeOfDay zone (Time.toHour zone previousSelection) (Time.toMinute zone previousSelection) 0 selectedPickerDay.start )
 
                 else
                     -- use start of picked day
