@@ -102,7 +102,7 @@
 .elm-datetimepicker-single--footer {
     width: 100%;
     border-top: 1px solid #a0aec0;
-    padding: .25rem .75rem .25rem .75rem;
+    padding: .75rem;
 }
 
 .elm-datetimepicker-single--time-picker-container {
@@ -115,6 +115,8 @@
     display: flex;
     justify-content: center;
     cursor: pointer;
+    margin-left: .25rem;
+    color: #3490dc;
 }
 
 
@@ -138,10 +140,35 @@
 
 .elm-datetimepicker-single--select {
     display: inline-flex;
+    position: relative;
+    align-items: center;
 }
 
+.elm-datetimepicker-single--select > select {
+    appearance: none;
+    padding: .125rem 24px .125rem .25rem;
+}
+
+.elm-datetimepicker-single--select > svg {
+    position: absolute;
+    right: .25rem;
+    pointer-events: none;
+}
+
+.elm-datetimepicker-single--footer-datetime-container {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+
+.elm-datetimepicker-single--selection-date,
 .elm-datetimepicker-single--selection-time {
-    margin-left: 5px;
+    display: flex;
+    align-items: center;
+}
+.elm-datetimepicker-single--selection-date > svg ,
+.elm-datetimepicker-single--selection-time > svg {
+    margin-right: .25rem;
 }
 
 .elm-datetimepicker-single--selection-time-danger {
