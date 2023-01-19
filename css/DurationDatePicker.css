@@ -8,10 +8,18 @@
     box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15)
 }
 
-.elm-datetimepicker-duration--picker-header-chevrons {
+.elm-datetimepicker-duration--picker-header-navigation {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+}
+
+#left-container 
+.elm-datetimepicker-duration--picker-header-navigation--next {
+    visibility: hidden;
+}
+#right-container 
+.elm-datetimepicker-duration--picker-header-navigation--previous {
+    visibility: hidden;
 }
 
 .elm-datetimepicker-duration--picker-header-chevron {
@@ -24,16 +32,12 @@
 
 .elm-datetimepicker-duration--calendars-container {
     display: flex;
+    gap: 2rem;
     margin-bottom: 1rem;
 }
 
 .elm-datetimepicker-duration--calendar {
     display: inline-flex;
-}
-
-.elm-datetimepicker-duration--calendar-spacer {
-    display: inline-flex;
-    width: 2rem;
 }
 
 .elm-datetimepicker-duration--calendar-header {
@@ -43,12 +47,11 @@
 
 .elm-datetimepicker-duration--calendar-header-row {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
 }
 
 .elm-datetimepicker-duration--calendar-header-text {
-    display: inline-flex;
-    align-items: center;
+
 }
 
 .elm-datetimepicker-duration--calendar-header-chevron.elm-datetimepicker-duration--hidden {

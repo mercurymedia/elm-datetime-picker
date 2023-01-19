@@ -434,16 +434,16 @@ view settings (DatePicker model) =
             in
             div
                 [ id datePickerId, class (classPrefix ++ "picker-container") ]
-                [ viewPickerHeader settings model
-                , div
+                [ div
                     [ class (classPrefix ++ "calendars-container") ]
                     [ div
                         [ id "left-container", class (classPrefix ++ "calendar") ]
-                        [ viewCalendar settings model leftViewTime ]
-                    , div [ class (classPrefix ++ "calendar-spacer") ] []
+                        [ viewCalendar settings model leftViewTime
+                        ]
                     , div
                         [ id "right-container", class (classPrefix ++ "calendar") ]
-                        [ viewCalendar settings model rightViewTime ]
+                        [ viewCalendar settings model rightViewTime
+                        ]
                     ]
                 , div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings timePickerVisible baseDay model ]
                 ]
@@ -452,63 +452,65 @@ view settings (DatePicker model) =
             text ""
 
 
-viewPickerHeader : Settings msg -> Model -> Html msg
-viewPickerHeader settings model =
-    div []
-        [ div [ class (classPrefix ++ "picker-header-chevrons") ]
-            [ div
-                [ id "previous-month"
-                , class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
-                ]
-                [ Icons.chevronLeft
-                    |> Icons.withSize 15
-                    |> Icons.toHtml []
-                ]
-            , div
-                [ id "next-month"
-                , class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
-                ]
-                [ Icons.chevronRight
-                    |> Icons.withSize 15
-                    |> Icons.toHtml []
-                ]
-            ]
-        , div [ class (classPrefix ++ "picker-header-chevrons") ]
-            [ div
-                [ id "previous-year"
-                , class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
-                ]
-                [ Icons.chevronsLeft
-                    |> Icons.withSize 15
-                    |> Icons.toHtml []
-                ]
-            , div
-                [ id "next-year"
-                , class (classPrefix ++ "picker-header-chevron")
-                , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
-                ]
-                [ Icons.chevronsRight
-                    |> Icons.withSize 15
-                    |> Icons.toHtml []
-                ]
-            ]
-        ]
-
-
 viewCalendar : Settings msg -> Model -> Posix -> Html msg
 viewCalendar settings model viewTime =
     div
         []
-        [ viewCalendarHeader settings viewTime
+        [ viewCalendarHeader settings model viewTime
         , viewMonth settings model viewTime
         ]
 
 
-viewCalendarHeader : Settings msg -> Posix -> Html msg
-viewCalendarHeader settings viewTime =
+viewCalendarPreviousNavigation : Settings msg -> Model -> Html msg
+viewCalendarPreviousNavigation settings model =
+    div [ class (classPrefix ++ "picker-header-navigation"), class (classPrefix ++ "picker-header-navigation--previous") ]
+        [ div
+            [ id "previous-year"
+            , class (classPrefix ++ "picker-header-chevron")
+            , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
+            ]
+            [ Icons.chevronsLeft
+                |> Icons.withSize 15
+                |> Icons.toHtml []
+            ]
+        , div
+            [ id "previous-month"
+            , class (classPrefix ++ "picker-header-chevron")
+            , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
+            ]
+            [ Icons.chevronLeft
+                |> Icons.withSize 15
+                |> Icons.toHtml []
+            ]
+        ]
+
+
+viewCalendarNextNavigation : Settings msg -> Model -> Html msg
+viewCalendarNextNavigation settings model =
+    div [ class (classPrefix ++ "picker-header-navigation"), class (classPrefix ++ "picker-header-navigation--next") ]
+        [ div
+            [ id "next-month"
+            , class (classPrefix ++ "picker-header-chevron")
+            , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
+            ]
+            [ Icons.chevronRight
+                |> Icons.withSize 15
+                |> Icons.toHtml []
+            ]
+        , div
+            [ id "next-year"
+            , class (classPrefix ++ "picker-header-chevron")
+            , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
+            ]
+            [ Icons.chevronsRight
+                |> Icons.withSize 15
+                |> Icons.toHtml []
+            ]
+        ]
+
+
+viewCalendarHeader : Settings msg -> Model -> Posix -> Html msg
+viewCalendarHeader settings model viewTime =
     let
         monthName =
             Time.toMonth settings.zone viewTime |> settings.formattedMonth
@@ -519,18 +521,22 @@ viewCalendarHeader settings viewTime =
     div
         [ class (classPrefix ++ "calendar-header") ]
         [ div [ class (classPrefix ++ "calendar-header-row") ]
-            [ div
-                [ class (classPrefix ++ "calendar-header-text")
-                ]
-                [ div [ id "month" ] [ text monthName ] ]
-            ]
-        , div [ class (classPrefix ++ "calendar-header-row") ]
-            [ div
-                [ class (classPrefix ++ "calendar-header-text")
-                ]
-                [ div [ id "year" ] [ text year ] ]
+            [ viewCalendarPreviousNavigation settings model
+            , viewCalenderHeaderText monthName year
+            , viewCalendarNextNavigation settings model
             ]
         , viewWeekHeader settings
+        ]
+
+
+viewCalenderHeaderText : String -> String -> Html msg
+viewCalenderHeaderText monthName year =
+    div
+        [ class (classPrefix ++ "calendar-header-text")
+        ]
+        [ span [ id "month" ] [ text monthName ]
+        , span [] [ text " " ]
+        , span [ id "year" ] [ text year ]
         ]
 
 
