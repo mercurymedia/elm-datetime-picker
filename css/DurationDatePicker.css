@@ -134,44 +134,25 @@
 
 .elm-datetimepicker-duration--footer {
     display: flex;
+    flex-direction: column;
     width: 100%;
     justify-content: space-between;
     border-top: 1px solid #a0aec0;
-    padding: .25rem .75rem .25rem .75rem;
+    padding: .75rem .75rem 0 .75rem;
 }
 
-.elm-datetimepicker-duration--time-pickers-container {
-    width: 100%;
+.elm-datetimepicker-duration--footer-empty {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .elm-datetimepicker-duration--time-picker-toggle {
     display: flex;
     justify-content: center;
     cursor: pointer;
-}
-
-.elm-datetimepicker-duration--time-picker-information-container {
-    align-items: center;
-    width: 100%;
-}
-
-.elm-datetimepicker-duration--time-picker-container {
-    display: inline-flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 35%;
-}
-
-.elm-datetimepicker-duration--date-display-container-no-pickers {
-    display: inline-flex;
-    justify-content: center;
-    width: 100%;
-}
-
-.elm-datetimepicker-duration--date-display-container {
-    display: inline-flex;
-    justify-content: flex-end;
-    width: 65%;
+    color: #3490dc;
 }
 
 .elm-datetimepicker-duration--time-picker {
@@ -186,10 +167,54 @@
 
 .elm-datetimepicker-duration--select {
     display: inline-flex;
+    position: relative;
+    align-items: center;
 }
 
+.elm-datetimepicker-duration--select > select {
+    appearance: none;
+    padding: .125rem 24px .125rem .25rem;
+    border-radius: .25rem;
+}
+
+.elm-datetimepicker-duration--select > svg {
+    position: absolute;
+    right: .25rem;
+    pointer-events: none;
+}
+
+.elm-datetimepicker-duration--footer-datetimes-container {
+    display: flex;
+    width: 100%;
+}
+
+.elm-datetimepicker-duration--footer-datetimes-separator {
+    width: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.elm-datetimepicker-duration--selection-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    gap: .5rem;
+    flex-direction: column;
+    align-items: center;
+}
+
+.elm-datetimepicker-duration--selection-date {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+}
+
+
 .elm-datetimepicker-duration--selection-time {
-    margin-left: 5px;
+    display: flex;
+    align-items: center;
+    gap: .25rem;
 }
 
 .elm-datetimepicker-duration--selection-time-danger {

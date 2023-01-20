@@ -146,6 +146,15 @@ type alias TimePickerSettings =
     }
 
 
+{-| The type facilitating the timepicker's select field configuration
+-}
+type alias TimePickerSelectConfig =
+    { selectableHours : List Int
+    , selectableMinutes : List Int
+    , selection : Maybe ( PickerDay, Posix )
+    }
+
+
 {-| A record of default settings for the date picker. Extend this if
 you want to further customize the date picker.
 
@@ -610,81 +619,63 @@ viewFooter settings timePickerVisible baseDay model =
         ( startSelectionTuple, endSelectionTuple ) =
             determineDateTimeRange settings.zone model.startSelectionTuple model.endSelectionTuple model.hovered
     in
-    div
-        [ class (classPrefix ++ "footer") ]
-        [ div [ class (classPrefix ++ "time-pickers-container") ]
-            [ case settings.timePickerVisibility of
-                NeverVisible ->
-                    div [] [ div [ class (classPrefix ++ "date-display-container-no-pickers") ] [ determineDateTimeView settings startSelectionTuple endSelectionTuple ] ]
-
-                Toggleable timePickerSettings ->
-                    if timePickerVisible then
-                        div []
-                            [ div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg (update settings ToggleTimePickerVisibility (DatePicker model)) ]
-                                [ Icons.chevronUp
-                                    |> Icons.withSize 12
-                                    |> Icons.toHtml []
-                                ]
-                            , viewExpandedPickers settings model baseDay startSelectionTuple endSelectionTuple
-                            ]
-
-                    else
-                        div []
-                            [ div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg (update settings ToggleTimePickerVisibility (DatePicker model)) ]
-                                [ Icons.chevronDown
-                                    |> Icons.withSize 12
-                                    |> Icons.toHtml []
-                                ]
-                            , div [ class (classPrefix ++ "date-display-container-no-pickers") ] [ determineDateTimeView settings startSelectionTuple endSelectionTuple ]
-                            ]
-
-                AlwaysVisible timePickerSettings ->
-                    viewExpandedPickers settings model baseDay startSelectionTuple endSelectionTuple
-            ]
+    div [ class (classPrefix ++ "footer") ]
+        [ determineDateTimeView settings timePickerVisible model baseDay startSelectionTuple endSelectionTuple
         ]
 
 
-viewExpandedPickers : Settings msg -> Model -> PickerDay -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> Html msg
-viewExpandedPickers settings model baseDay startSelectionTuple endSelectionTuple =
+viewEmpty : Html msg
+viewEmpty =
+    span [ class (classPrefix ++ "footer-empty") ] [ text "––.––.––––" ]
+
+
+viewDateTimesSeparator : Html msg
+viewDateTimesSeparator =
+    div [ class (classPrefix ++ "footer-datetimes-separator") ]
+        [ Icons.arrowRight
+            |> Icons.withSize 16
+            |> Icons.toHtml []
+        ]
+
+
+determineDateTimeView : Settings msg -> Bool -> Model -> PickerDay -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> Html msg
+determineDateTimeView settings timePickerVisible model baseDay startSelectionTuple endSelectionTuple =
     let
         { selectableStartHours, selectableStartMinutes, selectableEndHours, selectableEndMinutes } =
             DurationUtilities.filterSelectableTimes settings.zone baseDay startSelectionTuple endSelectionTuple
 
-        ( startDisplayDate, endDisplayDate ) =
-            determineDateTimeViews settings startSelectionTuple endSelectionTuple
+        startTimePickerSelectConfig =
+            { selectableHours = selectableStartHours
+            , selectableMinutes = selectableStartMinutes
+            , selection = startSelectionTuple
+            }
+
+        endTimePickerSelectConfig =
+            { selectableHours = selectableEndHours
+            , selectableMinutes = selectableEndMinutes
+            , selection = endSelectionTuple
+            }
     in
-    div []
-        [ div [ class (classPrefix ++ "time-picker-information-container") ]
-            [ div
-                [ id "start-select", class (classPrefix ++ "time-picker-container") ]
-                [ text "Start", viewTimePicker settings model Start baseDay selectableStartHours selectableStartMinutes startSelectionTuple ]
-            , div [ class (classPrefix ++ "date-display-container") ] [ startDisplayDate ]
-            ]
-        , div [ class (classPrefix ++ "time-picker-information-container") ]
-            [ div
-                [ id "end-select", class (classPrefix ++ "time-picker-container") ]
-                [ text "End", viewTimePicker settings model End baseDay selectableEndHours selectableEndMinutes endSelectionTuple ]
-            , div [ class (classPrefix ++ "date-display-container") ] [ endDisplayDate ]
-            ]
-        ]
-
-
-determineDateTimeView : Settings msg -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> Html msg
-determineDateTimeView settings startSelectionTuple endSelectionTuple =
     case ( startSelectionTuple, endSelectionTuple ) of
         ( Nothing, Nothing ) ->
-            viewEmpty
+            div [ class (classPrefix ++ "footer-datetimes-container") ]
+                [ viewEmpty
+                , viewDateTimesSeparator
+                , viewEmpty
+                ]
 
         ( Just ( _, startSelection ), Nothing ) ->
-            span []
-                [ viewDateOrDateTime settings Start startSelection
-                , text " - "
+            div [ class (classPrefix ++ "footer-datetimes-container") ]
+                [ viewDateOrDateTime settings timePickerVisible model Start startSelection startTimePickerSelectConfig
+                , viewDateTimesSeparator
+                , viewEmpty
                 ]
 
         ( Nothing, Just ( _, endSelection ) ) ->
-            span []
-                [ text " - "
-                , viewDateOrDateTime settings End endSelection
+            div [ class (classPrefix ++ "footer-datetimes-container") ]
+                [ viewEmpty
+                , viewDateTimesSeparator
+                , viewDateOrDateTime settings timePickerVisible model End endSelection endTimePickerSelectConfig
                 ]
 
         ( Just ( startPickerDay, startSelection ), Just ( endPickerDay, endSelection ) ) ->
@@ -692,36 +683,15 @@ determineDateTimeView settings startSelectionTuple endSelectionTuple =
                 viewDate settings startSelection
 
             else
-                span []
-                    [ viewDateOrDateTime settings Start startSelection
-                    , text " - "
-                    , viewDateOrDateTime settings End endSelection
+                div [ class (classPrefix ++ "footer-datetimes-container") ]
+                    [ viewDateOrDateTime settings timePickerVisible model Start startSelection startTimePickerSelectConfig
+                    , viewDateTimesSeparator
+                    , viewDateOrDateTime settings timePickerVisible model End endSelection endTimePickerSelectConfig
                     ]
 
 
-determineDateTimeViews : Settings msg -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> ( Html msg, Html msg )
-determineDateTimeViews settings startSelectionTuple endSelectionTuple =
-    case ( startSelectionTuple, endSelectionTuple ) of
-        ( Nothing, Nothing ) ->
-            ( viewEmpty, viewEmpty )
-
-        ( Just ( _, startSelection ), Nothing ) ->
-            ( viewDateOrDateTime settings Start startSelection, viewEmpty )
-
-        ( Nothing, Just ( _, endSelection ) ) ->
-            ( viewEmpty, viewDateOrDateTime settings End endSelection )
-
-        ( Just ( startPickerDay, startSelection ), Just ( endPickerDay, endSelection ) ) ->
-            ( viewDateOrDateTime settings Start startSelection, viewDateOrDateTime settings End endSelection )
-
-
-viewEmpty : Html msg
-viewEmpty =
-    span [] [ text "" ]
-
-
-viewDateOrDateTime : Settings msg -> StartOrEnd -> Posix -> Html msg
-viewDateOrDateTime settings startOrEnd dateTime =
+viewDateOrDateTime : Settings msg -> Bool -> Model -> StartOrEnd -> Posix -> TimePickerSelectConfig -> Html msg
+viewDateOrDateTime settings timePickerVisible model startOrEnd dateTime timePickerConfig =
     Maybe.map
         (\timePickerSettings ->
             case startOrEnd of
@@ -730,14 +700,14 @@ viewDateOrDateTime settings startOrEnd dateTime =
                         viewDate settings dateTime
 
                     else
-                        viewDateTime settings timePickerSettings.timeStringFn "selection-time" dateTime
+                        viewDateTime settings timePickerVisible model Start timePickerSettings.timeStringFn dateTime timePickerConfig
 
                 End ->
                     if timeIsEndOfDay settings dateTime then
                         viewDate settings dateTime
 
                     else
-                        viewDateTime settings timePickerSettings.timeStringFn "selection-time" dateTime
+                        viewDateTime settings timePickerVisible model End timePickerSettings.timeStringFn dateTime timePickerConfig
         )
         (getTimePickerSettings settings)
         |> Maybe.withDefault (viewDate settings dateTime)
@@ -763,20 +733,67 @@ timeIsEndOfDay settings time =
 
 viewDate : Settings msg -> Posix -> Html msg
 viewDate settings dateTime =
-    span []
-        [ text (settings.dateStringFn settings.zone dateTime) ]
-
-
-viewDateTime : Settings msg -> (Zone -> Posix -> String) -> String -> Posix -> Html msg
-viewDateTime settings timeStringFn classString dateTime =
-    span []
-        [ text (settings.dateStringFn settings.zone dateTime)
-        , span [ class (classPrefix ++ classString) ] [ text (timeStringFn settings.zone dateTime) ]
+    div [ class (classPrefix ++ "selection-container") ]
+        [ span [ class (classPrefix ++ "selection-date") ]
+            [ Icons.calendar
+                |> Icons.withSize 16
+                |> Icons.toHtml []
+            , text (settings.dateStringFn settings.zone dateTime)
+            ]
         ]
 
 
-viewTimePicker : Settings msg -> Model -> StartOrEnd -> PickerDay -> List Int -> List Int -> Maybe ( PickerDay, Posix ) -> Html msg
-viewTimePicker settings model startOrEnd baseDay selectableHours selectableMinutes selectionTuple =
+viewDateTime : Settings msg -> Bool -> Model -> StartOrEnd -> (Zone -> Posix -> String) -> Posix -> TimePickerSelectConfig -> Html msg
+viewDateTime settings timePickerVisible model startOrEnd timeStringFn dateTime timePickerSelectConfig =
+    div [ class (classPrefix ++ "selection-container") ]
+        [ span [ class (classPrefix ++ "selection-date") ]
+            [ Icons.calendar
+                |> Icons.withSize 16
+                |> Icons.toHtml []
+            , text (settings.dateStringFn settings.zone dateTime)
+            ]
+        , viewTimeOrTimePicker settings timePickerVisible model startOrEnd timeStringFn dateTime timePickerSelectConfig
+        ]
+
+
+viewTimeOrTimePicker : Settings msg -> Bool -> Model -> StartOrEnd -> (Zone -> Posix -> String) -> Posix -> TimePickerSelectConfig -> Html msg
+viewTimeOrTimePicker settings timePickerVisible model startOrEnd timeStringFn dateTime timePickerSelectConfig =
+    case settings.timePickerVisibility of
+        NeverVisible ->
+            text ""
+
+        Toggleable _ ->
+            let
+                ( viewToggleView, toggleIcon ) =
+                    if timePickerVisible then
+                        ( viewTimePicker settings model startOrEnd timePickerSelectConfig, Icons.check )
+
+                    else
+                        ( text (timeStringFn settings.zone dateTime), Icons.edit )
+            in
+            span [ class (classPrefix ++ "selection-time") ]
+                [ Icons.clock
+                    |> Icons.withSize 16
+                    |> Icons.toHtml []
+                , viewToggleView
+                , div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg (update settings ToggleTimePickerVisibility (DatePicker model)) ]
+                    [ toggleIcon
+                        |> Icons.withSize 16
+                        |> Icons.toHtml []
+                    ]
+                ]
+
+        AlwaysVisible _ ->
+            span [ class (classPrefix ++ "selection-time") ]
+                [ Icons.clock
+                    |> Icons.withSize 16
+                    |> Icons.toHtml []
+                , viewTimePicker settings model startOrEnd timePickerSelectConfig
+                ]
+
+
+viewTimePicker : Settings msg -> Model -> StartOrEnd -> TimePickerSelectConfig -> Html msg
+viewTimePicker settings model startOrEnd { selectableHours, selectableMinutes, selection } =
     div
         [ class (classPrefix ++ "time-picker") ]
         [ div [ class (classPrefix ++ "select-container") ]
@@ -784,16 +801,22 @@ viewTimePicker settings model startOrEnd baseDay selectableHours selectableMinut
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ div [ class (classPrefix ++ "select") ]
-                [ select
-                    [ class "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetHour startOrEnd) targetValueIntParse))) ]
-                    (Utilities.generateHourOptions settings.zone selectionTuple selectableHours)
-                ]
+            [ viewSelect
+                [ class "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetHour startOrEnd) targetValueIntParse))) ]
+                (Utilities.generateHourOptions settings.zone selection selectableHours)
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , div [ class (classPrefix ++ "select") ]
-                [ select
-                    [ class "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetMinute startOrEnd) targetValueIntParse))) ]
-                    (Utilities.generateMinuteOptions settings.zone selectionTuple selectableMinutes)
-                ]
+            , viewSelect
+                [ class "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map (SetMinute startOrEnd) targetValueIntParse))) ]
+                (Utilities.generateMinuteOptions settings.zone selection selectableMinutes)
             ]
+        ]
+
+
+viewSelect : List (Html.Attribute msg) -> List (Html msg) -> Html msg
+viewSelect attributes content =
+    div [ class (classPrefix ++ "select") ]
+        [ select attributes content
+        , Icons.chevronDown
+            |> Icons.withSize 16
+            |> Icons.toHtml []
         ]
