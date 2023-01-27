@@ -366,7 +366,7 @@ update settings msg (DatePicker model) =
 
 classPrefix : String
 classPrefix =
-    "elm-datetimepicker-single--"
+    "elm-datetimepicker--"
 
 
 determineDateTime : Zone -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> Maybe ( PickerDay, Posix )
@@ -418,7 +418,7 @@ view settings (DatePicker model) =
                     Time.add Month model.viewOffset settings.zone baseDay.start
             in
             div
-                [ id datePickerId, class (classPrefix ++ "picker-container") ]
+                [ id datePickerId, class (classPrefix ++ "picker-container"), class (classPrefix ++ "single") ]
                 [ div [ class (classPrefix ++ "calendar-container") ]
                     [ viewCalendarHeader settings model offsetTime
                     , viewMonth settings model offsetTime

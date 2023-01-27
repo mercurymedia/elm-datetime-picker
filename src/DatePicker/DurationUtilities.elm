@@ -1,6 +1,7 @@
 module DatePicker.DurationUtilities exposing
     ( previewSelection, selectDay, selectStartHour, selectEndHour, selectStartMinute, selectEndMinute
     , filterSelectableTimes, dayPickedOrBetween
+    , isPickedDaySelectionTuple
     )
 
 {-| Utility functions specific to the DurationDatePicker.
@@ -416,6 +417,16 @@ dayPickedOrBetween zone day hovered ( startSelectionTuple, endSelectionTuple ) =
 
         ( Just ( startPickerDay, _ ), Just ( endPickerDay, _ ) ) ->
             ( day == startPickerDay || day == endPickerDay, isDayBetweenDates day startPickerDay endPickerDay )
+
+
+isPickedDaySelectionTuple : PickerDay -> Maybe ( PickerDay, Posix ) -> Bool
+isPickedDaySelectionTuple day selectionTuple =
+    case selectionTuple of
+        Just ( pickerDay, _ ) ->
+            pickerDay == day
+
+        _ ->
+            False
 
 
 isDayBetweenDates : PickerDay -> PickerDay -> PickerDay -> Bool

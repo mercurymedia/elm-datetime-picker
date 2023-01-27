@@ -1,4 +1,4 @@
-module DatePicker.Styles exposing (durationDayClasses, singleDayClasses)
+module DatePicker.Styles exposing (durationDayClasses, durationStartOrEndClasses, singleDayClasses)
 
 
 durationDayClasses : String -> Bool -> Bool -> Bool -> Bool -> Bool -> String
@@ -23,6 +23,21 @@ durationDayClasses classPrefix isHidden isDisabled isPicked isToday isBetween =
 
     else
         classPrefix ++ "calendar-day"
+
+
+durationStartOrEndClasses : String -> Bool -> Bool -> String
+durationStartOrEndClasses classPrefix isStart isEnd =
+    if isStart && isEnd then
+        classPrefix ++ "start " ++ classPrefix ++ "end"
+
+    else if isStart then
+        classPrefix ++ "start"
+
+    else if isEnd then
+        classPrefix ++ "end"
+
+    else
+        ""
 
 
 singleDayClasses : String -> Bool -> Bool -> Bool -> Bool -> String

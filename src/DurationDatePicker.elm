@@ -401,7 +401,7 @@ update settings msg (DatePicker model) =
 
 classPrefix : String
 classPrefix =
-    "elm-datetimepicker-duration--"
+    "elm-datetimepicker--"
 
 
 determineDateTimeRange : Zone -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> ( Maybe ( PickerDay, Posix ), Maybe ( PickerDay, Posix ) )
@@ -442,19 +442,19 @@ view settings (DatePicker model) =
                     Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
             in
             div
-                [ id datePickerId, class (classPrefix ++ "picker-container") ]
+                [ id datePickerId, class (classPrefix ++ "picker-container"), class (classPrefix ++ "duration") ]
                 [ div
                     [ class (classPrefix ++ "calendars-container") ]
                     [ div
-                        [ id "left-container", class (classPrefix ++ "calendar") ]
+                        [ id "left-container", class (classPrefix ++ "calendar-container") ]
                         [ viewCalendar settings model leftViewTime
                         ]
                     , div
-                        [ id "right-container", class (classPrefix ++ "calendar") ]
+                        [ id "right-container", class (classPrefix ++ "calendar-container") ]
                         [ viewCalendar settings model rightViewTime
                         ]
                     ]
-                , div [ class (classPrefix ++ "footer-container") ] [ viewFooter settings timePickerVisible baseDay model ]
+                , viewFooter settings timePickerVisible baseDay model
                 ]
 
         Closed ->
@@ -472,10 +472,10 @@ viewCalendar settings model viewTime =
 
 viewCalendarPreviousNavigation : Settings msg -> Model -> Html msg
 viewCalendarPreviousNavigation settings model =
-    div [ class (classPrefix ++ "picker-header-navigation"), class (classPrefix ++ "picker-header-navigation--previous") ]
+    div [ class (classPrefix ++ "calendar-header-navigation"), class (classPrefix ++ "calendar-header-navigation--previous") ]
         [ div
             [ id "previous-year"
-            , class (classPrefix ++ "picker-header-chevron")
+            , class (classPrefix ++ "calendar-header-chevron")
             , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
             ]
             [ Icons.chevronsLeft
@@ -484,7 +484,7 @@ viewCalendarPreviousNavigation settings model =
             ]
         , div
             [ id "previous-month"
-            , class (classPrefix ++ "picker-header-chevron")
+            , class (classPrefix ++ "calendar-header-chevron")
             , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
             ]
             [ Icons.chevronLeft
@@ -496,10 +496,10 @@ viewCalendarPreviousNavigation settings model =
 
 viewCalendarNextNavigation : Settings msg -> Model -> Html msg
 viewCalendarNextNavigation settings model =
-    div [ class (classPrefix ++ "picker-header-navigation"), class (classPrefix ++ "picker-header-navigation--next") ]
+    div [ class (classPrefix ++ "calendar-header-navigation"), class (classPrefix ++ "calendar-header-navigation--next") ]
         [ div
             [ id "next-month"
-            , class (classPrefix ++ "picker-header-chevron")
+            , class (classPrefix ++ "calendar-header-chevron")
             , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
             ]
             [ Icons.chevronRight
@@ -508,7 +508,7 @@ viewCalendarNextNavigation settings model =
             ]
         , div
             [ id "next-year"
-            , class (classPrefix ++ "picker-header-chevron")
+            , class (classPrefix ++ "calendar-header-chevron")
             , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
             ]
             [ Icons.chevronsRight
@@ -543,9 +543,11 @@ viewCalenderHeaderText monthName year =
     div
         [ class (classPrefix ++ "calendar-header-text")
         ]
-        [ span [ id "month" ] [ text monthName ]
-        , span [] [ text " " ]
-        , span [ id "year" ] [ text year ]
+        [ div []
+            [ span [ id "month" ] [ text monthName ]
+            , span [] [ text " " ]
+            , span [ id "year" ] [ text year ]
+            ]
         ]
 
 
@@ -602,11 +604,17 @@ viewDay settings model currentMonth day =
 
         dayClasses =
             DatePicker.Styles.durationDayClasses classPrefix (dayParts.month /= currentMonth) day.disabled isPicked isFocused isBetween
+
+        startOrEndClasses =
+            DatePicker.Styles.durationStartOrEndClasses classPrefix
+                (DurationUtilities.isPickedDaySelectionTuple day model.startSelectionTuple)
+                (DurationUtilities.isPickedDaySelectionTuple day model.endSelectionTuple)
     in
     button
         [ type_ "button"
         , disabled day.disabled
         , class dayClasses
+        , class startOrEndClasses
         , onClick <| settings.internalMsg (update settings (SetRange day) (DatePicker model))
         , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
         ]
@@ -733,7 +741,7 @@ timeIsEndOfDay settings time =
 
 viewDate : Settings msg -> Posix -> Html msg
 viewDate settings dateTime =
-    div [ class (classPrefix ++ "selection-container") ]
+    div [ class (classPrefix ++ "footer-datetime-container") ]
         [ span [ class (classPrefix ++ "selection-date") ]
             [ Icons.calendar
                 |> Icons.withSize 16
@@ -745,7 +753,7 @@ viewDate settings dateTime =
 
 viewDateTime : Settings msg -> Bool -> Model -> StartOrEnd -> (Zone -> Posix -> String) -> Posix -> TimePickerSelectConfig -> Html msg
 viewDateTime settings timePickerVisible model startOrEnd timeStringFn dateTime timePickerSelectConfig =
-    div [ class (classPrefix ++ "selection-container") ]
+    div [ class (classPrefix ++ "footer-datetime-container") ]
         [ span [ class (classPrefix ++ "selection-date") ]
             [ Icons.calendar
                 |> Icons.withSize 16
