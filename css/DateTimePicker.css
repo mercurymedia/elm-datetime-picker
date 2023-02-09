@@ -196,6 +196,7 @@
     font-weight: var(--edtp-footer-font-weight);
     color: var(--edtp-footer-color);
     border-top: var(--edtp-footer-border-width) solid var(--edtp-footer-border-color);
+    padding: 1rem;
 }
 
 .elm-datetimepicker--footer-empty {
@@ -205,8 +206,7 @@
     letter-spacing: 3px;
     font-weight: bold;
     color: var(--edtp-footer-empty-color);
-    padding: 1rem;
-    min-height: calc(var(--edtp-icon-button-size) + 2rem);
+    min-height: var(--edtp-icon-button-size);
 }
 
 .elm-datetimepicker--duration
@@ -233,7 +233,6 @@
 }
 
 .elm-datetimepicker--footer-datetime-container {
-    padding: 1rem;
 }
 
 .elm-datetimepicker--single
@@ -306,6 +305,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    min-height: var(--edtp-icon-button-size);
 }
 
 .elm-datetimepicker--selection-time {
