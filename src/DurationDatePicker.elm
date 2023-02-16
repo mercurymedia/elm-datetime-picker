@@ -520,26 +520,26 @@ viewCalendarNextNavigation settings model =
 
 viewCalendarHeader : Settings msg -> Model -> Posix -> Html msg
 viewCalendarHeader settings model viewTime =
-    let
-        monthName =
-            Time.toMonth settings.zone viewTime |> settings.formattedMonth
-
-        year =
-            Time.toYear settings.zone viewTime |> String.fromInt
-    in
     div
         [ class (classPrefix ++ "calendar-header") ]
         [ div [ class (classPrefix ++ "calendar-header-row") ]
             [ viewCalendarPreviousNavigation settings model
-            , viewCalenderHeaderText monthName year
+            , viewCalenderHeaderText settings viewTime
             , viewCalendarNextNavigation settings model
             ]
         , viewWeekHeader settings
         ]
 
 
-viewCalenderHeaderText : String -> String -> Html msg
-viewCalenderHeaderText monthName year =
+viewCalenderHeaderText : Settings msg -> Posix -> Html msg
+viewCalenderHeaderText { zone, formattedMonth } viewTime =
+    let
+        monthName =
+            Time.toMonth zone viewTime |> formattedMonth
+
+        year =
+            Time.toYear zone viewTime |> String.fromInt
+    in
     div
         [ class (classPrefix ++ "calendar-header-text")
         ]

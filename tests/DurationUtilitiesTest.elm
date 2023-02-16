@@ -1106,4 +1106,34 @@ suite =
                             ]
                 ]
             ]
+        , describe "isPickedDaySelectionTuple"
+            [ test "picked day is equal to startSelectionTuple and not equal to endSelectionTuple" <|
+                \_ ->
+                    let
+                        pickedDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 2 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 2 17 30 0 0)
+                            , disabled = False
+                            }
+
+                        startDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 2 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 2 17 30 0 0)
+                            , disabled = False
+                            }
+
+                        endDay =
+                            { start = Time.partsToPosix timeZone (Parts 2021 Jan 4 9 30 0 0)
+                            , end = Time.partsToPosix timeZone (Parts 2021 Jan 4 17 30 0 0)
+                            , disabled = False
+                            }
+                    in
+                    Expect.equal
+                        [ DurationUtilities.isPickedDaySelectionTuple pickedDay (Just ( startDay, startDay.start ))
+                        , DurationUtilities.isPickedDaySelectionTuple pickedDay (Just ( endDay, endDay.start ))
+                        ]
+                        [ True
+                        , False
+                        ]
+            ]
         ]
