@@ -2,6 +2,12 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [5.0.2]
+
+### **CHANGED**
+To improve the visual design the markup and styling have been reworked. The files `SingleDatePicker.css` and `DurationDatePicker.css` have been merged and replaced by a shared CSS resource – `DateTimePicker.css` – for both picker variants (CSS classnames and -prefixes may have changed or extended during that process).
+Also, the most important design tokens (sizes, colors, etc.) have been outsourced into CSS variables and collected in a theme file (`DateTimePickerTheme.css`) to allow easy styling customization.
+
 ## [5.0.1]
 
 Automatically sets the lastest seconds when selecting an end date in the `DurationDatePicker` (e.g. 12:30:59).

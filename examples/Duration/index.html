@@ -1,38 +1,51 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en-us">
   <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
     <title>Duration Example</title>
 
-    <link rel="stylesheet"
-			type="text/css"
-			href="https://necolas.github.io/normalize.css/4.1.1/normalize.css" />
-
-    <link rel="stylesheet"
-			type="text/css"
-      href="https://fonts.googleapis.com/css?family=Roboto" />
-      
-    <link rel="stylesheet"
+    <link
+      rel="stylesheet"
       type="text/css"
-      href="../../css/DurationDatePicker.css" />
-    
+      href="https://necolas.github.io/normalize.css/4.1.1/normalize.css"
+    />
+
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://fonts.googleapis.com/css?family=Roboto"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="../../css/DateTimePickerTheme.css"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="../../css/DateTimePicker.css"
+    />
+
     <style type="text/css">
-			* , *:before, *:after{ 
-				box-sizing:border-box; 
-				-moz-box-sizing:border-box; 
-				-webkit-box-sizing:border-box; 
-				-ms-box-sizing:border-box;
-			}
+      *,
+      *:before,
+      *:after {
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        -ms-box-sizing: border-box;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <div id="duration">
-      </div>
+      <div id="duration"></div>
     </div>
     <script src="../Compiled/duration.js"></script>
     <script>
-      Elm.DatePickerExample.Duration.Main.init({node: document.getElementById("duration")});
+      Elm.DatePickerExample.Duration.Main.init({
+        node: document.getElementById("duration"),
+      });
     </script>
   </body>
 </html>

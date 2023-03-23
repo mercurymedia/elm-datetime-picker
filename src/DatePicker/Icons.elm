@@ -1,4 +1,4 @@
-module DatePicker.Icons exposing (check, chevronDown, chevronLeft, chevronRight, chevronUp, chevronsLeft, chevronsRight, toHtml, withSize)
+module DatePicker.Icons exposing (arrowRight, calendar, check, chevronDown, chevronLeft, chevronRight, chevronUp, chevronsLeft, chevronsRight, clock, edit, toHtml, withSize)
 
 import Html exposing (Html)
 import Svg exposing (Svg, svg)
@@ -167,4 +167,46 @@ chevronDown : Icon
 chevronDown =
     makeBuilder "chevron-down"
         [ Svg.polyline [ points "6 9 12 15 18 9" ] []
+        ]
+
+
+{-| clock
+-}
+clock : Icon
+clock =
+    makeBuilder "clock"
+        [ Svg.circle [ cx "12", cy "12", r "10" ] []
+        , Svg.polyline [ points "12 6 12 12 16 14" ] []
+        ]
+
+
+{-| calendar
+-}
+calendar : Icon
+calendar =
+    makeBuilder "clock"
+        [ Svg.rect [ x "3", y "4", width "18", height "18", rx "2", ry "2" ] []
+        , Svg.line [ x1 "16", y1 "2", x2 "16", y2 "6" ] []
+        , Svg.line [ x1 "8", y1 "2", x2 "8", y2 "6" ] []
+        , Svg.line [ x1 "3", y1 "10", x2 "21", y2 "10" ] []
+        ]
+
+
+{-| edit
+-}
+edit : Icon
+edit =
+    makeBuilder "edit"
+        [ Svg.path [ d "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" ] []
+        , Svg.path [ d "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" ] []
+        ]
+
+
+{-| arrow-right
+-}
+arrowRight : Icon
+arrowRight =
+    makeBuilder "arrow-right"
+        [ Svg.line [ x1 "5", y1 "12", x2 "19", y2 "12" ] []
+        , Svg.polyline [ points "12 5 19 12 12 19" ] []
         ]

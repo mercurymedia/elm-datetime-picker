@@ -366,7 +366,7 @@ update settings msg (DatePicker model) =
 
 classPrefix : String
 classPrefix =
-    "elm-datetimepicker-single--"
+    "elm-datetimepicker--"
 
 
 determineDateTime : Zone -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> Maybe ( PickerDay, Posix )
@@ -418,7 +418,7 @@ view settings (DatePicker model) =
                     Time.add Month model.viewOffset settings.zone baseDay.start
             in
             div
-                [ id datePickerId, class (classPrefix ++ "picker-container") ]
+                [ id datePickerId, class (classPrefix ++ "picker-container"), class (classPrefix ++ "single") ]
                 [ div [ class (classPrefix ++ "calendar-container") ]
                     [ viewCalendarHeader settings model offsetTime
                     , viewMonth settings model offsetTime
@@ -442,49 +442,53 @@ viewCalendarHeader settings model time =
     div
         [ class (classPrefix ++ "calendar-header") ]
         [ div [ class (classPrefix ++ "calendar-header-row") ]
-            [ div
-                [ id "previous-month"
-                , class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
-                ]
-                [ Icons.chevronLeft
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
-                ]
-            , div
-                [ class (classPrefix ++ "calendar-header-text") ]
-                [ div [ id "month" ] [ text monthName ] ]
-            , div
-                [ id "next-month"
-                , class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
-                ]
-                [ Icons.chevronRight
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
-                ]
-            ]
-        , div [ class (classPrefix ++ "calendar-header-row") ]
-            [ div
-                [ id "previous-year"
-                , class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
-                ]
-                [ Icons.chevronsLeft
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
+            [ div [ class (classPrefix ++ "calendar-header-navigation") ]
+                [ div
+                    [ id "previous-year"
+                    , class (classPrefix ++ "calendar-header-chevron")
+                    , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
+                    ]
+                    [ Icons.chevronsLeft
+                        |> Icons.withSize 16
+                        |> Icons.toHtml []
+                    ]
+                , div
+                    [ id "previous-month"
+                    , class (classPrefix ++ "calendar-header-chevron")
+                    , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
+                    ]
+                    [ Icons.chevronLeft
+                        |> Icons.withSize 16
+                        |> Icons.toHtml []
+                    ]
                 ]
             , div
                 [ class (classPrefix ++ "calendar-header-text") ]
-                [ div [ id "year" ] [ text year ] ]
-            , div
-                [ id "next-year"
-                , class (classPrefix ++ "calendar-header-chevron")
-                , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
+                [ div [ id "month" ]
+                    [ span [ id "month" ] [ text monthName ]
+                    , span [] [ text " " ]
+                    , span [ id "year" ] [ text year ]
+                    ]
                 ]
-                [ Icons.chevronsRight
-                    |> Icons.withSize 12
-                    |> Icons.toHtml []
+            , div [ class (classPrefix ++ "calendar-header-navigation") ]
+                [ div
+                    [ id "next-month"
+                    , class (classPrefix ++ "calendar-header-chevron")
+                    , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
+                    ]
+                    [ Icons.chevronRight
+                        |> Icons.withSize 16
+                        |> Icons.toHtml []
+                    ]
+                , div
+                    [ id "next-year"
+                    , class (classPrefix ++ "calendar-header-chevron")
+                    , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
+                    ]
+                    [ Icons.chevronsRight
+                        |> Icons.withSize 16
+                        |> Icons.toHtml []
+                    ]
                 ]
             ]
         , viewWeekHeader settings
@@ -561,71 +565,83 @@ viewFooter settings timePickerVisible baseDay model =
     let
         displayTime =
             determineDateTime settings.zone model.selectionTuple model.hovered
-
-        displayTimeView =
-            determineDateTimeView settings displayTime
     in
-    div
-        [ class (classPrefix ++ "footer") ]
-        [ div []
-            [ div [ class (classPrefix ++ "time-picker-container") ]
-                [ case settings.timePickerVisibility of
-                    NeverVisible ->
-                        text ""
+    div [ class (classPrefix ++ "footer") ]
+        [ case displayTime of
+            Nothing ->
+                viewEmpty
 
-                    Toggleable _ ->
-                        if timePickerVisible then
-                            div []
-                                [ div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg (update settings ToggleTimePickerVisibility (DatePicker model)) ]
-                                    [ Icons.chevronUp
-                                        |> Icons.withSize 12
-                                        |> Icons.toHtml []
-                                    ]
-                                , viewTimePicker settings model baseDay displayTime
-                                ]
-
-                        else
-                            div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg (update settings ToggleTimePickerVisibility (DatePicker model)) ]
-                                [ Icons.chevronDown
-                                    |> Icons.withSize 12
-                                    |> Icons.toHtml []
-                                ]
-
-                    AlwaysVisible _ ->
-                        viewTimePicker settings model baseDay displayTime
-                ]
-            , div [ class (classPrefix ++ "date-display-container") ] [ displayTimeView ]
-            ]
+            Just ( _, selection ) ->
+                viewDateOrDateTime settings timePickerVisible baseDay model selection
         ]
 
 
-determineDateTimeView : Settings msg -> Maybe ( PickerDay, Posix ) -> Html msg
-determineDateTimeView settings selectionTuple =
-    case selectionTuple of
-        Nothing ->
-            viewEmpty
+viewDateOrDateTime : Settings msg -> Bool -> PickerDay -> Model -> Posix -> Html msg
+viewDateOrDateTime settings timePickerVisible baseDay model selection =
+    Maybe.map
+        (\timePickerSettings ->
+            if timeIsStartOfDay settings selection then
+                viewDate settings selection
 
-        Just ( _, selection ) ->
-            viewDateOrDateTime settings selection
+            else
+                viewDateTime settings timePickerVisible baseDay model selection timePickerSettings
+        )
+        (getTimePickerSettings settings)
+        |> Maybe.withDefault (viewDate settings selection)
 
 
 viewEmpty : Html msg
 viewEmpty =
-    span [] [ text "" ]
+    div [ class (classPrefix ++ "footer-empty") ]
+        [ text "––.––.––––" ]
 
 
-viewDateOrDateTime : Settings msg -> Posix -> Html msg
-viewDateOrDateTime settings dateTime =
-    Maybe.map
-        (\timePickerSettings ->
-            if timeIsStartOfDay settings dateTime then
-                viewDate settings dateTime
+viewDateTime : Settings msg -> Bool -> PickerDay -> Model -> Posix -> TimePickerSettings -> Html msg
+viewDateTime settings timePickerVisible baseDay model selection timePickerSettings =
+    div [ class (classPrefix ++ "footer-datetime-container") ]
+        [ viewDate settings selection
+        , viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePickerSettings
+        ]
 
-            else
-                viewDateTime settings timePickerSettings.timeStringFn "selection-time" dateTime
-        )
-        (getTimePickerSettings settings)
-        |> Maybe.withDefault (viewDate settings dateTime)
+
+viewTimeOrTimePicker : Settings msg -> Bool -> PickerDay -> Model -> Posix -> TimePickerSettings -> Html msg
+viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePickerSettings =
+    let
+        displayTime =
+            determineDateTime settings.zone model.selectionTuple model.hovered
+    in
+    case settings.timePickerVisibility of
+        NeverVisible ->
+            text ""
+
+        Toggleable _ ->
+            let
+                ( viewToggleView, toggleIcon ) =
+                    if timePickerVisible then
+                        ( viewTimePicker settings model baseDay displayTime, Icons.check )
+
+                    else
+                        ( text (timePickerSettings.timeStringFn settings.zone selection), Icons.edit )
+            in
+            div [ class (classPrefix ++ "selection-time") ]
+                [ Icons.clock
+                    |> Icons.withSize 16
+                    |> Icons.toHtml []
+                , viewToggleView
+                , div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg (update settings ToggleTimePickerVisibility (DatePicker model)) ]
+                    [ toggleIcon
+                        |> Icons.withSize 16
+                        |> Icons.toHtml []
+                    ]
+                ]
+
+        AlwaysVisible _ ->
+            div [ class (classPrefix ++ "selection-time") ]
+                [ Icons.clock
+                    |> Icons.withSize 16
+                    |> Icons.toHtml []
+                , viewTimePicker settings model baseDay displayTime
+                ]
 
 
 timeIsStartOfDay : Settings msg -> Posix -> Bool
@@ -639,15 +655,11 @@ timeIsStartOfDay settings time =
 
 viewDate : Settings msg -> Posix -> Html msg
 viewDate settings dateTime =
-    span []
-        [ text (settings.dateStringFn settings.zone dateTime) ]
-
-
-viewDateTime : Settings msg -> (Zone -> Posix -> String) -> String -> Posix -> Html msg
-viewDateTime settings timeStringFn classString dateTime =
-    span []
-        [ text (settings.dateStringFn settings.zone dateTime)
-        , span [ class (classPrefix ++ classString) ] [ text (timeStringFn settings.zone dateTime) ]
+    span [ class (classPrefix ++ "selection-date") ]
+        [ Icons.calendar
+            |> Icons.withSize 16
+            |> Icons.toHtml []
+        , text (settings.dateStringFn settings.zone dateTime)
         ]
 
 
@@ -664,16 +676,21 @@ viewTimePicker settings model baseDay selectionTuple =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ div [ class (classPrefix ++ "select") ]
-                [ select
-                    [ id "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ]
-                    (Utilities.generateHourOptions settings.zone selectionTuple selectableHours)
-                ]
+            [ viewSelect [ id "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ]
+                (Utilities.generateHourOptions settings.zone selectionTuple selectableHours)
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , div [ class (classPrefix ++ "select") ]
-                [ select
-                    [ id "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ]
-                    (Utilities.generateMinuteOptions settings.zone selectionTuple selectableMinutes)
-                ]
+            , viewSelect
+                [ id "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ]
+                (Utilities.generateMinuteOptions settings.zone selectionTuple selectableMinutes)
             ]
+        ]
+
+
+viewSelect : List (Html.Attribute msg) -> List (Html msg) -> Html msg
+viewSelect attributes content =
+    div [ class (classPrefix ++ "select") ]
+        [ select attributes content
+        , Icons.chevronDown
+            |> Icons.withSize 16
+            |> Icons.toHtml []
         ]

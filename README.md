@@ -9,11 +9,10 @@ Single and duration datetime picker components written in Elm 0.19
 
 #### Single Picker
 
-![SinglePicker](https://user-images.githubusercontent.com/20546636/71161850-6a9fc000-224a-11ea-997f-1caaa0659777.gif)
+![basic](https://user-images.githubusercontent.com/32676430/219370444-3e942c63-822f-45a7-8029-f7b0f1c30190.gif)
 
 #### Duration Picker
-
-![DurationPicker](https://user-images.githubusercontent.com/20546636/70648518-7f2cf880-1c4b-11ea-8c6e-e97e4615c34c.gif)
+![duration](https://user-images.githubusercontent.com/32676430/219370489-f9d21925-a7be-43b6-a2b9-b2e844c3c547.gif)
 
 ## Usage
 
@@ -132,4 +131,5 @@ Examples can be found in the [examples](https://github.com/mercurymedia/elm-date
 
 ## CSS
 
-The CSS for the date picker is distributed separately and can be found [here](https://github.com/mercurymedia/elm-datetime-picker/tree/master/css)
+The CSS for the date picker is distributed separately and can be found [here](https://github.com/mercurymedia/elm-datetime-picker/tree/master/css).
+The styling is based on a CSS-Variables theme that can be easily adjusted for the most important design tokens.
