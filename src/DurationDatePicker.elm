@@ -32,6 +32,7 @@ module DurationDatePicker exposing
 -}
 
 import Browser.Events
+import Date
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Styles
@@ -90,6 +91,7 @@ type alias Settings msg =
     , focusedDate : Maybe Posix
     , dateStringFn : Zone -> Posix -> String
     , timePickerVisibility : TimePickerVisibility
+    , showCalendarWeekNumbers : Bool
     }
 
 
@@ -176,6 +178,7 @@ defaultSettings zone internalMsg =
     , focusedDate = Nothing
     , dateStringFn = \_ _ -> ""
     , timePickerVisibility = AlwaysVisible defaultTimePickerSettings
+    , showCalendarWeekNumbers = False
     }
 
 
@@ -555,7 +558,14 @@ viewWeekHeader : Settings msg -> Html msg
 viewWeekHeader settings =
     div
         [ class (classPrefix ++ "calendar-header-week") ]
-        (List.map (viewHeaderDay settings.formattedDay) (Utilities.generateListOfWeekDay settings.firstWeekDay))
+        ((if settings.showCalendarWeekNumbers then
+            div [ class (classPrefix ++ "calendar-header-week-number") ] [ text "W" ]
+
+          else
+            text ""
+         )
+            :: List.map (viewHeaderDay settings.formattedDay) (Utilities.generateListOfWeekDay settings.firstWeekDay)
+        )
 
 
 viewHeaderDay : (Weekday -> String) -> Weekday -> Html msg
@@ -585,8 +595,31 @@ viewMonth settings model viewTime =
 
 viewWeek : Settings msg -> Model -> Month -> List PickerDay -> Html msg
 viewWeek settings model currentMonth week =
+    let
+        firstDateOfWeek =
+            Maybe.map
+                (\day ->
+                    Date.fromPosix settings.zone day.start
+                )
+                (List.head week)
+
+        dateWeekNumber =
+            case firstDateOfWeek of
+                Just date ->
+                    String.fromInt (Date.weekNumber date)
+
+                Nothing ->
+                    ""
+    in
     div [ class (classPrefix ++ "calendar-week") ]
-        (List.map (viewDay settings model currentMonth) week)
+        ((if settings.showCalendarWeekNumbers then
+            div [ class (classPrefix ++ "calendar-week-number") ] [ text dateWeekNumber ]
+
+          else
+            text ""
+         )
+            :: List.map (viewDay settings model currentMonth) week
+        )
 
 
 viewDay : Settings msg -> Model -> Month -> PickerDay -> Html msg

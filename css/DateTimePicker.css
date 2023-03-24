@@ -40,6 +40,7 @@
 .elm-datetimepicker--calendar-header-row {
     display: flex;
     justify-content: space-between;
+    margin-bottom: 0.25rem;
 }
 
 .elm-datetimepicker--calendar-header-navigation {
@@ -95,6 +96,30 @@
 
 .elm-datetimepicker--calendar-week {
     display: flex;
+}
+
+.elm-datetimepicker--calendar-header-week-number,
+.elm-datetimepicker--calendar-week-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--edtp-day-size);
+    width: var(--edtp-day-size);
+    font-size: var(--edtp-font-size-xxs);
+    letter-spacing: 2px;
+    color: var(--edtp-week-number-color);
+    background-color: var(--edtp-week-number-background-color);
+    margin-right: 0.25rem;
+}
+
+.elm-datetimepicker--calendar-header-week-number {
+    border-top-right-radius: var(--edtp-border-radius-default);
+    border-top-left-radius: var(--edtp-border-radius-default);
+}
+
+.elm-datetimepicker--calendar-month > div > .elm-datetimepicker--calendar-week:last-child > .elm-datetimepicker--calendar-week-number {
+    border-bottom-right-radius: var(--edtp-border-radius-default);
+    border-bottom-left-radius: var(--edtp-border-radius-default);
 }
 
 .elm-datetimepicker--calendar-day {
