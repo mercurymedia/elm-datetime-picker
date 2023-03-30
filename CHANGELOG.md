@@ -2,6 +2,18 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [5.0.3]
+
+### **ADDED**
+To keep track of the calendar weeks when picking dates, calendar week numbers have been added to the pickers as a separate column. This feature is optional and can be enabled with the new `Settings` entry:
+
+```elm
+type alias Settings msg =
+    { {- [...] -}
+    , showCalendarWeekNumbers : Bool
+    }
+```
+
 ## [5.0.2]
 
 ### **CHANGED**

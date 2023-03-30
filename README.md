@@ -122,6 +122,7 @@ type alias Settings msg =
     , focusedDate : Maybe Posix
     , dateStringFn : Zone -> Posix -> String
     , timePickerVisibility : TimePickerVisibility
+    , showCalendarWeekNumbers : Bool
     }
 ```
 
