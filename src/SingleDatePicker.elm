@@ -49,13 +49,14 @@ import Time.Extra as Time exposing (Interval(..))
 
 {-| The opaque type representing a particular date picker instance.
 -}
-type DatePicker
-    = DatePicker Model
+type DatePicker msg
+    = DatePicker (Model msg)
 
 
-type alias Model =
+type alias Model msg =
     { status : Status
     , hovered : Maybe PickerDay
+    , internalMsg : Msg -> msg
     , viewOffset : Int
     , selectionTuple : Maybe ( PickerDay, Posix )
     }
@@ -80,9 +81,8 @@ type Status
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
 -}
-type alias Settings msg =
-    { internalMsg : Msg -> msg
-    , zone : Zone
+type alias Settings =
+    { zone : Zone
     , firstWeekDay : Weekday
     , formattedDay : Weekday -> String
     , formattedMonth : Month -> String
@@ -156,10 +156,9 @@ datepicker instance and a `Maybe Posix` representing a selected datetime.
     ( DatePicker, Maybe Posix ) -> msg
 
 -}
-defaultSettings : Zone -> (Msg -> msg) -> Settings msg
-defaultSettings zone internalMsg =
-    { internalMsg = internalMsg
-    , zone = zone
+defaultSettings : Zone -> Settings
+defaultSettings zone =
+    { zone = zone
     , firstWeekDay = Mon
     , formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
@@ -181,11 +180,12 @@ defaultTimePickerSettings =
 
 {-| Instantiates and returns a date picker.
 -}
-init : DatePicker
-init =
+init : (Msg -> msg) -> DatePicker msg
+init internalMsg =
     DatePicker
         { status = Closed
         , hovered = Nothing
+        , internalMsg = internalMsg
         , viewOffset = 0
         , selectionTuple = Nothing
         }
@@ -198,11 +198,11 @@ datePickerId =
 
 {-| Events external to the picker to which it is subscribed.
 -}
-subscriptions : (Msg -> msg) -> DatePicker -> Sub msg
-subscriptions internalMsg (DatePicker model) =
+subscriptions : DatePicker msg -> Sub msg
+subscriptions (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId internalMsg)
+            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId model.internalMsg)
 
         Closed ->
             Sub.none
@@ -226,7 +226,7 @@ takes a default time the picker should center on (in the event a time has not ye
 been picked) as well as the picked time. A common example of a default time
 would be the datetime for the current day.
 -}
-openPicker : Settings msg -> Posix -> Maybe Posix -> DatePicker -> DatePicker
+openPicker : Settings -> Posix -> Maybe Posix -> DatePicker msg -> DatePicker msg
 openPicker settings baseTime pickedTime (DatePicker model) =
     let
         viewOffset =
@@ -251,14 +251,14 @@ openPicker settings baseTime pickedTime (DatePicker model) =
 
 {-| Close the provided date picker and receive the updated picker instance.
 -}
-closePicker : DatePicker -> DatePicker
+closePicker : DatePicker msg -> DatePicker msg
 closePicker (DatePicker model) =
     DatePicker { model | status = Closed }
 
 
 {-| Indicates whether the DatePicker is open
 -}
-isOpen : DatePicker -> Bool
+isOpen : DatePicker msg -> Bool
 isOpen (DatePicker { status }) =
     case status of
         Open _ _ ->
@@ -282,7 +282,7 @@ type Msg
     | Close
 
 
-generatePickerDay : Settings msg -> Posix -> PickerDay
+generatePickerDay : Settings -> Posix -> PickerDay
 generatePickerDay settings time =
     Maybe.map
         (\timePickerSettings ->
@@ -292,7 +292,7 @@ generatePickerDay settings time =
         |> Maybe.withDefault (Utilities.pickerDayFromPosix settings.zone settings.isDayDisabled Nothing time)
 
 
-getTimePickerSettings : Settings msg -> Maybe TimePickerSettings
+getTimePickerSettings : Settings -> Maybe TimePickerSettings
 getTimePickerSettings settings =
     case settings.timePickerVisibility of
         NeverVisible ->
@@ -305,7 +305,7 @@ getTimePickerSettings settings =
             Just timePickerSettings
 
 
-update : Settings msg -> Msg -> DatePicker -> ( DatePicker, Maybe Posix )
+update : Settings -> Msg -> DatePicker msg -> ( DatePicker msg, Maybe Posix )
 update settings msg (DatePicker model) =
     case model.status of
         Open timePickerVisible baseDay ->
@@ -398,7 +398,7 @@ showHoveredIfEnabled hovered =
 {-| The date picker view. Simply pass it the configured settings
 and the date picker instance you wish to view.
 -}
-view : Settings msg -> DatePicker -> Html msg
+view : Settings -> DatePicker msg -> Html msg
 view settings (DatePicker model) =
     case model.status of
         Open timePickerVisible baseDay ->
@@ -409,7 +409,7 @@ view settings (DatePicker model) =
             div
                 [ id datePickerId, class (classPrefix ++ "picker-container"), class (classPrefix ++ "single") ]
                 [ div [ class (classPrefix ++ "calendar-container") ]
-                    [ viewCalendarHeader settings offsetTime
+                    [ viewCalendarHeader settings model offsetTime
                     , viewMonth settings model offsetTime
                     ]
                 , viewFooter settings timePickerVisible baseDay model
@@ -419,8 +419,8 @@ view settings (DatePicker model) =
             text ""
 
 
-viewCalendarHeader : Settings msg -> Posix -> Html msg
-viewCalendarHeader settings time =
+viewCalendarHeader : Settings -> Model msg -> Posix -> Html msg
+viewCalendarHeader settings model time =
     let
         monthName =
             Time.toMonth settings.zone time |> settings.formattedMonth
@@ -435,7 +435,7 @@ viewCalendarHeader settings time =
                 [ div
                     [ id "previous-year"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| PrevYear
+                    , onClick <| model.internalMsg <| PrevYear
                     ]
                     [ Icons.chevronsLeft
                         |> Icons.withSize 16
@@ -444,7 +444,7 @@ viewCalendarHeader settings time =
                 , div
                     [ id "previous-month"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| PrevMonth
+                    , onClick <| model.internalMsg <| PrevMonth
                     ]
                     [ Icons.chevronLeft
                         |> Icons.withSize 16
@@ -463,7 +463,7 @@ viewCalendarHeader settings time =
                 [ div
                     [ id "next-month"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| NextMonth
+                    , onClick <| model.internalMsg <| NextMonth
                     ]
                     [ Icons.chevronRight
                         |> Icons.withSize 16
@@ -472,7 +472,7 @@ viewCalendarHeader settings time =
                 , div
                     [ id "next-year"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| NextYear
+                    , onClick <| model.internalMsg <| NextYear
                     ]
                     [ Icons.chevronsRight
                         |> Icons.withSize 16
@@ -484,7 +484,7 @@ viewCalendarHeader settings time =
         ]
 
 
-viewWeekHeader : Settings msg -> Html msg
+viewWeekHeader : Settings -> Html msg
 viewWeekHeader settings =
     div
         [ class (classPrefix ++ "calendar-header-week") ]
@@ -505,7 +505,7 @@ viewHeaderDay formatDay day =
         [ text (formatDay day) ]
 
 
-viewMonth : Settings msg -> Model -> Posix -> Html msg
+viewMonth : Settings -> Model msg -> Posix -> Html msg
 viewMonth settings model viewTime =
     let
         allowedTimesOfDayFn =
@@ -518,12 +518,12 @@ viewMonth settings model viewTime =
             Time.posixToParts settings.zone viewTime |> .month
     in
     div
-        [ class (classPrefix ++ "calendar-month"), onMouseOut <| settings.internalMsg ClearHoveredDay ]
+        [ class (classPrefix ++ "calendar-month"), onMouseOut <| model.internalMsg ClearHoveredDay ]
         [ div [] (List.map (viewWeek settings currentMonth model) weeks)
         ]
 
 
-viewWeek : Settings msg -> Month -> Model -> List PickerDay -> Html msg
+viewWeek : Settings -> Month -> Model msg -> List PickerDay -> Html msg
 viewWeek settings currentMonth model week =
     let
         firstDateOfWeek =
@@ -552,7 +552,7 @@ viewWeek settings currentMonth model week =
         )
 
 
-viewDay : Settings msg -> Model -> Month -> PickerDay -> Html msg
+viewDay : Settings -> Model msg -> Month -> PickerDay -> Html msg
 viewDay settings model currentMonth day =
     let
         dayParts =
@@ -573,13 +573,13 @@ viewDay settings model currentMonth day =
         [ type_ "button"
         , disabled day.disabled
         , class dayClasses
-        , onClick <| settings.internalMsg (SetDay day)
-        , onMouseOver <| settings.internalMsg (SetHoveredDay day)
+        , onClick <| model.internalMsg (SetDay day)
+        , onMouseOver <| model.internalMsg (SetHoveredDay day)
         ]
         [ text (String.fromInt dayParts.day) ]
 
 
-viewFooter : Settings msg -> Bool -> PickerDay -> Model -> Html msg
+viewFooter : Settings -> Bool -> PickerDay -> Model msg -> Html msg
 viewFooter settings timePickerVisible baseDay model =
     let
         displayTime =
@@ -595,7 +595,7 @@ viewFooter settings timePickerVisible baseDay model =
         ]
 
 
-viewDateOrDateTime : Settings msg -> Bool -> PickerDay -> Model -> Posix -> Html msg
+viewDateOrDateTime : Settings -> Bool -> PickerDay -> Model msg -> Posix -> Html msg
 viewDateOrDateTime settings timePickerVisible baseDay model selection =
     Maybe.map
         (\timePickerSettings ->
@@ -615,7 +615,7 @@ viewEmpty =
         [ text "––.––.––––" ]
 
 
-viewDateTime : Settings msg -> Bool -> PickerDay -> Model -> Posix -> TimePickerSettings -> Html msg
+viewDateTime : Settings -> Bool -> PickerDay -> Model msg -> Posix -> TimePickerSettings -> Html msg
 viewDateTime settings timePickerVisible baseDay model selection timePickerSettings =
     div [ class (classPrefix ++ "footer-datetime-container") ]
         [ viewDate settings selection
@@ -623,7 +623,7 @@ viewDateTime settings timePickerVisible baseDay model selection timePickerSettin
         ]
 
 
-viewTimeOrTimePicker : Settings msg -> Bool -> PickerDay -> Model -> Posix -> TimePickerSettings -> Html msg
+viewTimeOrTimePicker : Settings -> Bool -> PickerDay -> Model msg -> Posix -> TimePickerSettings -> Html msg
 viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePickerSettings =
     let
         displayTime =
@@ -637,7 +637,7 @@ viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePick
             let
                 ( viewToggleView, toggleIcon ) =
                     if timePickerVisible then
-                        ( viewTimePicker settings baseDay displayTime, Icons.check )
+                        ( viewTimePicker settings model baseDay displayTime, Icons.check )
 
                     else
                         ( text (timePickerSettings.timeStringFn settings.zone selection), Icons.edit )
@@ -647,7 +647,7 @@ viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePick
                     |> Icons.withSize 16
                     |> Icons.toHtml []
                 , viewToggleView
-                , div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg ToggleTimePickerVisibility ]
+                , div [ class (classPrefix ++ "time-picker-toggle"), onClick <| model.internalMsg ToggleTimePickerVisibility ]
                     [ toggleIcon
                         |> Icons.withSize 16
                         |> Icons.toHtml []
@@ -659,11 +659,11 @@ viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePick
                 [ Icons.clock
                     |> Icons.withSize 16
                     |> Icons.toHtml []
-                , viewTimePicker settings baseDay displayTime
+                , viewTimePicker settings model baseDay displayTime
                 ]
 
 
-timeIsStartOfDay : Settings msg -> Posix -> Bool
+timeIsStartOfDay : Settings -> Posix -> Bool
 timeIsStartOfDay settings time =
     let
         { hour, minute } =
@@ -672,7 +672,7 @@ timeIsStartOfDay settings time =
     hour == 0 && minute == 0
 
 
-viewDate : Settings msg -> Posix -> Html msg
+viewDate : Settings -> Posix -> Html msg
 viewDate settings dateTime =
     span [ class (classPrefix ++ "selection-date") ]
         [ Icons.calendar
@@ -682,8 +682,8 @@ viewDate settings dateTime =
         ]
 
 
-viewTimePicker : Settings msg -> PickerDay -> Maybe ( PickerDay, Posix ) -> Html msg
-viewTimePicker settings baseDay selectionTuple =
+viewTimePicker : Settings -> Model msg -> PickerDay -> Maybe ( PickerDay, Posix ) -> Html msg
+viewTimePicker settings model baseDay selectionTuple =
     let
         { selectableHours, selectableMinutes } =
             SingleUtilities.filterSelectableTimes settings.zone baseDay selectionTuple
@@ -695,11 +695,11 @@ viewTimePicker settings baseDay selectionTuple =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ viewSelect [ id "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map SetHour targetValueIntParse)) ]
+            [ viewSelect [ id "hour-select", on "change" (Decode.map model.internalMsg (Decode.map SetHour targetValueIntParse)) ]
                 (Utilities.generateHourOptions settings.zone selectionTuple selectableHours)
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
             , viewSelect
-                [ id "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map SetMinute targetValueIntParse)) ]
+                [ id "minute-select", on "change" (Decode.map model.internalMsg (Decode.map SetMinute targetValueIntParse)) ]
                 (Utilities.generateMinuteOptions settings.zone selectionTuple selectableMinutes)
             ]
         ]
