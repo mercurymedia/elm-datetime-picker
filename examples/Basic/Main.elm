@@ -12,7 +12,7 @@ import Time.Extra as Time exposing (Interval(..))
 
 type Msg
     = OpenPicker
-    | UpdatePicker ( SingleDatePicker.DatePicker, Maybe Posix )
+    | UpdatePicker SingleDatePicker.Msg
     | AdjustTimeZone Zone
     | Tick Posix
 
@@ -31,7 +31,11 @@ update msg model =
         OpenPicker ->
             ( { model | picker = SingleDatePicker.openPicker (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.pickedTime model.picker }, Cmd.none )
 
-        UpdatePicker ( newPicker, maybeNewTime ) ->
+        UpdatePicker subMsg ->
+            let
+                ( newPicker, maybeNewTime ) =
+                    SingleDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.picker
+            in
             ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
 
         AdjustTimeZone newZone ->
@@ -100,7 +104,7 @@ init _ =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ SingleDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) UpdatePicker model.picker
+        [ SingleDatePicker.subscriptions UpdatePicker model.picker
         , Time.every 1000 Tick
         ]
 
