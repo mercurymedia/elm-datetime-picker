@@ -268,6 +268,8 @@ isOpen (DatePicker { status }) =
             False
 
 
+{-| Internal Msg's to update the picker.
+-}
 type Msg
     = NextMonth
     | PrevMonth
@@ -305,6 +307,11 @@ getTimePickerSettings settings =
             Just timePickerSettings
 
 
+{-| Update the SingleDatePicker according to the given internal msg.
+
+Returns the updated picker and the currently selected datetime, if available.
+
+-}
 update : Settings -> Msg -> DatePicker msg -> ( DatePicker msg, Maybe Posix )
 update settings msg (DatePicker model) =
     case model.status of

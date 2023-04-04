@@ -2,6 +2,42 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [7.0.0]
+
+### **MAJOR/BREAKING CHANGE**
+
+Previously, the DatePicker was updated in the view, and the updated DatePicker was then passed to the user's Msg. This could result in race conditions generating incorrect selection data. In order to prevent undesirable behavior as a result, the DatePicker should now be updated from the update function. This will result in a breaking change for any user, but should be relatively straightforward to fix.
+
+The signature of the provided Msg for the DatePicker has changed:
+
+```elm
+-- from something like:
+    | UpdatePicker ( DatePicker.DatePicker, Maybe Posix )
+
+-- to now something like:
+    | UpdatePicker SingleDatePicker.Msg
+```
+
+The implementation of the Msg now needs to call the update of the DatePicker to get the updated picker and the current selection:
+
+```elm
+-- from something like:
+    UpdatePicker ( newPicker, maybeNewTime ) ->
+        ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+
+-- to now something like:
+    UpdatePicker subMsg ->
+        let
+            ( newPicker, maybeNewTime ) =
+                SingleDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.picker
+        in
+        ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+```
+
+Additionally, the internalMsg is no longer provided on the `Settings` but instead provided on the `init` call for the DatePicker.
+
+### Thanks to [patbro](https://github.com/patbro) for pointing this out.
+
 ## [6.0.0]
 
 ### **ADDED**
