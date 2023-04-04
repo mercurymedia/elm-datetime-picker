@@ -76,22 +76,20 @@ monthData zone isDisabledFn firstWeekDay allowableTimesFn time =
         monthStartDay =
             Time.toWeekday zone monthStart
 
-        nextMonthStart =
-            -- we add a day to monthStart to guarantee next month, Time.ceiling
-            -- with monthStart was producing the same month, not next month
-            Time.ceiling Month zone (Time.add Day 1 zone monthStart)
+        monthEnd =
+            Time.add Day -1 zone (Time.add Month 1 zone monthStart)
 
-        nextMonthStartDay =
-            Time.toWeekday zone nextMonthStart
+        monthEndDay =
+            Time.toWeekday zone monthEnd
 
         frontPad =
             Time.range Day 1 zone (Time.add Day (calculatePad firstWeekDay monthStartDay True) zone monthStart) monthStart
 
         endPad =
-            Time.range Day 1 zone nextMonthStart (Time.add Day (calculatePad firstWeekDay nextMonthStartDay False) zone nextMonthStart)
+            Time.range Day 1 zone monthEnd (Time.add Day (calculatePad firstWeekDay monthEndDay False) zone monthEnd)
     in
     (frontPad
-        ++ Time.range Day 1 zone monthStart nextMonthStart
+        ++ Time.range Day 1 zone monthStart monthEnd
         ++ endPad
     )
         |> monthDataToPickerDays zone isDisabledFn allowableTimesFn

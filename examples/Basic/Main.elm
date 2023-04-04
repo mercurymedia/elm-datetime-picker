@@ -62,6 +62,7 @@ userDefinedDatePickerSettings zone today =
                     | timeStringFn = posixToTimeString
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
+        , showCalendarWeekNumbers = True
     }
 
 
