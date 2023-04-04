@@ -1,5 +1,5 @@
 module SingleDatePicker exposing
-    ( DatePicker, init, view, subscriptions
+    ( DatePicker, Msg, init, view, update, subscriptions
     , Settings, defaultSettings, TimePickerVisibility(..)
     , TimePickerSettings, defaultTimePickerSettings
     , openPicker, closePicker
@@ -11,7 +11,7 @@ module SingleDatePicker exposing
 
 # Architecture
 
-@docs DatePicker, init, view, subscriptions
+@docs DatePicker, Msg, init, view, update, subscriptions
 
 
 # Settings
@@ -81,7 +81,7 @@ More information can be found in the [examples](https://github.com/mercurymedia/
 
 -}
 type alias Settings msg =
-    { internalMsg : ( DatePicker, Maybe Posix ) -> msg
+    { internalMsg : Msg -> msg
     , zone : Zone
     , firstWeekDay : Weekday
     , formattedDay : Weekday -> String
@@ -156,7 +156,7 @@ datepicker instance and a `Maybe Posix` representing a selected datetime.
     ( DatePicker, Maybe Posix ) -> msg
 
 -}
-defaultSettings : Zone -> (( DatePicker, Maybe Posix ) -> msg) -> Settings msg
+defaultSettings : Zone -> (Msg -> msg) -> Settings msg
 defaultSettings zone internalMsg =
     { internalMsg = internalMsg
     , zone = zone
@@ -198,23 +198,23 @@ datePickerId =
 
 {-| Events external to the picker to which it is subscribed.
 -}
-subscriptions : Settings msg -> (( DatePicker, Maybe Posix ) -> msg) -> DatePicker -> Sub msg
-subscriptions settings internalMsg (DatePicker model) =
+subscriptions : (Msg -> msg) -> DatePicker -> Sub msg
+subscriptions internalMsg (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (clickedOutsidePicker settings datePickerId internalMsg (DatePicker model))
+            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId internalMsg)
 
         Closed ->
             Sub.none
 
 
-clickedOutsidePicker : Settings msg -> String -> (( DatePicker, Maybe Posix ) -> msg) -> DatePicker -> Decode.Decoder msg
-clickedOutsidePicker settings componentId internalMsg datePicker =
+clickedOutsidePicker : String -> (Msg -> msg) -> Decode.Decoder msg
+clickedOutsidePicker componentId internalMsg =
     Decode.field "target" (Utilities.eventIsOutsideComponent componentId)
         |> Decode.andThen
             (\isOutside ->
                 if isOutside then
-                    Decode.succeed <| internalMsg (update settings Close datePicker)
+                    Decode.succeed <| internalMsg Close
 
                 else
                     Decode.fail "inside component"
@@ -395,20 +395,6 @@ showHoveredIfEnabled hovered =
         Just hovered
 
 
-showSelectedIfHovered : Maybe ( PickerDay, Posix ) -> PickerDay -> Maybe ( PickerDay, Posix )
-showSelectedIfHovered selectionTuple hovered =
-    case selectionTuple of
-        Just ( pickerDay, selection ) ->
-            if pickerDay == hovered then
-                Just ( pickerDay, selection )
-
-            else
-                Just ( hovered, hovered.start )
-
-        Nothing ->
-            Just ( hovered, hovered.start )
-
-
 {-| The date picker view. Simply pass it the configured settings
 and the date picker instance you wish to view.
 -}
@@ -423,7 +409,7 @@ view settings (DatePicker model) =
             div
                 [ id datePickerId, class (classPrefix ++ "picker-container"), class (classPrefix ++ "single") ]
                 [ div [ class (classPrefix ++ "calendar-container") ]
-                    [ viewCalendarHeader settings model offsetTime
+                    [ viewCalendarHeader settings offsetTime
                     , viewMonth settings model offsetTime
                     ]
                 , viewFooter settings timePickerVisible baseDay model
@@ -433,8 +419,8 @@ view settings (DatePicker model) =
             text ""
 
 
-viewCalendarHeader : Settings msg -> Model -> Posix -> Html msg
-viewCalendarHeader settings model time =
+viewCalendarHeader : Settings msg -> Posix -> Html msg
+viewCalendarHeader settings time =
     let
         monthName =
             Time.toMonth settings.zone time |> settings.formattedMonth
@@ -449,7 +435,7 @@ viewCalendarHeader settings model time =
                 [ div
                     [ id "previous-year"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| update settings PrevYear (DatePicker model)
+                    , onClick <| settings.internalMsg <| PrevYear
                     ]
                     [ Icons.chevronsLeft
                         |> Icons.withSize 16
@@ -458,7 +444,7 @@ viewCalendarHeader settings model time =
                 , div
                     [ id "previous-month"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| update settings PrevMonth (DatePicker model)
+                    , onClick <| settings.internalMsg <| PrevMonth
                     ]
                     [ Icons.chevronLeft
                         |> Icons.withSize 16
@@ -477,7 +463,7 @@ viewCalendarHeader settings model time =
                 [ div
                     [ id "next-month"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| update settings NextMonth (DatePicker model)
+                    , onClick <| settings.internalMsg <| NextMonth
                     ]
                     [ Icons.chevronRight
                         |> Icons.withSize 16
@@ -486,7 +472,7 @@ viewCalendarHeader settings model time =
                 , div
                     [ id "next-year"
                     , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| settings.internalMsg <| update settings NextYear (DatePicker model)
+                    , onClick <| settings.internalMsg <| NextYear
                     ]
                     [ Icons.chevronsRight
                         |> Icons.withSize 16
@@ -532,7 +518,7 @@ viewMonth settings model viewTime =
             Time.posixToParts settings.zone viewTime |> .month
     in
     div
-        [ class (classPrefix ++ "calendar-month"), onMouseOut <| settings.internalMsg (update settings ClearHoveredDay (DatePicker model)) ]
+        [ class (classPrefix ++ "calendar-month"), onMouseOut <| settings.internalMsg ClearHoveredDay ]
         [ div [] (List.map (viewWeek settings currentMonth model) weeks)
         ]
 
@@ -587,8 +573,8 @@ viewDay settings model currentMonth day =
         [ type_ "button"
         , disabled day.disabled
         , class dayClasses
-        , onClick <| settings.internalMsg (update settings (SetDay day) (DatePicker model))
-        , onMouseOver <| settings.internalMsg (update settings (SetHoveredDay day) (DatePicker model))
+        , onClick <| settings.internalMsg (SetDay day)
+        , onMouseOver <| settings.internalMsg (SetHoveredDay day)
         ]
         [ text (String.fromInt dayParts.day) ]
 
@@ -651,7 +637,7 @@ viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePick
             let
                 ( viewToggleView, toggleIcon ) =
                     if timePickerVisible then
-                        ( viewTimePicker settings model baseDay displayTime, Icons.check )
+                        ( viewTimePicker settings baseDay displayTime, Icons.check )
 
                     else
                         ( text (timePickerSettings.timeStringFn settings.zone selection), Icons.edit )
@@ -661,7 +647,7 @@ viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePick
                     |> Icons.withSize 16
                     |> Icons.toHtml []
                 , viewToggleView
-                , div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg (update settings ToggleTimePickerVisibility (DatePicker model)) ]
+                , div [ class (classPrefix ++ "time-picker-toggle"), onClick <| settings.internalMsg ToggleTimePickerVisibility ]
                     [ toggleIcon
                         |> Icons.withSize 16
                         |> Icons.toHtml []
@@ -673,7 +659,7 @@ viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePick
                 [ Icons.clock
                     |> Icons.withSize 16
                     |> Icons.toHtml []
-                , viewTimePicker settings model baseDay displayTime
+                , viewTimePicker settings baseDay displayTime
                 ]
 
 
@@ -696,8 +682,8 @@ viewDate settings dateTime =
         ]
 
 
-viewTimePicker : Settings msg -> Model -> PickerDay -> Maybe ( PickerDay, Posix ) -> Html msg
-viewTimePicker settings model baseDay selectionTuple =
+viewTimePicker : Settings msg -> PickerDay -> Maybe ( PickerDay, Posix ) -> Html msg
+viewTimePicker settings baseDay selectionTuple =
     let
         { selectableHours, selectableMinutes } =
             SingleUtilities.filterSelectableTimes settings.zone baseDay selectionTuple
@@ -709,11 +695,11 @@ viewTimePicker settings model baseDay selectionTuple =
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ viewSelect [ id "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetHour targetValueIntParse))) ]
+            [ viewSelect [ id "hour-select", on "change" (Decode.map settings.internalMsg (Decode.map SetHour targetValueIntParse)) ]
                 (Utilities.generateHourOptions settings.zone selectionTuple selectableHours)
             , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
             , viewSelect
-                [ id "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map (\msg -> update settings msg (DatePicker model)) (Decode.map SetMinute targetValueIntParse))) ]
+                [ id "minute-select", on "change" (Decode.map settings.internalMsg (Decode.map SetMinute targetValueIntParse)) ]
                 (Utilities.generateMinuteOptions settings.zone selectionTuple selectableMinutes)
             ]
         ]
