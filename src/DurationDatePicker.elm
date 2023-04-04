@@ -294,6 +294,8 @@ type StartOrEnd
     | End
 
 
+{-| Internal Msg's to update the picker.
+-}
 type Msg
     = NextMonth
     | PrevMonth
@@ -340,6 +342,11 @@ processSelection model ( startSelectionTuple, endSelectionTuple ) =
     ( DatePicker { model | startSelectionTuple = startSelectionTuple, endSelectionTuple = endSelectionTuple }, newDuration )
 
 
+{-| Update the DurationDatePicker according to the given internal msg.
+
+Returns the updated picker and the currently selected start and end datetime, if available.
+
+-}
 update : Settings -> Msg -> DatePicker msg -> ( DatePicker msg, Maybe ( Posix, Posix ) )
 update settings msg (DatePicker model) =
     case model.status of
