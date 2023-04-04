@@ -21,7 +21,7 @@ type alias Model =
     { currentTime : Posix
     , zone : Zone
     , pickedTime : Maybe Posix
-    , picker : SingleDatePicker.DatePicker
+    , picker : SingleDatePicker.DatePicker Msg
     }
 
 
@@ -50,11 +50,11 @@ isDateBeforeToday today datetime =
     Time.posixToMillis today > Time.posixToMillis datetime
 
 
-userDefinedDatePickerSettings : Zone -> Posix -> Settings Msg
+userDefinedDatePickerSettings : Zone -> Posix -> Settings
 userDefinedDatePickerSettings zone today =
     let
         defaults =
-            defaultSettings zone UpdatePicker
+            defaultSettings zone
     in
     { defaults
         | isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
@@ -95,7 +95,7 @@ init _ =
     ( { currentTime = Time.millisToPosix 0
       , zone = Time.utc
       , pickedTime = Nothing
-      , picker = SingleDatePicker.init
+      , picker = SingleDatePicker.init UpdatePicker
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -104,7 +104,7 @@ init _ =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ SingleDatePicker.subscriptions UpdatePicker model.picker
+        [ SingleDatePicker.subscriptions model.picker
         , Time.every 1000 Tick
         ]
 
