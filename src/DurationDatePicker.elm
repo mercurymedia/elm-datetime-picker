@@ -726,16 +726,12 @@ determineDateTimeView settings model timePickerVisible baseDay startSelectionTup
                 , viewDateOrDateTime settings model timePickerVisible End endSelection endTimePickerSelectConfig
                 ]
 
-        ( Just ( startPickerDay, startSelection ), Just ( endPickerDay, endSelection ) ) ->
-            if startPickerDay == endPickerDay && timeIsStartOfDay settings startSelection && timeIsEndOfDay settings endSelection then
-                viewDate settings startSelection
-
-            else
-                div [ class (classPrefix ++ "footer-datetimes-container") ]
-                    [ viewDateOrDateTime settings model timePickerVisible Start startSelection startTimePickerSelectConfig
-                    , viewDateTimesSeparator
-                    , viewDateOrDateTime settings model timePickerVisible End endSelection endTimePickerSelectConfig
-                    ]
+        ( Just ( _, startSelection ), Just ( _, endSelection ) ) ->
+            div [ class (classPrefix ++ "footer-datetimes-container") ]
+                [ viewDateOrDateTime settings model timePickerVisible Start startSelection startTimePickerSelectConfig
+                , viewDateTimesSeparator
+                , viewDateOrDateTime settings model timePickerVisible End endSelection endTimePickerSelectConfig
+                ]
 
 
 viewDateOrDateTime : Settings -> Model msg -> Bool -> StartOrEnd -> Posix -> TimePickerSelectConfig -> Html msg
@@ -744,39 +740,13 @@ viewDateOrDateTime settings model timePickerVisible startOrEnd dateTime timePick
         (\timePickerSettings ->
             case startOrEnd of
                 Start ->
-                    if timeIsStartOfDay settings dateTime then
-                        viewDate settings dateTime
-
-                    else
-                        viewDateTime settings model timePickerVisible Start timePickerSettings.timeStringFn dateTime timePickerConfig
+                    viewDateTime settings model timePickerVisible Start timePickerSettings.timeStringFn dateTime timePickerConfig
 
                 End ->
-                    if timeIsEndOfDay settings dateTime then
-                        viewDate settings dateTime
-
-                    else
-                        viewDateTime settings model timePickerVisible End timePickerSettings.timeStringFn dateTime timePickerConfig
+                    viewDateTime settings model timePickerVisible End timePickerSettings.timeStringFn dateTime timePickerConfig
         )
         (getTimePickerSettings settings)
         |> Maybe.withDefault (viewDate settings dateTime)
-
-
-timeIsStartOfDay : Settings -> Posix -> Bool
-timeIsStartOfDay settings time =
-    let
-        { hour, minute } =
-            Time.posixToParts settings.zone time
-    in
-    hour == 0 && minute == 0
-
-
-timeIsEndOfDay : Settings -> Posix -> Bool
-timeIsEndOfDay settings time =
-    let
-        { hour, minute } =
-            Time.posixToParts settings.zone time
-    in
-    hour == 23 && minute == 59
 
 
 viewDate : Settings -> Posix -> Html msg
