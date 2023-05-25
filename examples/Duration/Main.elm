@@ -3,7 +3,7 @@ module DatePickerExample.Duration.Main exposing (main)
 import Browser
 import DurationDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (style, class, id)
 import Html.Events exposing (onClick)
 import Task
 import Time exposing (Month(..), Posix, Zone)
@@ -76,12 +76,15 @@ userDefinedDatePickerSettings zone today =
 
 view : Model -> Html Msg
 view model =
-    div [ style "width" "100vw", style "height" "100vh", style "padding" "3rem" ]
-        [ div [ style "padding-bottom" "1rem" ] [ text "This is a duration picker" ]
-        , div
-            [ style "width" "500px", style "display" "inline-flex" ]
+    div [ class "page" ]
+        [ div [ class "content" ] 
+            [ div [ class "title" ] 
+                [ text "This is a duration picker" ]
+            ]
+        , div []
             [ div []
-                [ button [ style "margin-right" "10px", onClick <| OpenPicker ] [ text "Picker" ]
+                [ button [ id "my-button", onClick <| OpenPicker ] 
+                    [ text "Picker" ]
                 , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                 ]
             , Maybe.map2
@@ -108,7 +111,7 @@ init _ =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ DurationDatePicker.subscriptions model.picker
+        [ DurationDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
         , Time.every 1000 Tick
         ]
 

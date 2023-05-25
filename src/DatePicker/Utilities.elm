@@ -1,5 +1,5 @@
 module DatePicker.Utilities exposing
-    ( PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
+    ( PickerDay, DomLocation(..), monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay, calculatePositionStyles
     , pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
@@ -10,7 +10,7 @@ module DatePicker.Utilities exposing
 
 # View Types & Functions
 
-@docs PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
+@docs PickerDay, DomLocation, DomElement, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay, calculatePositionStyles
 
 
 # Conversions
@@ -29,8 +29,9 @@ module DatePicker.Utilities exposing
 
 -}
 
+import Browser.Dom as Dom
 import Html exposing (Html, option, text, th, time)
-import Html.Attributes exposing (disabled, selected, value)
+import Html.Attributes exposing (disabled, selected, style, value)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -52,6 +53,26 @@ type alias PickerDay =
     , end : Posix
     , disabled : Bool
     }
+
+
+{-| The type representing the picker's location in the DOM. (if the picker
+is being rendered inside the DOM hierarchy and positioned automatically or
+outside the DOM hierarchy positioned manually based on the trigger and picker
+DOM elment.
+-}
+type DomLocation
+    = InsideHierarchy
+    | OutsideHierarchy
+        { triggerDomElement : DomElement
+        , pickerDomElement : DomElement
+        }
+
+
+{-| The type facilitating the needed informations to find a DOM element and
+read its absolute positions.
+-}
+type alias DomElement =
+    { id : String, element : Maybe Dom.Element }
 
 
 {-| Generate a month to be rendered by the picker
@@ -153,6 +174,40 @@ generateListOfWeekDay firstWeekDay =
 
         Sun ->
             [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
+
+
+calculatePositionStyles : { triggerEl : Dom.Element, pickerEl : Dom.Element } -> List (Html.Attribute msg)
+calculatePositionStyles { triggerEl, pickerEl } =
+    let
+        ( viewPortWidth, viewPortHeight ) =
+            ( triggerEl.viewport.width, triggerEl.viewport.height )
+
+        ( triggerX, triggerY ) =
+            ( triggerEl.element.x, triggerEl.element.y )
+
+        ( triggerWidth, triggerHeight ) =
+            ( triggerEl.element.width, triggerEl.element.height )
+
+        ( pickerWidth, pickerHeight ) =
+            ( pickerEl.element.width, pickerEl.element.height )
+
+        posX =
+            if (triggerX + pickerWidth) > viewPortWidth then
+                triggerX + triggerWidth - pickerWidth
+
+            else
+                triggerX
+
+        posY =
+            if (triggerY + triggerHeight + pickerHeight) > viewPortHeight then
+                triggerY + triggerHeight - pickerHeight
+
+            else
+                triggerY + triggerHeight
+    in
+    [ style "left" (String.fromFloat posX ++ "px")
+    , style "top" (String.fromFloat posY ++ "px")
+    ]
 
 
 {-| Generate a list of Html `option`s representing
