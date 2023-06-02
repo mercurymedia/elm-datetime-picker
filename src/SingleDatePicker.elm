@@ -460,7 +460,7 @@ viewCalendarHeader settings model time =
                 ]
             , div
                 [ class (classPrefix ++ "calendar-header-text") ]
-                [ div [ id "month" ]
+                [ div []
                     [ span [ id "month" ] [ text monthName ]
                     , span [] [ text " " ]
                     , span [ id "year" ] [ text year ]
