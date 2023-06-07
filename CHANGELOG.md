@@ -2,6 +2,12 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [8.0.0]
+
+### **ADDED**
+Added functions to render the picker outside the DOM hierarchy while positioning it manually attached to a trigger element (`Datepicker.openPickerOutsideDomHierarchy` and `Datepicker.updatePickerPosition`). 
+Also added a new example for that use case. See `BasicModal` example and README.
+
 ## [7.0.2]
 
 - Removed duplicate `#month` ID selector for SingleDatePicker

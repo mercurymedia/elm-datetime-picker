@@ -109,6 +109,61 @@ subscriptions model =
     SingleDatePicker.subscriptions model.picker
 ```
 
+## Open the picker outside the DOM hierarchy
+
+By default, the picker is positioned relative to the nearest positioned ancestor by utilizing the CSS rule `position: absolute` so you need to place the `Datepicker.view` as a child of the trigger element within the DOM hierarchy. But sometimes, when rendering the picker somewhere deeply nested in the DOM hierarchy, the popup might interfere with its container elements' CSS rules – resulting in z-index or overflow problems. 
+
+*A typical example would be to have the trigger element that opens the picker (e.g. a button) nested into a scroll container with a limited width and hiding its horizontal overflow. When rendering the picker as part of that same container sticking to the trigger element, it might exceed the container's width and gets cut off by the overflow rule. Have a look at the `BasicModal` example to learn more.*
+
+Since the `Datepicker.view` is independant from any trigger element you can render it anywhere you want in the DOM already – you just need to manually deal with the picker's position if you still want it to be attached to the trigger element.
+
+Instead of using the default `Datepicker.openPicker` function, you can use the `Datepicker.openPickerOutsideDomHierarchy` and `Datepicker.updatePickerPosition` functions to handle the positioning. You simply need to make sure to pass your trigger element's id and handle updates in case of any events that might change the trigger element's position (e.g. onScroll, onResize, etc.). The trigger's and picker's positions are being calculated based on the viewport. By default it will align to the bottom right of the trigger element (as usual) but it will automatically adjust to the trigger element's top/bottom/left/right based on available space to each side.
+
+Here's an example (also have a look at the `BasicModal` example):
+
+```elm
+type Msg
+    = ...
+    | OpenPicker
+    | UpdatePicker DatePicker.Msg
+    | OnViewPortChange
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        ...
+
+        OpenPicker ->
+            let
+                ( newPicker, cmd ) =
+                    DatePicker.openPickerOutsideHierarchy 
+                        "my-button" 
+                        (userDefinedDatePickerSettings model.zone model.currentTime) 
+                        model.currentTime 
+                        model.pickedTime 
+                        model.picker
+            in
+            ( { model | picker = newPicker }, cmd )
+
+        UpdatePicker subMsg ->
+            ...
+
+        OnViewportChange ->
+            ( model, DatePicker.updatePickerPosition model.picker )
+
+
+
+        
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ ...
+        , Browser.Events.onResize (\_ _ -> OnViewportChange)
+        ]
+        
+```
+
+
 ## Additional Configuration
 
 This is the settings type to be used when configuring the `datepicker`. More configuration will be available in future releases.
@@ -116,6 +171,7 @@ This is the settings type to be used when configuring the `datepicker`. More con
 ```elm
 type alias Settings =
     { zone : Zone
+    , id : String
     , formattedDay : Weekday -> String
     , formattedMonth : Month -> String
     , isDayDisabled : Zone -> Posix -> Bool
