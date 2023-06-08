@@ -2,7 +2,7 @@ module DurationDatePicker exposing
     ( DatePicker, Msg, init, view, update, subscriptions
     , Settings, defaultSettings, TimePickerVisibility(..)
     , TimePickerSettings, defaultTimePickerSettings
-    , openPicker, closePicker
+    , openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
     , isOpen
     )
 
@@ -22,7 +22,7 @@ module DurationDatePicker exposing
 
 # Externally Triggered Actions
 
-@docs openPicker, closePicker
+@docs openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
 
 
 # Query
@@ -31,18 +31,20 @@ module DurationDatePicker exposing
 
 -}
 
+import Browser.Dom as Dom
 import Browser.Events
 import Date
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Styles
-import DatePicker.Utilities as Utilities exposing (PickerDay)
+import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import Html exposing (Html, button, div, select, span, text)
-import Html.Attributes exposing (class, disabled, id, type_)
+import Html.Attributes exposing (class, disabled, id, style, type_)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
+import Task exposing (Task)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -60,6 +62,7 @@ type alias Model msg =
     , viewOffset : Int
     , startSelectionTuple : Maybe ( PickerDay, Posix )
     , endSelectionTuple : Maybe ( PickerDay, Posix )
+    , domLocation : DomLocation
     }
 
 
@@ -70,7 +73,7 @@ type Status
 
 {-| The type facilitating the configuration of the datepicker settings.
 
-`internalMsg` - a function that returns a `msg` for the calling module to handle picker updates
+`id` - provides a custom id to the picker element
 `zone` - the `Zone` in which the date picker is being used (client zone)
 `formattedDay` - a function that returns a string representation for the provided day of the week
 `formattedMonth` - a function that returns a string representation for the provided month
@@ -78,12 +81,14 @@ type Status
 `focusedDate` - a `Posix` that represents a day that should be highlighted on the picker (i.e. the current day)
 `dateStringFn` - a function that returns a string representation of the selected day
 `timePickerVisibility` - see below
+`showCalendarWeekNumbers` - wheather to display or not display caldendar week numbers
 
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
 -}
 type alias Settings =
     { zone : Zone
+    , id : String
     , firstWeekDay : Weekday
     , formattedDay : Weekday -> String
     , formattedMonth : Month -> String
@@ -170,6 +175,7 @@ a datepicker instance and a `Maybe` tuple representing a selected duration.
 defaultSettings : Zone -> Settings
 defaultSettings zone =
     { zone = zone
+    , id = "date-picker-component"
     , firstWeekDay = Mon
     , formattedDay = Utilities.dayToNameString
     , formattedMonth = Utilities.monthToNameString
@@ -200,21 +206,17 @@ init internalMsg =
         , viewOffset = 0
         , startSelectionTuple = Nothing
         , endSelectionTuple = Nothing
+        , domLocation = InsideHierarchy
         }
-
-
-datePickerId : String
-datePickerId =
-    "date-picker-component"
 
 
 {-| Events external to the picker to which it is subscribed.
 -}
-subscriptions : DatePicker msg -> Sub msg
-subscriptions (DatePicker model) =
+subscriptions : Settings -> DatePicker msg -> Sub msg
+subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (clickedOutsidePicker datePickerId model.internalMsg)
+            Browser.Events.onMouseDown (clickedOutsidePicker settings.id model.internalMsg)
 
         Closed ->
             Sub.none
@@ -270,6 +272,31 @@ openPicker settings baseTime start end (DatePicker model) =
         }
 
 
+{-| Open the provided date picker outside the DOM hierarchy. Uses the openPicker function
+and additionally takes an id of the trigger DOM element (e.g. a button) to manually attach
+the picker's position to it. Returns the updated picker instance plus the necessary command
+in order to find DOM elements and their positions.
+-}
+openPickerOutsideHierarchy : String -> Settings -> Posix -> Maybe Posix -> Maybe Posix -> DatePicker msg -> ( DatePicker msg, Cmd msg )
+openPickerOutsideHierarchy triggerElementId settings baseTime start end (DatePicker model) =
+    let
+        (DatePicker openedModel) =
+            openPicker settings baseTime start end (DatePicker model)
+
+        initialDomElements =
+            { triggerDomElement = { id = triggerElementId, element = Nothing }
+            , pickerDomElement = { id = settings.id, element = Nothing }
+            }
+
+        (DatePicker updatedModel) =
+            DatePicker { openedModel | domLocation = OutsideHierarchy initialDomElements }
+
+        cmd =
+            updatePickerPosition (DatePicker updatedModel)
+    in
+    ( DatePicker updatedModel, cmd )
+
+
 {-| Close the provided date picker and receive the updated picker instance.
 -}
 closePicker : DatePicker msg -> DatePicker msg
@@ -287,6 +314,38 @@ isOpen (DatePicker { status }) =
 
         Closed ->
             False
+
+
+{-| Returns the command to update the trigger & picker DOM elements' instances.
+Is used internally but can also be used externally in case of a changing viewport
+(e.g. onScroll or onResize).
+-}
+updatePickerPosition : DatePicker msg -> Cmd msg
+updatePickerPosition (DatePicker model) =
+    case model.domLocation of
+        OutsideHierarchy { triggerDomElement, pickerDomElement } ->
+            updateDomElements triggerDomElement.id pickerDomElement.id (DatePicker model)
+
+        InsideHierarchy ->
+            Cmd.none
+
+
+{-| Performs the tasks of finding the trigger and picker DOM elements
+-}
+updateDomElements : String -> String -> DatePicker msg -> Cmd msg
+updateDomElements triggerElementId pickerElementId (DatePicker model) =
+    Task.attempt
+        (\result ->
+            model.internalMsg <|
+                case result of
+                    Ok [ triggerEl, pickerEl ] ->
+                        SetDomElements { triggerDomElement = triggerEl, pickerDomElement = pickerEl }
+
+                    _ ->
+                        -- Dom element not found
+                        NoOp
+        )
+        (Task.sequence [ Dom.getElement triggerElementId, Dom.getElement pickerElementId ])
 
 
 type StartOrEnd
@@ -308,6 +367,8 @@ type Msg
     | SetHour StartOrEnd Int
     | SetMinute StartOrEnd Int
     | Close
+    | SetDomElements { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element }
+    | NoOp
 
 
 generatePickerDay : Settings -> Posix -> PickerDay
@@ -405,6 +466,25 @@ update settings msg (DatePicker model) =
                 Close ->
                     ( DatePicker { model | status = Closed }, Nothing )
 
+                SetDomElements newDomElements ->
+                    let
+                        updatedDomLocation =
+                            case model.domLocation of
+                                OutsideHierarchy ({ triggerDomElement, pickerDomElement } as domElements) ->
+                                    OutsideHierarchy
+                                        { domElements
+                                            | triggerDomElement = { triggerDomElement | element = Just newDomElements.triggerDomElement }
+                                            , pickerDomElement = { pickerDomElement | element = Just newDomElements.pickerDomElement }
+                                        }
+
+                                InsideHierarchy ->
+                                    InsideHierarchy
+                    in
+                    ( DatePicker { model | domLocation = updatedDomLocation }, Nothing )
+
+                NoOp ->
+                    ( DatePicker model, Nothing )
+
         Closed ->
             ( DatePicker model, Nothing )
 
@@ -442,33 +522,50 @@ and the date picker instance you wish to view.
 -}
 view : Settings -> DatePicker msg -> Html msg
 view settings (DatePicker model) =
-    case model.status of
-        Open timePickerVisible baseDay ->
+    case ( model.domLocation, model.status ) of
+        ( InsideHierarchy, Open timePickerVisible baseDay ) ->
+            viewPicker [] settings timePickerVisible baseDay model
+
+        ( OutsideHierarchy { triggerDomElement, pickerDomElement }, Open timePickerVisible baseDay ) ->
             let
-                leftViewTime =
-                    Time.add Month model.viewOffset settings.zone baseDay.start
+                attributes =
+                    case ( triggerDomElement.element, pickerDomElement.element ) of
+                        ( Just triggerEl, Just pickerEl ) ->
+                            Utilities.calculatePositionStyles { triggerEl = triggerEl, pickerEl = pickerEl }
 
-                rightViewTime =
-                    Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
+                        _ ->
+                            -- hide picker element until the DOM elements have been found and the positions have been calculated correctly
+                            [ style "visibility" "hidden" ]
             in
-            div
-                [ id datePickerId, class (classPrefix ++ "picker-container"), class (classPrefix ++ "duration") ]
-                [ div
-                    [ class (classPrefix ++ "calendars-container") ]
-                    [ div
-                        [ id "left-container", class (classPrefix ++ "calendar-container") ]
-                        [ viewCalendar settings model leftViewTime
-                        ]
-                    , div
-                        [ id "right-container", class (classPrefix ++ "calendar-container") ]
-                        [ viewCalendar settings model rightViewTime
-                        ]
-                    ]
-                , viewFooter settings timePickerVisible baseDay model
-                ]
+            viewPicker attributes settings timePickerVisible baseDay model
 
-        Closed ->
+        _ ->
             text ""
+
+
+viewPicker : List (Html.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html msg
+viewPicker attributes settings timePickerVisible baseDay model =
+    let
+        leftViewTime =
+            Time.add Month model.viewOffset settings.zone baseDay.start
+
+        rightViewTime =
+            Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
+    in
+    div ([ id settings.id, class (classPrefix ++ "picker-container"), class (classPrefix ++ "duration") ] ++ attributes)
+        [ div
+            [ class (classPrefix ++ "calendars-container") ]
+            [ div
+                [ id "left-container", class (classPrefix ++ "calendar-container") ]
+                [ viewCalendar settings model leftViewTime
+                ]
+            , div
+                [ id "right-container", class (classPrefix ++ "calendar-container") ]
+                [ viewCalendar settings model rightViewTime
+                ]
+            ]
+        , viewFooter settings timePickerVisible baseDay model
+        ]
 
 
 viewCalendar : Settings -> Model msg -> Posix -> Html msg
