@@ -703,7 +703,7 @@ viewDateOrDateTime : Settings -> Bool -> PickerDay -> Model msg -> Posix -> Html
 viewDateOrDateTime settings timePickerVisible baseDay model selection =
     Maybe.map
         (\timePickerSettings ->
-            if timeIsStartOfDay settings selection then
+            if settings.timePickerVisibility == NeverVisible && timeIsStartOfDay settings selection then
                 viewDate settings selection
 
             else
