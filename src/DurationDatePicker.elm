@@ -541,6 +541,27 @@ showHoveredIfEnabled hovered =
         Just hovered
 
 
+isPresetRangeActive : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> PresetRange -> Bool
+isPresetRangeActive settings startSelectionTuple endSelectionTuple { range } =
+    case ( startSelectionTuple, endSelectionTuple ) of
+        ( Just ( startPickerDay, _ ), Just ( endPickerDay, _ ) ) ->
+            let
+                presetStartPickerDay =
+                    generatePickerDay settings range.start
+
+                presetEndPickerDay =
+                    generatePickerDay settings range.end
+            in
+            if presetStartPickerDay == startPickerDay && presetEndPickerDay == endPickerDay then
+                True
+
+            else
+                False
+
+        _ ->
+            False
+
+
 {-| The date picker view. Simply pass it the configured settings
 and the date picker instance you wish to view.
 -}
@@ -580,9 +601,7 @@ viewPicker attributes settings timePickerVisible baseDay model =
         [ div [ class (classPrefix ++ "presets-container") ]
             (List.map
                 (\presetRange ->
-                    div [ class (classPrefix ++ "preset"), onClick <| model.internalMsg (SetPresetRange presetRange) ]
-                        [ text presetRange.title
-                        ]
+                    viewPresetTab settings model.startSelectionTuple model.endSelectionTuple model.internalMsg presetRange
                 )
                 settings.presetRanges
             )
@@ -600,6 +619,25 @@ viewPicker attributes settings timePickerVisible baseDay model =
                 ]
             , viewFooter settings timePickerVisible baseDay model
             ]
+        ]
+
+
+viewPresetTab : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> (Msg -> msg) -> PresetRange -> Html msg
+viewPresetTab settings startSelectionTuple endSelectionTuple internalMsg presetRange =
+    let
+        activeClass =
+            if isPresetRangeActive settings startSelectionTuple endSelectionTuple presetRange then
+                classPrefix ++ "active"
+
+            else
+                ""
+    in
+    div
+        [ class (classPrefix ++ "preset")
+        , class activeClass
+        , onClick <| internalMsg (SetPresetRange presetRange)
+        ]
+        [ text presetRange.title
         ]
 
 

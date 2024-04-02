@@ -31,6 +31,11 @@
     background-color: var(--edtp-preset-hover-background-color);
 }
 
+.elm-datetimepicker--preset.elm-datetimepicker--active {
+    text-decoration: underline;
+    font-weight: bold;
+}
+
 .elm-datetimepicker--picker-container {
 }
 
