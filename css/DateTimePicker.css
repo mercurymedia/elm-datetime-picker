@@ -1,4 +1,4 @@
-.elm-datetimepicker--picker-container {
+.elm-datetimepicker--container {
     background-color: var(--edtp-container-background-color);
     position: absolute;
     color: var(--edtp-container-color);
@@ -6,6 +6,32 @@
     border-radius: var(--edtp-border-radius-lg);
     box-shadow: var(--edtp-box-shadow);
     overflow: hidden;
+    display: flex;
+}
+
+.elm-datetimepicker--presets-container {
+    padding: 1rem;
+    border-right: var(--edtp-preset-container-border-width) solid var(--edtp-preset-container-border-color);
+    background-color: var(--edtp-preset-container-background-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.elm-datetimepicker--preset {
+    padding: 0.5rem;
+    color: var(--edtp-preset-color);
+    background-color: var(--edtp-preset-background-color);
+    cursor: pointer;
+    transition: var(--edtp-transition);
+    border-radius: var(--edtp-border-radius-default);
+}
+
+.elm-datetimepicker--preset:hover {
+    color: var(--edtp-preset-hover-color);
+    background-color: var(--edtp-preset-hover-background-color);
+}
+
+.elm-datetimepicker--picker-container {
 }
 
 .elm-datetimepicker--duration 
@@ -149,15 +175,18 @@
 }
 
 .elm-datetimepicker--calendar-day.elm-datetimepicker--disabled {
-    background-color: var(--edtp-day-disabled-background-color);
-    color: var(--edtp-day-disabled-color);
     cursor: default;
+    pointer-events: none;
+    opacity: 0.35;
+    filter: grayscale(1);
 }
 
-.elm-datetimepicker--calendar-day.elm-datetimepicker--picked {
+.elm-datetimepicker--calendar-day.elm-datetimepicker--picked,
+.elm-datetimepicker--calendar-day.elm-datetimepicker--today.elm-datetimepicker--picked {
     background-color: var(--edtp-day-picked-background-color);
     color: var(--edtp-day-picked-color);
 }
+
 
 .elm-datetimepicker--duration
 .elm-datetimepicker--calendar-day.elm-datetimepicker--start {
@@ -187,7 +216,7 @@
     position: relative;
 }
 
-.elm-datetimepicker--calendar-day.elm-datetimepicker--today:hover {
+.elm-datetimepicker--calendar-day.elm-datetimepicker--today:not(.elm-datetimepicker--picked):hover {
     background-color: var(--edtp-day-hover-background-color);
     color: var(--edtp-day-hover-color);
 }
@@ -203,13 +232,6 @@
 .elm-datetimepicker--calendar-day.elm-datetimepicker--between:hover {
     background-color: var(--edtp-day-hover-background-color);
     color: var(--edtp-day-hover-color);
-}
-
-.elm-datetimepicker--duration
-.elm-datetimepicker--calendar-day.elm-datetimepicker--today-between {
-    background-color: var(--edtp-day-between-background-color);
-    color: var(--edtp-day-between-color);
-    border-radius: 0;
 }
 
 .elm-datetimepicker--footer {

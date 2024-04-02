@@ -3,26 +3,26 @@ module DatePicker.Styles exposing (durationDayClasses, durationStartOrEndClasses
 
 durationDayClasses : String -> Bool -> Bool -> Bool -> Bool -> Bool -> String
 durationDayClasses classPrefix isHidden isDisabled isPicked isToday isBetween =
-    if isHidden then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "hidden"
+    let
+        hiddenClass =
+            calenderDayClass classPrefix "hidden" isHidden
 
-    else if isDisabled then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "disabled"
+        disabledClass =
+            calenderDayClass classPrefix "disabled" isDisabled
 
-    else if isPicked then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "picked"
+        pickedClass =
+            calenderDayClass classPrefix "picked" isPicked
 
-    else if isBetween && isToday then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "today-between"
+        todayClass =
+            calenderDayClass classPrefix "today" isToday
 
-    else if isToday then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "today"
+        betweenClass =
+            calenderDayClass classPrefix "between" isBetween
 
-    else if isBetween then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "between"
-
-    else
-        classPrefix ++ "calendar-day"
+        defaultClass =
+            classPrefix ++ "calendar-day"
+    in
+    String.join " " [ hiddenClass, disabledClass, pickedClass, todayClass, betweenClass, defaultClass ]
 
 
 durationStartOrEndClasses : String -> Bool -> Bool -> String
@@ -42,17 +42,29 @@ durationStartOrEndClasses classPrefix isStart isEnd =
 
 singleDayClasses : String -> Bool -> Bool -> Bool -> Bool -> String
 singleDayClasses classPrefix isHidden isDisabled isPicked isToday =
-    if isHidden then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "hidden"
+    let
+        hiddenClass =
+            calenderDayClass classPrefix "hidden" isHidden
 
-    else if isDisabled then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "disabled"
+        disabledClass =
+            calenderDayClass classPrefix "disabled" isDisabled
 
-    else if isPicked then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "picked"
+        pickedClass =
+            calenderDayClass classPrefix "picked" isPicked
 
-    else if isToday then
-        classPrefix ++ "calendar-day " ++ classPrefix ++ "today"
+        todayClass =
+            calenderDayClass classPrefix "today" isToday
+
+        defaultClass =
+            classPrefix ++ "calendar-day"
+    in
+    String.join " " [ hiddenClass, disabledClass, pickedClass, todayClass, defaultClass ]
+
+
+calenderDayClass : String -> String -> Bool -> String
+calenderDayClass classPrefix classSuffix condition =
+    if condition then
+        classPrefix ++ "calendar-day " ++ classPrefix ++ classSuffix
 
     else
-        classPrefix ++ "calendar-day"
+        ""

@@ -514,12 +514,14 @@ viewPicker attributes settings timePickerVisible baseDay model =
         offsetTime =
             Time.add Month model.viewOffset settings.zone baseDay.start
     in
-    div ([ id settings.id, class (classPrefix ++ "picker-container"), class (classPrefix ++ "single") ] ++ attributes)
-        [ div [ class (classPrefix ++ "calendar-container") ]
-            [ viewCalendarHeader settings model offsetTime
-            , viewMonth settings model offsetTime
+    div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "single") ] ++ attributes)
+        [ div [ class (classPrefix ++ "picker-container") ]
+            [ div [ class (classPrefix ++ "calendar-container") ]
+                [ viewCalendarHeader settings model offsetTime
+                , viewMonth settings model offsetTime
+                ]
+            , viewFooter settings timePickerVisible baseDay model
             ]
-        , viewFooter settings timePickerVisible baseDay model
         ]
 
 

@@ -4,6 +4,7 @@ module DurationDatePicker exposing
     , TimePickerSettings, defaultTimePickerSettings
     , openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
     , isOpen
+    , PresetRange
     )
 
 {-| A date picker component for picking a datetime range.
@@ -37,7 +38,7 @@ import Date
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Styles
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
+import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay, pickerDayFromPosix)
 import Html exposing (Html, button, div, select, span, text)
 import Html.Attributes exposing (class, disabled, id, style, type_)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
@@ -97,6 +98,7 @@ type alias Settings =
     , dateStringFn : Zone -> Posix -> String
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
+    , presetRanges : List PresetRange
     }
 
 
@@ -122,6 +124,12 @@ type TimePickerVisibility
     = NeverVisible
     | Toggleable TimePickerSettings
     | AlwaysVisible TimePickerSettings
+
+
+type alias PresetRange =
+    { title : String
+    , range : { start : Posix, end : Posix }
+    }
 
 
 {-| The type facilitating the configuration of the timepicker settings.
@@ -184,6 +192,7 @@ defaultSettings zone =
     , dateStringFn = \_ _ -> ""
     , timePickerVisibility = AlwaysVisible defaultTimePickerSettings
     , showCalendarWeekNumbers = False
+    , presetRanges = []
     }
 
 
@@ -368,6 +377,7 @@ type Msg
     | SetMinute StartOrEnd Int
     | Close
     | SetDomElements { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element }
+    | SetPresetRange PresetRange
     | NoOp
 
 
@@ -482,6 +492,20 @@ update settings msg (DatePicker model) =
                     in
                     ( DatePicker { model | domLocation = updatedDomLocation }, Nothing )
 
+                SetPresetRange { range } ->
+                    let
+                        startPickerDay =
+                            generatePickerDay settings range.start
+
+                        endPickerDay =
+                            generatePickerDay settings range.end
+
+                        viewOffset =
+                            Utilities.calculateViewOffset settings.zone baseDay.start (Just startPickerDay.start)
+                    in
+                    processSelection { model | viewOffset = viewOffset }
+                        ( Just ( startPickerDay, startPickerDay.start ), Just ( endPickerDay, endPickerDay.end ) )
+
                 NoOp ->
                     ( DatePicker model, Nothing )
 
@@ -552,19 +576,30 @@ viewPicker attributes settings timePickerVisible baseDay model =
         rightViewTime =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
-    div ([ id settings.id, class (classPrefix ++ "picker-container"), class (classPrefix ++ "duration") ] ++ attributes)
-        [ div
-            [ class (classPrefix ++ "calendars-container") ]
+    div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "duration") ] ++ attributes)
+        [ div [ class (classPrefix ++ "presets-container") ]
+            (List.map
+                (\presetRange ->
+                    div [ class (classPrefix ++ "preset"), onClick <| model.internalMsg (SetPresetRange presetRange) ]
+                        [ text presetRange.title
+                        ]
+                )
+                settings.presetRanges
+            )
+        , div [ class (classPrefix ++ "picker-container") ]
             [ div
-                [ id "left-container", class (classPrefix ++ "calendar-container") ]
-                [ viewCalendar settings model leftViewTime
+                [ class (classPrefix ++ "calendars-container") ]
+                [ div
+                    [ id "left-container", class (classPrefix ++ "calendar-container") ]
+                    [ viewCalendar settings model leftViewTime
+                    ]
+                , div
+                    [ id "right-container", class (classPrefix ++ "calendar-container") ]
+                    [ viewCalendar settings model rightViewTime
+                    ]
                 ]
-            , div
-                [ id "right-container", class (classPrefix ++ "calendar-container") ]
-                [ viewCalendar settings model rightViewTime
-                ]
+            , viewFooter settings timePickerVisible baseDay model
             ]
-        , viewFooter settings timePickerVisible baseDay model
         ]
 
 

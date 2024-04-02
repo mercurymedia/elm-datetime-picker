@@ -3,7 +3,7 @@ module DatePickerExample.Duration.Main exposing (main)
 import Browser
 import DurationDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (style, class, id)
+import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
 import Task
 import Time exposing (Month(..), Posix, Zone)
@@ -71,19 +71,58 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
+        , presetRanges =
+            [ { title = "Today"
+              , range =
+                    { start = Time.floor Day zone today
+                    , end = Time.floor Day zone today
+                    }
+              }
+            , { title = "This month"
+              , range =
+                    { start = Time.floor Month zone today
+                    , end =
+                        Time.floor Month zone today
+                            |> Time.add Month 1 zone
+                            |> Time.add Day -1 zone
+                    }
+              }
+            , { title = "Next month"
+              , range =
+                    { start =
+                        Time.floor Month zone today
+                            |> Time.add Month 1 zone
+                    , end =
+                        Time.floor Month zone today
+                            |> Time.add Month 2 zone
+                            |> Time.add Day -1 zone
+                    }
+              }
+            , { title = "Next 2 months"
+              , range =
+                    { start =
+                        Time.floor Month zone today
+                            |> Time.add Month 1 zone
+                    , end =
+                        Time.floor Month zone today
+                            |> Time.add Month 3 zone
+                            |> Time.add Day -1 zone
+                    }
+              }
+            ]
     }
 
 
 view : Model -> Html Msg
 view model =
     div [ class "page" ]
-        [ div [ class "content" ] 
-            [ div [ class "title" ] 
+        [ div [ class "content" ]
+            [ div [ class "title" ]
                 [ text "This is a duration picker" ]
             ]
         , div []
             [ div []
-                [ button [ id "my-button", onClick <| OpenPicker ] 
+                [ button [ id "my-button", onClick <| OpenPicker ]
                     [ text "Picker" ]
                 , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                 ]
