@@ -3,7 +3,7 @@ module DatePickerExample.Basic.Main exposing (main)
 import Browser
 import Browser.Dom
 import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (style, id, class)
+import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
 import SingleDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Task
@@ -68,17 +68,27 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
+        , presetDates =
+            [ { title = "Today"
+              , date = Time.floor Day zone today
+              }
+            , { title = "First of next month"
+              , date = 
+                    Time.floor Month zone today
+                        |> Time.add Month 1 zone
+              }
+            ]
     }
 
 
 view : Model -> Html Msg
 view model =
     div [ class "page" ]
-        [ div [ class "content" ] 
-            [ div [ class "title" ] 
+        [ div [ class "content" ]
+            [ div [ class "title" ]
                 [ text "This is a basic picker" ]
             , div []
-                [ button [ id "my-button", onClick <| OpenPicker ] 
+                [ button [ id "my-button", onClick <| OpenPicker ]
                     [ text "Picker" ]
                 , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                 ]
