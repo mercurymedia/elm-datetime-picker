@@ -83,6 +83,7 @@ type Status
 `dateStringFn` - a function that returns a string representation of the selected day
 `timePickerVisibility` - see below
 `showCalendarWeekNumbers` - wheather to display or not display caldendar week numbers
+`presetRanges` - a list of `PresetRange`, for selectable, preconfigured date ranges
 
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
@@ -126,6 +127,14 @@ type TimePickerVisibility
     | AlwaysVisible TimePickerSettings
 
 
+{-| Set type facilitating the preset date ranges
+
+`title` - the displayed name of the preset
+
+`range` - the time range the date range picker will select, consisting of
+a start-`Posix` and an end-`Posix`.
+
+-}
 type alias PresetRange =
     { title : String
     , range : { start : Posix, end : Posix }
@@ -598,13 +607,17 @@ viewPicker attributes settings timePickerVisible baseDay model =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
     div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "duration") ] ++ attributes)
-        [ div [ class (classPrefix ++ "presets-container") ]
-            (List.map
-                (\presetRange ->
-                    viewPresetTab settings model.startSelectionTuple model.endSelectionTuple model.internalMsg presetRange
+        [ if List.length settings.presetRanges > 0 then
+            div [ class (classPrefix ++ "presets-container") ]
+                (List.map
+                    (\presetRange ->
+                        viewPresetTab settings model.startSelectionTuple model.endSelectionTuple model.internalMsg presetRange
+                    )
+                    settings.presetRanges
                 )
-                settings.presetRanges
-            )
+
+          else
+            text ""
         , div [ class (classPrefix ++ "picker-container") ]
             [ div
                 [ class (classPrefix ++ "calendars-container") ]

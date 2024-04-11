@@ -81,6 +81,7 @@ type Status
 `dateStringFn` - a function that returns a string representation of the selected day
 `timePickerVisibility` - see below
 `showCalendarWeekNumbers` - wheather to display or not display caldendar week numbers
+`presetRanges` - a list of `PresetDate`, for selectable, preconfigured dates
 
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
@@ -123,6 +124,13 @@ type TimePickerVisibility
     | AlwaysVisible TimePickerSettings
 
 
+{-| Set type facilitating the preset dates
+
+`title` - the displayed name of the preset
+
+`date` - the `Posix` the preset will select in the date picker.
+
+-}
 type alias PresetDate =
     { title : String
     , date : Posix
@@ -558,13 +566,17 @@ viewPicker attributes settings timePickerVisible baseDay model =
             Time.add Month model.viewOffset settings.zone baseDay.start
     in
     div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "single") ] ++ attributes)
-        [ div [ class (classPrefix ++ "presets-container") ]
-            (List.map
-                (\presetRange ->
-                    viewPresetTab settings model.selectionTuple model.internalMsg presetRange
+        [ if List.length settings.presetDates > 0 then
+            div [ class (classPrefix ++ "presets-container") ]
+                (List.map
+                    (\presetRange ->
+                        viewPresetTab settings model.selectionTuple model.internalMsg presetRange
+                    )
+                    settings.presetDates
                 )
-                settings.presetDates
-            )
+
+          else
+            text ""
         , div [ class (classPrefix ++ "picker-container") ]
             [ div [ class (classPrefix ++ "calendar-container") ]
                 [ viewCalendarHeader settings model offsetTime

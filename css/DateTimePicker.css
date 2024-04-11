@@ -10,20 +10,24 @@
 }
 
 .elm-datetimepicker--presets-container {
-    padding: 1rem;
+    padding: 0.75rem;
     border-right: var(--edtp-preset-container-border-width) solid var(--edtp-preset-container-border-color);
     background-color: var(--edtp-preset-container-background-color);
     display: flex;
     flex-direction: column;
+    width: 150px;
+    flex-shrink: 0;
 }
 
 .elm-datetimepicker--preset {
-    padding: 0.5rem;
+    padding: 0.65rem 0.75rem;
     color: var(--edtp-preset-color);
     background-color: var(--edtp-preset-background-color);
     cursor: pointer;
     transition: var(--edtp-transition);
     border-radius: var(--edtp-border-radius-default);
+    font-weight: var(--edtp-preset-font-weight);
+    text-transform: var(--edtp-preset-text-transform);
 }
 
 .elm-datetimepicker--preset:hover {
@@ -32,11 +36,12 @@
 }
 
 .elm-datetimepicker--preset.elm-datetimepicker--active {
-    text-decoration: underline;
-    font-weight: bold;
+    color: var(--edtp-preset-active-color);
+    background-color: var(--edtp-preset-active-background-color);
 }
 
 .elm-datetimepicker--picker-container {
+    flex-shrink: 0;
 }
 
 .elm-datetimepicker--duration 

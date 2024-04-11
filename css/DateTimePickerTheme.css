@@ -40,8 +40,11 @@
     --edtp-preset-color: #3490dc;
     --edtp-preset-background-color: transparent;
     --edtp-preset-font-weight: normal;
+    --edtp-preset-text-transform: none;
     --edtp-preset-hover-color: #3490dc;
     --edtp-preset-hover-background-color: #e0e9f0;
+    --edtp-preset-active-color: #fff;
+    --edtp-preset-active-background-color: #3490dc;
 
     --edtp-week-number-color: #bfc8d4;
     --edtp-week-number-background-color: #f1f5f8;

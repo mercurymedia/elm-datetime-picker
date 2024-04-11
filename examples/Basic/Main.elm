@@ -68,16 +68,7 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
-        , presetDates =
-            [ { title = "Today"
-              , date = Time.floor Day zone today
-              }
-            , { title = "First of next month"
-              , date = 
-                    Time.floor Month zone today
-                        |> Time.add Month 1 zone
-              }
-            ]
+        , presetDates = []
     }
 
 
