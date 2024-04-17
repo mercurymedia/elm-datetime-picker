@@ -45,7 +45,7 @@ import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
-import Task exposing (Task)
+import Task
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -394,10 +394,10 @@ generatePickerDay : Settings -> Posix -> PickerDay
 generatePickerDay settings time =
     Maybe.map
         (\timePickerSettings ->
-            Utilities.pickerDayFromPosix settings.zone settings.isDayDisabled (Just timePickerSettings.allowedTimesOfDay) time
+            pickerDayFromPosix settings.zone settings.isDayDisabled (Just timePickerSettings.allowedTimesOfDay) time
         )
         (getTimePickerSettings settings)
-        |> Maybe.withDefault (Utilities.pickerDayFromPosix settings.zone settings.isDayDisabled Nothing time)
+        |> Maybe.withDefault (pickerDayFromPosix settings.zone settings.isDayDisabled Nothing time)
 
 
 getTimePickerSettings : Settings -> Maybe TimePickerSettings

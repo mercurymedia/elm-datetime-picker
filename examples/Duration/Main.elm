@@ -7,7 +7,7 @@ import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
 import Task
 import Time exposing (Month(..), Posix, Zone)
-import Time.Extra as Time exposing (Interval(..))
+import Time.Extra as TimeExtra exposing (Interval(..))
 
 
 type Msg
@@ -61,7 +61,7 @@ userDefinedDatePickerSettings zone today =
             defaultSettings zone
     in
     { defaults
-        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
+        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (TimeExtra.floor Day clientZone today) datetime
         , focusedDate = Just today
         , dateStringFn = posixToDateString
         , timePickerVisibility =
@@ -74,39 +74,39 @@ userDefinedDatePickerSettings zone today =
         , presetRanges =
             [ { title = "Today"
               , range =
-                    { start = Time.floor Day zone today
-                    , end = Time.floor Day zone today
+                    { start = TimeExtra.floor Day zone today
+                    , end = TimeExtra.floor Day zone today
                     }
               }
             , { title = "This month"
               , range =
-                    { start = Time.floor Month zone today
+                    { start = TimeExtra.floor Month zone today
                     , end =
-                        Time.floor Month zone today
-                            |> Time.add Month 1 zone
-                            |> Time.add Day -1 zone
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
+                            |> TimeExtra.add Day -1 zone
                     }
               }
             , { title = "Next month"
               , range =
                     { start =
-                        Time.floor Month zone today
-                            |> Time.add Month 1 zone
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
                     , end =
-                        Time.floor Month zone today
-                            |> Time.add Month 2 zone
-                            |> Time.add Day -1 zone
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 2 zone
+                            |> TimeExtra.add Day -1 zone
                     }
               }
             , { title = "Next 2 months"
               , range =
                     { start =
-                        Time.floor Month zone today
-                            |> Time.add Month 1 zone
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
                     , end =
-                        Time.floor Month zone today
-                            |> Time.add Month 3 zone
-                            |> Time.add Day -1 zone
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 3 zone
+                            |> TimeExtra.add Day -1 zone
                     }
               }
             ]
@@ -242,20 +242,20 @@ adjustAllowedTimesOfDayToClientZone : Zone -> Zone -> Posix -> Posix -> { startH
 adjustAllowedTimesOfDayToClientZone baseZone clientZone today datetimeBeingProcessed =
     let
         processingPartsInClientZone =
-            Time.posixToParts clientZone datetimeBeingProcessed
+            TimeExtra.posixToParts clientZone datetimeBeingProcessed
 
         todayPartsInClientZone =
-            Time.posixToParts clientZone today
+            TimeExtra.posixToParts clientZone today
 
         startPartsAdjustedForBaseZone =
-            Time.posixToParts baseZone datetimeBeingProcessed
-                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 8, minute = 0 })
-                |> Time.posixToParts clientZone
+            TimeExtra.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> TimeExtra.partsToPosix baseZone { parts | hour = 8, minute = 0 })
+                |> TimeExtra.posixToParts clientZone
 
         endPartsAdjustedForBaseZone =
-            Time.posixToParts baseZone datetimeBeingProcessed
-                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 17, minute = 30 })
-                |> Time.posixToParts clientZone
+            TimeExtra.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> TimeExtra.partsToPosix baseZone { parts | hour = 17, minute = 30 })
+                |> TimeExtra.posixToParts clientZone
 
         bounds =
             { startHour = startPartsAdjustedForBaseZone.hour

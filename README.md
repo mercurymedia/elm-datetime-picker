@@ -206,11 +206,11 @@ userDefinedDatePickerSettings zone today =
         | presetRanges =
             [ { title = "This month"
               , range =
-                    { start = Time.floor Month zone today
+                    { start = TimeExtra.floor Month zone today
                     , end =
-                        Time.floor Month zone today
-                            |> Time.add Month 1 zone
-                            |> Time.add Day -1 zone
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
+                            |> TimeExtra.add Day -1 zone
                     }
               }
             ]
