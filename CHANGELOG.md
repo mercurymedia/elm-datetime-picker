@@ -2,6 +2,11 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [9.0.0]
+
+### **ADDED**
+New fields have been added to the `Settings` to receive date or date range presets. Example date range presets have been added to the README and the Duration example.
+
 ## [8.0.1]
 
 - Fix time picker visibility for SingleDatePicker
