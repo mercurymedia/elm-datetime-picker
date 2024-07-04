@@ -3,8 +3,8 @@ module DurationDatePicker exposing
     , Settings, defaultSettings, TimePickerVisibility(..)
     , TimePickerSettings, defaultTimePickerSettings
     , openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
-    , isOpen
     , PresetRange
+    , isOpen
     )
 
 {-| A date picker component for picking a datetime range.
@@ -24,6 +24,11 @@ module DurationDatePicker exposing
 # Externally Triggered Actions
 
 @docs openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
+
+
+# Preset Ranges
+
+@docs PresetRange
 
 
 # Query
