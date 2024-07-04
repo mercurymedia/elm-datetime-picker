@@ -1,11 +1,8 @@
-module Main exposing (main)
+module SingleDatePickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
-import Browser
-import Browser.Events
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
-import Json.Decode as Decode
 import SingleDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Task
 import Time exposing (Month(..), Posix, Zone)
@@ -17,8 +14,6 @@ type Msg
     | UpdatePicker SingleDatePicker.Msg
     | AdjustTimeZone Zone
     | Tick Posix
-    | OnViewportChange
-    | NoOp
 
 
 type alias Model =
@@ -31,22 +26,14 @@ type alias Model =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        pickerSettings =
-            userDefinedDatePickerSettings model.zone model.currentTime
-    in
     case msg of
         OpenPicker ->
-            let
-                ( newPicker, cmd ) =
-                    SingleDatePicker.openPickerOutsideHierarchy "my-button" pickerSettings model.currentTime model.pickedTime model.picker
-            in
-            ( { model | picker = newPicker }, cmd )
+            ( { model | picker = SingleDatePicker.openPicker (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.pickedTime model.picker }, Cmd.none )
 
         UpdatePicker subMsg ->
             let
                 ( newPicker, maybeNewTime ) =
-                    SingleDatePicker.update pickerSettings subMsg model.picker
+                    SingleDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.picker
             in
             ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
 
@@ -55,12 +42,6 @@ update msg model =
 
         Tick newTime ->
             ( { model | currentTime = newTime }, Cmd.none )
-
-        OnViewportChange ->
-            ( model, SingleDatePicker.updatePickerPosition model.picker )
-
-        NoOp ->
-            ( model, Cmd.none )
 
 
 isDateBeforeToday : Posix -> Posix -> Bool
@@ -85,40 +66,38 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
+        , presetDates = []
     }
 
 
 view : Model -> Html Msg
 view model =
-    div [ class "page" ]
-        [ div [ class "content" ]
-            [ div [ class "title" ] 
-                [ text "This is a basic picker rendered outside the DOM hierarchy." ]
-            ]
-        , div [ class "modal" ]
-            [ div [ class "modal__dialog", Html.Events.on "scroll" (Decode.succeed OnViewportChange) ]
-                [ div [ class "modal__dialog__content" ]
-                    [ button [ id "my-button", onClick <| OpenPicker ]
-                        [ text "Picker" ]
-                    , case model.pickedTime of
-                        Just date ->
-                            text (posixToDateString model.zone date ++ " " ++ posixToTimeString model.zone date)
-
-                        Nothing ->
-                            text "No date selected yet!"
-                    , div [ class "modal__dialog__content__loremipsum" ]
-                        [ div [] [ text "This is just some text indicating overflow:" ]
-                        , div [] [ text "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet." ]
-                        ]
-                    ]
+    div
+        [ style "width" "100%"
+        , style "height" "100vh"
+        , style "padding" "3rem"
+        ]
+        [ h1 [ style "margin-bottom" "1rem" ] [ text "SingleDatePicker Example" ]
+        , div []
+            [ div [ style "margin-bottom" "1rem" ]
+                [ text "This is a basic picker" ]
+            , div [ style "margin-bottom" "1rem" ]
+                [ button [ id "my-button", onClick <| OpenPicker ]
+                    [ text "Picker" ]
+                , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                 ]
+            , case model.pickedTime of
+                Just date ->
+                    text (posixToDateString model.zone date ++ " " ++ posixToTimeString model.zone date)
+
+                Nothing ->
+                    text "No date selected yet!"
             ]
-        , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
         ]
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : ( Model, Cmd Msg )
+init =
     ( { currentTime = Time.millisToPosix 0
       , zone = Time.utc
       , pickedTime = Nothing
@@ -133,18 +112,7 @@ subscriptions model =
     Sub.batch
         [ SingleDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
         , Time.every 1000 Tick
-        , Browser.Events.onResize (\_ _ -> OnViewportChange)
         ]
-
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = subscriptions
-        }
 
 
 

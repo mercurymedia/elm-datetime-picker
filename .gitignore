@@ -1,8 +1,13 @@
 # compiled Elm
-/elm-stuff
+elm-stuff
 
 # compiled example.js files
 /examples/Compiled/
 
 # node modules
 /node_modules/
+
+# parcel
+.parcel-cache
+
+dist

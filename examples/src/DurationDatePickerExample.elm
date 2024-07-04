@@ -1,8 +1,7 @@
-module DatePickerExample.Duration.Main exposing (main)
+module DurationDatePickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
-import Browser
 import DurationDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
 import Task
@@ -115,13 +114,16 @@ userDefinedDatePickerSettings zone today =
 
 view : Model -> Html Msg
 view model =
-    div [ class "page" ]
-        [ div [ class "content" ]
-            [ div [ class "title" ]
+    div
+        [ style "width" "100%"
+        , style "height" "100vh"
+        , style "padding" "3rem"
+        ]
+        [ h1 [ style "margin-bottom" "1rem" ] [ text "DurationDatePicker Example" ]
+        , div [ style "margin-bottom" "1rem" ]
+            [ div [ style "margin-bottom" "1rem" ]
                 [ text "This is a duration picker" ]
-            ]
-        , div []
-            [ div []
+            , div [ style "margin-bottom" "1rem" ]
                 [ button [ id "my-button", onClick <| OpenPicker ]
                     [ text "Picker" ]
                 , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
@@ -135,8 +137,8 @@ view model =
         ]
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : ( Model, Cmd Msg )
+init =
     ( { currentTime = Time.millisToPosix 0
       , zone = Time.utc
       , pickedStartTime = Nothing
@@ -153,16 +155,6 @@ subscriptions model =
         [ DurationDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
         , Time.every 1000 Tick
         ]
-
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = subscriptions
-        }
 
 
 
