@@ -2,6 +2,7 @@
     width: 100vw;
     height:100vh; 
     padding: 3rem;
+    font-size: 14px;
     position: relative;
 }
 
@@ -32,6 +33,7 @@
     background-color: white;
     overflow: auto;
     border-radius: 5px;
+    position: relative;
 }
 
 .modal__dialog__content {

@@ -3,11 +3,11 @@ module DatePickerExample.Duration.Main exposing (main)
 import Browser
 import DurationDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (style, class, id)
+import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
 import Task
 import Time exposing (Month(..), Posix, Zone)
-import Time.Extra as Time exposing (Interval(..))
+import Time.Extra as TimeExtra exposing (Interval(..))
 
 
 type Msg
@@ -61,7 +61,7 @@ userDefinedDatePickerSettings zone today =
             defaultSettings zone
     in
     { defaults
-        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
+        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (TimeExtra.floor Day clientZone today) datetime
         , focusedDate = Just today
         , dateStringFn = posixToDateString
         , timePickerVisibility =
@@ -71,19 +71,58 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
+        , presetRanges =
+            [ { title = "Today"
+              , range =
+                    { start = TimeExtra.floor Day zone today
+                    , end = TimeExtra.floor Day zone today
+                    }
+              }
+            , { title = "This month"
+              , range =
+                    { start = TimeExtra.floor Month zone today
+                    , end =
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
+                            |> TimeExtra.add Day -1 zone
+                    }
+              }
+            , { title = "Next month"
+              , range =
+                    { start =
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
+                    , end =
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 2 zone
+                            |> TimeExtra.add Day -1 zone
+                    }
+              }
+            , { title = "Next 2 months"
+              , range =
+                    { start =
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
+                    , end =
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 3 zone
+                            |> TimeExtra.add Day -1 zone
+                    }
+              }
+            ]
     }
 
 
 view : Model -> Html Msg
 view model =
     div [ class "page" ]
-        [ div [ class "content" ] 
-            [ div [ class "title" ] 
+        [ div [ class "content" ]
+            [ div [ class "title" ]
                 [ text "This is a duration picker" ]
             ]
         , div []
             [ div []
-                [ button [ id "my-button", onClick <| OpenPicker ] 
+                [ button [ id "my-button", onClick <| OpenPicker ]
                     [ text "Picker" ]
                 , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                 ]
@@ -203,20 +242,20 @@ adjustAllowedTimesOfDayToClientZone : Zone -> Zone -> Posix -> Posix -> { startH
 adjustAllowedTimesOfDayToClientZone baseZone clientZone today datetimeBeingProcessed =
     let
         processingPartsInClientZone =
-            Time.posixToParts clientZone datetimeBeingProcessed
+            TimeExtra.posixToParts clientZone datetimeBeingProcessed
 
         todayPartsInClientZone =
-            Time.posixToParts clientZone today
+            TimeExtra.posixToParts clientZone today
 
         startPartsAdjustedForBaseZone =
-            Time.posixToParts baseZone datetimeBeingProcessed
-                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 8, minute = 0 })
-                |> Time.posixToParts clientZone
+            TimeExtra.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> TimeExtra.partsToPosix baseZone { parts | hour = 8, minute = 0 })
+                |> TimeExtra.posixToParts clientZone
 
         endPartsAdjustedForBaseZone =
-            Time.posixToParts baseZone datetimeBeingProcessed
-                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 17, minute = 30 })
-                |> Time.posixToParts clientZone
+            TimeExtra.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> TimeExtra.partsToPosix baseZone { parts | hour = 17, minute = 30 })
+                |> TimeExtra.posixToParts clientZone
 
         bounds =
             { startHour = startPartsAdjustedForBaseZone.hour

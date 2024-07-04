@@ -9,7 +9,7 @@ import Json.Decode as Decode
 import SingleDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Task
 import Time exposing (Month(..), Posix, Zone)
-import Time.Extra as Time exposing (Interval(..))
+import Time.Extra as TimeExtra exposing (Interval(..))
 
 
 type Msg
@@ -75,7 +75,7 @@ userDefinedDatePickerSettings zone today =
             defaultSettings zone
     in
     { defaults
-        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (Time.floor Day clientZone today) datetime
+        | isDayDisabled = \clientZone datetime -> isDateBeforeToday (TimeExtra.floor Day clientZone today) datetime
         , focusedDate = Just today
         , dateStringFn = posixToDateString
         , timePickerVisibility =
@@ -224,20 +224,20 @@ adjustAllowedTimesOfDayToClientZone : Zone -> Zone -> Posix -> Posix -> { startH
 adjustAllowedTimesOfDayToClientZone baseZone clientZone today datetimeBeingProcessed =
     let
         processingPartsInClientZone =
-            Time.posixToParts clientZone datetimeBeingProcessed
+            TimeExtra.posixToParts clientZone datetimeBeingProcessed
 
         todayPartsInClientZone =
-            Time.posixToParts clientZone today
+            TimeExtra.posixToParts clientZone today
 
         startPartsAdjustedForBaseZone =
-            Time.posixToParts baseZone datetimeBeingProcessed
-                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 8, minute = 0 })
-                |> Time.posixToParts clientZone
+            TimeExtra.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> TimeExtra.partsToPosix baseZone { parts | hour = 8, minute = 0 })
+                |> TimeExtra.posixToParts clientZone
 
         endPartsAdjustedForBaseZone =
-            Time.posixToParts baseZone datetimeBeingProcessed
-                |> (\parts -> Time.partsToPosix baseZone { parts | hour = 17, minute = 30 })
-                |> Time.posixToParts clientZone
+            TimeExtra.posixToParts baseZone datetimeBeingProcessed
+                |> (\parts -> TimeExtra.partsToPosix baseZone { parts | hour = 17, minute = 30 })
+                |> TimeExtra.posixToParts clientZone
 
         bounds =
             { startHour = startPartsAdjustedForBaseZone.hour

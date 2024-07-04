@@ -81,6 +81,7 @@ type Status
 `dateStringFn` - a function that returns a string representation of the selected day
 `timePickerVisibility` - see below
 `showCalendarWeekNumbers` - wheather to display or not display caldendar week numbers
+`presetRanges` - a list of `PresetDate`, for selectable, preconfigured dates
 
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
@@ -96,6 +97,7 @@ type alias Settings =
     , dateStringFn : Zone -> Posix -> String
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
+    , presetDates : List PresetDate
     }
 
 
@@ -120,6 +122,19 @@ type TimePickerVisibility
     = NeverVisible
     | Toggleable TimePickerSettings
     | AlwaysVisible TimePickerSettings
+
+
+{-| Set type facilitating the preset dates
+
+`title` - the displayed name of the preset
+
+`date` - the `Posix` the preset will select in the date picker.
+
+-}
+type alias PresetDate =
+    { title : String
+    , date : Posix
+    }
 
 
 {-| The type facilitating the configuration of the timepicker settings.
@@ -173,6 +188,7 @@ defaultSettings zone =
     , dateStringFn = \_ _ -> ""
     , timePickerVisibility = AlwaysVisible defaultTimePickerSettings
     , showCalendarWeekNumbers = False
+    , presetDates = []
     }
 
 
@@ -342,6 +358,7 @@ type Msg
     | SetMinute Int
     | Close
     | SetDomElements { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element }
+    | SetPresetDate PresetDate
     | NoOp
 
 
@@ -447,6 +464,22 @@ update settings msg (DatePicker model) =
                     in
                     ( DatePicker { model | domLocation = updatedDomLocation }, Nothing )
 
+                SetPresetDate presetDate ->
+                    let
+                        presetPickerDay =
+                            generatePickerDay settings presetDate.date
+
+                        viewOffset =
+                            Utilities.calculateViewOffset settings.zone baseDay.start (Just presetPickerDay.start)
+                    in
+                    ( DatePicker
+                        { model
+                            | selectionTuple = Just ( presetPickerDay, presetPickerDay.start )
+                            , viewOffset = viewOffset
+                        }
+                    , Just presetPickerDay.start
+                    )
+
                 NoOp ->
                     ( DatePicker model, Nothing )
 
@@ -482,6 +515,24 @@ showHoveredIfEnabled hovered =
         Just hovered
 
 
+isPresetDateActive : Settings -> Maybe ( PickerDay, Posix ) -> PresetDate -> Bool
+isPresetDateActive settings selectionTuple { date } =
+    case selectionTuple of
+        Just ( pickerDay, _ ) ->
+            let
+                presetPickerDay =
+                    generatePickerDay settings date
+            in
+            if presetPickerDay == pickerDay then
+                True
+
+            else
+                False
+
+        _ ->
+            False
+
+
 {-| The date picker view. Simply pass it the configured settings
 and the date picker instance you wish to view.
 -}
@@ -514,12 +565,44 @@ viewPicker attributes settings timePickerVisible baseDay model =
         offsetTime =
             Time.add Month model.viewOffset settings.zone baseDay.start
     in
-    div ([ id settings.id, class (classPrefix ++ "picker-container"), class (classPrefix ++ "single") ] ++ attributes)
-        [ div [ class (classPrefix ++ "calendar-container") ]
-            [ viewCalendarHeader settings model offsetTime
-            , viewMonth settings model offsetTime
+    div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "single") ] ++ attributes)
+        [ if List.length settings.presetDates > 0 then
+            div [ class (classPrefix ++ "presets-container") ]
+                (List.map
+                    (\presetRange ->
+                        viewPresetTab settings model.selectionTuple model.internalMsg presetRange
+                    )
+                    settings.presetDates
+                )
+
+          else
+            text ""
+        , div [ class (classPrefix ++ "picker-container") ]
+            [ div [ class (classPrefix ++ "calendar-container") ]
+                [ viewCalendarHeader settings model offsetTime
+                , viewMonth settings model offsetTime
+                ]
+            , viewFooter settings timePickerVisible baseDay model
             ]
-        , viewFooter settings timePickerVisible baseDay model
+        ]
+
+
+viewPresetTab : Settings -> Maybe ( PickerDay, Posix ) -> (Msg -> msg) -> PresetDate -> Html msg
+viewPresetTab settings selectionTuple internalMsg presetDate =
+    let
+        activeClass =
+            if isPresetDateActive settings selectionTuple presetDate then
+                classPrefix ++ "active"
+
+            else
+                ""
+    in
+    div
+        [ class (classPrefix ++ "preset")
+        , class activeClass
+        , onClick <| internalMsg (SetPresetDate presetDate)
+        ]
+        [ text presetDate.title
         ]
 
 

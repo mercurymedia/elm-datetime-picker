@@ -163,6 +163,59 @@ subscriptions model =
         
 ```
 
+## Presets
+
+Date or date range presets can be added with the settings configuration. The list of presets is empty by default.
+
+```elm
+type alias Settings =
+    { -- [...]
+    , presetDates : List PresetDate -- for SingleDatePicker
+    , presetRanges : List PresetRange -- for DurationDatePicker
+    }
+```
+
+To configure presets, just add data of the following required types to the list:
+
+```elm
+type alias PresetDate =
+    { title : String
+    , date : Posix
+    }
+```
+
+or
+
+```elm
+type alias PresetRange =
+    { title : String -- the display name of the preset
+    , range : { start : Posix, end : Posix }
+    }
+```
+
+Here's an example:
+
+```elm
+userDefinedDatePickerSettings : Zone -> Posix -> Settings
+userDefinedDatePickerSettings zone today =
+    let
+        defaults =
+            defaultSettings zone
+    in
+    { defaults
+        | presetRanges =
+            [ { title = "This month"
+              , range =
+                    { start = TimeExtra.floor Month zone today
+                    , end =
+                        TimeExtra.floor Month zone today
+                            |> TimeExtra.add Month 1 zone
+                            |> TimeExtra.add Day -1 zone
+                    }
+              }
+            ]
+    }
+```
 
 ## Additional Configuration
 
@@ -179,6 +232,8 @@ type alias Settings =
     , dateStringFn : Zone -> Posix -> String
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
+    , presetDates : List PresetDate -- for SingleDatePicker
+    , presetRanges : List PresetRange -- for DurationDatePicker
     }
 ```
 

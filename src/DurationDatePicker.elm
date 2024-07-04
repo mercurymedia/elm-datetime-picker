@@ -4,6 +4,7 @@ module DurationDatePicker exposing
     , TimePickerSettings, defaultTimePickerSettings
     , openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
     , isOpen
+    , PresetRange
     )
 
 {-| A date picker component for picking a datetime range.
@@ -37,14 +38,14 @@ import Date
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Styles
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
+import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay, pickerDayFromPosix)
 import Html exposing (Html, button, div, select, span, text)
 import Html.Attributes exposing (class, disabled, id, style, type_)
 import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
-import Task exposing (Task)
+import Task
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -82,6 +83,7 @@ type Status
 `dateStringFn` - a function that returns a string representation of the selected day
 `timePickerVisibility` - see below
 `showCalendarWeekNumbers` - wheather to display or not display caldendar week numbers
+`presetRanges` - a list of `PresetRange`, for selectable, preconfigured date ranges
 
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
@@ -97,6 +99,7 @@ type alias Settings =
     , dateStringFn : Zone -> Posix -> String
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
+    , presetRanges : List PresetRange
     }
 
 
@@ -122,6 +125,20 @@ type TimePickerVisibility
     = NeverVisible
     | Toggleable TimePickerSettings
     | AlwaysVisible TimePickerSettings
+
+
+{-| Set type facilitating the preset date ranges
+
+`title` - the displayed name of the preset
+
+`range` - the time range the date range picker will select, consisting of
+a start-`Posix` and an end-`Posix`.
+
+-}
+type alias PresetRange =
+    { title : String
+    , range : { start : Posix, end : Posix }
+    }
 
 
 {-| The type facilitating the configuration of the timepicker settings.
@@ -184,6 +201,7 @@ defaultSettings zone =
     , dateStringFn = \_ _ -> ""
     , timePickerVisibility = AlwaysVisible defaultTimePickerSettings
     , showCalendarWeekNumbers = False
+    , presetRanges = []
     }
 
 
@@ -368,6 +386,7 @@ type Msg
     | SetMinute StartOrEnd Int
     | Close
     | SetDomElements { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element }
+    | SetPresetRange PresetRange
     | NoOp
 
 
@@ -375,10 +394,10 @@ generatePickerDay : Settings -> Posix -> PickerDay
 generatePickerDay settings time =
     Maybe.map
         (\timePickerSettings ->
-            Utilities.pickerDayFromPosix settings.zone settings.isDayDisabled (Just timePickerSettings.allowedTimesOfDay) time
+            pickerDayFromPosix settings.zone settings.isDayDisabled (Just timePickerSettings.allowedTimesOfDay) time
         )
         (getTimePickerSettings settings)
-        |> Maybe.withDefault (Utilities.pickerDayFromPosix settings.zone settings.isDayDisabled Nothing time)
+        |> Maybe.withDefault (pickerDayFromPosix settings.zone settings.isDayDisabled Nothing time)
 
 
 getTimePickerSettings : Settings -> Maybe TimePickerSettings
@@ -482,6 +501,20 @@ update settings msg (DatePicker model) =
                     in
                     ( DatePicker { model | domLocation = updatedDomLocation }, Nothing )
 
+                SetPresetRange { range } ->
+                    let
+                        startPickerDay =
+                            generatePickerDay settings range.start
+
+                        endPickerDay =
+                            generatePickerDay settings range.end
+
+                        viewOffset =
+                            Utilities.calculateViewOffset settings.zone baseDay.start (Just startPickerDay.start)
+                    in
+                    processSelection { model | viewOffset = viewOffset }
+                        ( Just ( startPickerDay, startPickerDay.start ), Just ( endPickerDay, endPickerDay.end ) )
+
                 NoOp ->
                     ( DatePicker model, Nothing )
 
@@ -515,6 +548,27 @@ showHoveredIfEnabled hovered =
 
     else
         Just hovered
+
+
+isPresetRangeActive : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> PresetRange -> Bool
+isPresetRangeActive settings startSelectionTuple endSelectionTuple { range } =
+    case ( startSelectionTuple, endSelectionTuple ) of
+        ( Just ( startPickerDay, _ ), Just ( endPickerDay, _ ) ) ->
+            let
+                presetStartPickerDay =
+                    generatePickerDay settings range.start
+
+                presetEndPickerDay =
+                    generatePickerDay settings range.end
+            in
+            if presetStartPickerDay == startPickerDay && presetEndPickerDay == endPickerDay then
+                True
+
+            else
+                False
+
+        _ ->
+            False
 
 
 {-| The date picker view. Simply pass it the configured settings
@@ -552,19 +606,51 @@ viewPicker attributes settings timePickerVisible baseDay model =
         rightViewTime =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
-    div ([ id settings.id, class (classPrefix ++ "picker-container"), class (classPrefix ++ "duration") ] ++ attributes)
-        [ div
-            [ class (classPrefix ++ "calendars-container") ]
+    div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "duration") ] ++ attributes)
+        [ if List.length settings.presetRanges > 0 then
+            div [ class (classPrefix ++ "presets-container") ]
+                (List.map
+                    (\presetRange ->
+                        viewPresetTab settings model.startSelectionTuple model.endSelectionTuple model.internalMsg presetRange
+                    )
+                    settings.presetRanges
+                )
+
+          else
+            text ""
+        , div [ class (classPrefix ++ "picker-container") ]
             [ div
-                [ id "left-container", class (classPrefix ++ "calendar-container") ]
-                [ viewCalendar settings model leftViewTime
+                [ class (classPrefix ++ "calendars-container") ]
+                [ div
+                    [ id "left-container", class (classPrefix ++ "calendar-container") ]
+                    [ viewCalendar settings model leftViewTime
+                    ]
+                , div
+                    [ id "right-container", class (classPrefix ++ "calendar-container") ]
+                    [ viewCalendar settings model rightViewTime
+                    ]
                 ]
-            , div
-                [ id "right-container", class (classPrefix ++ "calendar-container") ]
-                [ viewCalendar settings model rightViewTime
-                ]
+            , viewFooter settings timePickerVisible baseDay model
             ]
-        , viewFooter settings timePickerVisible baseDay model
+        ]
+
+
+viewPresetTab : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> (Msg -> msg) -> PresetRange -> Html msg
+viewPresetTab settings startSelectionTuple endSelectionTuple internalMsg presetRange =
+    let
+        activeClass =
+            if isPresetRangeActive settings startSelectionTuple endSelectionTuple presetRange then
+                classPrefix ++ "active"
+
+            else
+                ""
+    in
+    div
+        [ class (classPrefix ++ "preset")
+        , class activeClass
+        , onClick <| internalMsg (SetPresetRange presetRange)
+        ]
+        [ text presetRange.title
         ]
 
 
