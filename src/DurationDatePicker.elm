@@ -1,9 +1,6 @@
 module DurationDatePicker exposing
     ( DatePicker, Msg, init, view, update, subscriptions
-    , Settings, defaultSettings, TimePickerVisibility(..)
-    , TimePickerSettings, defaultTimePickerSettings
     , openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
-    , PresetRange
     , isOpen
     )
 
@@ -42,6 +39,7 @@ import Browser.Events
 import Date
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
+import DatePicker.Settings exposing (..)
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay, pickerDayFromPosix)
 import Html exposing (Html, button, div, select, span, text)
@@ -50,7 +48,6 @@ import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
-import Task
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -77,104 +74,6 @@ type Status
     | Open Bool PickerDay
 
 
-{-| The type facilitating the configuration of the datepicker settings.
-
-`id` - provides a custom id to the picker element
-`zone` - the `Zone` in which the date picker is being used (client zone)
-`formattedDay` - a function that returns a string representation for the provided day of the week
-`formattedMonth` - a function that returns a string representation for the provided month
-`isDayDisabled` - a function that determines if the combined `Posix` and `Zone` represent a day that should be disabled in the picker
-`focusedDate` - a `Posix` that represents a day that should be highlighted on the picker (i.e. the current day)
-`dateStringFn` - a function that returns a string representation of the selected day
-`timePickerVisibility` - see below
-`showCalendarWeekNumbers` - wheather to display or not display caldendar week numbers
-`presetRanges` - a list of `PresetRange`, for selectable, preconfigured date ranges
-
-More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
-
--}
-type alias Settings =
-    { zone : Zone
-    , id : String
-    , firstWeekDay : Weekday
-    , formattedDay : Weekday -> String
-    , formattedMonth : Month -> String
-    , isDayDisabled : Zone -> Posix -> Bool
-    , focusedDate : Maybe Posix
-    , dateStringFn : Zone -> Posix -> String
-    , timePickerVisibility : TimePickerVisibility
-    , showCalendarWeekNumbers : Bool
-    , presetRanges : List PresetRange
-    }
-
-
-{-| Set the visibility of the timepicker in the `DateTimePicker`
-
-`NeverVisible` - The time picker is never visible. Please note that
-while ostensibly picking a day, a selection still returns a Posix
-representing the beginning of the day (00:00) when selecting the start
-of the date range and the end of the day (23:59) when selecting the end
-of the date range.
-
-`Toggleable` - The time picker visibility can be toggled but
-is by default closed when the datetime picker is opened. Additional
-configuration can be achieved via `TimePickerSettings`.
-
-`AlwaysVisible` - The time picker is always visible. This is the default setting
-as it most explicitly shows that the datetime picker is indeed picking both
-a date and time, not simply a date. Additional configuration can be achieved
-via `TimePickerSettings`.
-
--}
-type TimePickerVisibility
-    = NeverVisible
-    | Toggleable TimePickerSettings
-    | AlwaysVisible TimePickerSettings
-
-
-{-| Set type facilitating the preset date ranges
-
-`title` - the displayed name of the preset
-
-`range` - the time range the date range picker will select, consisting of
-a start-`Posix` and an end-`Posix`.
-
--}
-type alias PresetRange =
-    { title : String
-    , range : { start : Posix, end : Posix }
-    }
-
-
-{-| The type facilitating the configuration of the timepicker settings.
-
-`timeStringFn` - a function that returns a string representation of the selected time of day
-
-Because it could be the case that a picker is being used in a different
-timezone than the home timezone of the implementor, the `allowedTimesofDay`
-function ingests a `Zone` in addition to a `Posix`. The
-`Zone` represents the time zone in which the picker is being used. An
-implementor can leverage this to compare against a base time zone when
-enforcing allowable times of day, etc. You SHOULD assume that the `Posix`
-passed into these functions is floored to the start of its respective `Day`.
-
-More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
-
--}
-type alias TimePickerSettings =
-    { timeStringFn : Zone -> Posix -> String
-    , allowedTimesOfDay :
-        Zone
-        -> Posix
-        ->
-            { startHour : Int
-            , startMinute : Int
-            , endHour : Int
-            , endMinute : Int
-            }
-    }
-
-
 {-| The type facilitating the timepicker's select field configuration
 -}
 type alias TimePickerSelectConfig =
@@ -182,40 +81,6 @@ type alias TimePickerSelectConfig =
     , selectableMinutes : List Int
     , selection : Maybe ( PickerDay, Posix )
     }
-
-
-{-| A record of default settings for the date picker. Extend this if
-you want to further customize the date picker.
-
-Requires a `Zone` to inform the picker in which time zone it should
-display the selected duration as well as a `msg` that expects a tuple containing
-a datepicker instance and a `Maybe` tuple representing a selected duration.
-
-    ( DatePicker, Maybe ( Posix, Posix ) ) -> msg
-
--}
-defaultSettings : Zone -> Settings
-defaultSettings zone =
-    { zone = zone
-    , id = "date-picker-component"
-    , firstWeekDay = Mon
-    , formattedDay = Utilities.dayToNameString
-    , formattedMonth = Utilities.monthToNameString
-    , isDayDisabled = \_ _ -> False
-    , focusedDate = Nothing
-    , dateStringFn = \_ _ -> ""
-    , timePickerVisibility = AlwaysVisible defaultTimePickerSettings
-    , showCalendarWeekNumbers = False
-    , presetRanges = []
-    }
-
-
-{-| A record of default settings for the time picker. Extend this if
-you want to further customize the time picker.
--}
-defaultTimePickerSettings : TimePickerSettings
-defaultTimePickerSettings =
-    { timeStringFn = \_ _ -> "", allowedTimesOfDay = \_ _ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 } }
 
 
 {-| Instantiates and returns a date picker.
@@ -239,23 +104,10 @@ subscriptions : Settings -> DatePicker msg -> Sub msg
 subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (clickedOutsidePicker settings.id model.internalMsg)
+            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker settings.id (model.internalMsg Close))
 
         Closed ->
             Sub.none
-
-
-clickedOutsidePicker : String -> (Msg -> msg) -> Decode.Decoder msg
-clickedOutsidePicker componentId internalMsg =
-    Decode.field "target" (Utilities.eventIsOutsideComponent componentId)
-        |> Decode.andThen
-            (\isOutside ->
-                if isOutside then
-                    Decode.succeed <| internalMsg Close
-
-                else
-                    Decode.fail "inside component"
-            )
 
 
 {-| Open the provided date picker and receive the updated picker instance. Also
@@ -347,28 +199,15 @@ updatePickerPosition : DatePicker msg -> Cmd msg
 updatePickerPosition (DatePicker model) =
     case model.domLocation of
         OutsideHierarchy { triggerDomElement, pickerDomElement } ->
-            updateDomElements triggerDomElement.id pickerDomElement.id (DatePicker model)
+            Utilities.updateDomElements
+                { triggerElementId = triggerDomElement.id
+                , pickerElementId = pickerDomElement.id
+                , onSuccess = \result -> model.internalMsg (SetDomElements result)
+                , onError = model.internalMsg NoOp
+                }
 
         InsideHierarchy ->
             Cmd.none
-
-
-{-| Performs the tasks of finding the trigger and picker DOM elements
--}
-updateDomElements : String -> String -> DatePicker msg -> Cmd msg
-updateDomElements triggerElementId pickerElementId (DatePicker model) =
-    Task.attempt
-        (\result ->
-            model.internalMsg <|
-                case result of
-                    Ok [ triggerEl, pickerEl ] ->
-                        SetDomElements { triggerDomElement = triggerEl, pickerDomElement = pickerEl }
-
-                    _ ->
-                        -- Dom element not found
-                        NoOp
-        )
-        (Task.sequence [ Dom.getElement triggerElementId, Dom.getElement pickerElementId ])
 
 
 type StartOrEnd
@@ -391,31 +230,8 @@ type Msg
     | SetMinute StartOrEnd Int
     | Close
     | SetDomElements { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element }
-    | SetPresetRange PresetRange
+    | SetPresetRange PresetRangeConfig
     | NoOp
-
-
-generatePickerDay : Settings -> Posix -> PickerDay
-generatePickerDay settings time =
-    Maybe.map
-        (\timePickerSettings ->
-            pickerDayFromPosix settings.zone settings.isDayDisabled (Just timePickerSettings.allowedTimesOfDay) time
-        )
-        (getTimePickerSettings settings)
-        |> Maybe.withDefault (pickerDayFromPosix settings.zone settings.isDayDisabled Nothing time)
-
-
-getTimePickerSettings : Settings -> Maybe TimePickerSettings
-getTimePickerSettings settings =
-    case settings.timePickerVisibility of
-        NeverVisible ->
-            Nothing
-
-        Toggleable timePickerSettings ->
-            Just timePickerSettings
-
-        AlwaysVisible timePickerSettings ->
-            Just timePickerSettings
 
 
 processSelection : Model msg -> ( Maybe ( PickerDay, Posix ), Maybe ( PickerDay, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) )
@@ -555,27 +371,6 @@ showHoveredIfEnabled hovered =
         Just hovered
 
 
-isPresetRangeActive : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> PresetRange -> Bool
-isPresetRangeActive settings startSelectionTuple endSelectionTuple { range } =
-    case ( startSelectionTuple, endSelectionTuple ) of
-        ( Just ( startPickerDay, _ ), Just ( endPickerDay, _ ) ) ->
-            let
-                presetStartPickerDay =
-                    generatePickerDay settings range.start
-
-                presetEndPickerDay =
-                    generatePickerDay settings range.end
-            in
-            if presetStartPickerDay == startPickerDay && presetEndPickerDay == endPickerDay then
-                True
-
-            else
-                False
-
-        _ ->
-            False
-
-
 {-| The date picker view. Simply pass it the configured settings
 and the date picker instance you wish to view.
 -}
@@ -612,13 +407,18 @@ viewPicker attributes settings timePickerVisible baseDay model =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
     div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "duration") ] ++ attributes)
-        [ if List.length settings.presetRanges > 0 then
+        [ if List.length settings.presets > 0 then
             div [ class (classPrefix ++ "presets-container") ]
                 (List.map
-                    (\presetRange ->
-                        viewPresetTab settings model.startSelectionTuple model.endSelectionTuple model.internalMsg presetRange
+                    (\preset ->
+                        case preset of
+                            PresetRange config ->
+                                viewPresetTab settings model.startSelectionTuple model.endSelectionTuple model.internalMsg config
+
+                            _ ->
+                                text ""
                     )
-                    settings.presetRanges
+                    settings.presets
                 )
 
           else
@@ -640,7 +440,7 @@ viewPicker attributes settings timePickerVisible baseDay model =
         ]
 
 
-viewPresetTab : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> (Msg -> msg) -> PresetRange -> Html msg
+viewPresetTab : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> (Msg -> msg) -> PresetRangeConfig -> Html msg
 viewPresetTab settings startSelectionTuple endSelectionTuple internalMsg presetRange =
     let
         activeClass =

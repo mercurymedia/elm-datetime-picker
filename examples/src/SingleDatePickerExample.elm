@@ -1,9 +1,10 @@
 module SingleDatePickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
+import DatePicker.Settings exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
-import SingleDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
+import SingleDatePicker
 import Task
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as TimeExtra exposing (Interval(..))
@@ -66,7 +67,7 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
-        , presetDates = []
+        , presets = []
     }
 
 

@@ -1,6 +1,7 @@
 module DurationDatePickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
-import DurationDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
+import DatePicker.Settings exposing (Preset(..), Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
+import DurationDatePicker
 import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
@@ -70,24 +71,27 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
-        , presetRanges =
-            [ { title = "Today"
-              , range =
+        , presets =
+            [ PresetRange
+                { title = "Today"
+                , range =
                     { start = TimeExtra.floor Day zone today
                     , end = TimeExtra.floor Day zone today
                     }
-              }
-            , { title = "This month"
-              , range =
+                }
+            , PresetRange
+                { title = "This month"
+                , range =
                     { start = TimeExtra.floor Month zone today
                     , end =
                         TimeExtra.floor Month zone today
                             |> TimeExtra.add Month 1 zone
                             |> TimeExtra.add Day -1 zone
                     }
-              }
-            , { title = "Next month"
-              , range =
+                }
+            , PresetRange
+                { title = "Next month"
+                , range =
                     { start =
                         TimeExtra.floor Month zone today
                             |> TimeExtra.add Month 1 zone
@@ -96,9 +100,10 @@ userDefinedDatePickerSettings zone today =
                             |> TimeExtra.add Month 2 zone
                             |> TimeExtra.add Day -1 zone
                     }
-              }
-            , { title = "Next 2 months"
-              , range =
+                }
+            , PresetRange
+                { title = "Next 2 months"
+                , range =
                     { start =
                         TimeExtra.floor Month zone today
                             |> TimeExtra.add Month 1 zone
@@ -107,7 +112,7 @@ userDefinedDatePickerSettings zone today =
                             |> TimeExtra.add Month 3 zone
                             |> TimeExtra.add Day -1 zone
                     }
-              }
+                }
             ]
     }
 

@@ -1,11 +1,12 @@
 module ModalPickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
 import Browser.Events
+import DatePicker.Settings exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
 import Json.Decode as Decode
-import SingleDatePicker exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
+import SingleDatePicker
 import Task
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as TimeExtra exposing (Interval(..))
