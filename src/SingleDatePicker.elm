@@ -31,19 +31,15 @@ module SingleDatePicker exposing
 
 import Browser.Dom as Dom
 import Browser.Events
-import Date
-import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (..)
 import DatePicker.SingleUtilities as SingleUtilities
-import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
-import Html exposing (Html, button, div, select, span, text)
-import Html.Attributes exposing (class, disabled, id, style, type_)
-import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
+import DatePicker.ViewComponents exposing (..)
+import Html exposing (Html, text)
+import Html.Attributes exposing (class, id)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Json.Decode as Decode
 import List.Extra as List
-import Task
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -307,11 +303,6 @@ update settings msg (DatePicker model) =
             ( DatePicker model, Nothing )
 
 
-classPrefix : String
-classPrefix =
-    "elm-datetimepicker--"
-
-
 determineDateTime : Zone -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> Maybe ( PickerDay, Posix )
 determineDateTime zone selectionTuple hoveredDay =
     let
@@ -335,18 +326,12 @@ view settings (DatePicker model) =
         ( InsideHierarchy, Open timePickerVisible baseDay ) ->
             viewPicker [] settings timePickerVisible baseDay model
 
-        ( OutsideHierarchy { triggerDomElement, pickerDomElement }, Open timePickerVisible baseDay ) ->
-            let
-                attributes =
-                    case ( triggerDomElement.element, pickerDomElement.element ) of
-                        ( Just triggerEl, Just pickerEl ) ->
-                            Utilities.calculatePositionStyles { triggerEl = triggerEl, pickerEl = pickerEl }
-
-                        _ ->
-                            -- hide picker element until the DOM elements have been found and the positions have been calculated correctly
-                            [ style "visibility" "hidden" ]
-            in
-            viewPicker attributes settings timePickerVisible baseDay model
+        ( OutsideHierarchy elements, Open timePickerVisible baseDay ) ->
+            viewPicker (Utilities.outsideHierarchyStyles elements)
+                settings
+                timePickerVisible
+                baseDay
+                model
 
         _ ->
             text ""
@@ -357,211 +342,84 @@ viewPicker attributes settings timePickerVisible baseDay model =
     let
         offsetTime =
             Time.add Month model.viewOffset settings.zone baseDay.start
+
+        monthName =
+            Time.toMonth settings.zone offsetTime |> settings.formattedMonth
+
+        year =
+            Time.toYear settings.zone offsetTime |> String.fromInt
+
+        allowedTimesOfDayFn =
+            Maybe.map .allowedTimesOfDay (getTimePickerSettings settings)
+
+        weeks =
+            Utilities.monthData settings.zone settings.isDayDisabled settings.firstWeekDay allowedTimesOfDayFn offsetTime
+
+        currentMonth =
+            Time.posixToParts settings.zone offsetTime |> .month
+
+        focusedDay =
+            Maybe.map (\fday -> generatePickerDay settings fday) settings.focusedDate
+
+        pickedDay =
+            Maybe.map (\( pickerDay, _ ) -> pickerDay) model.selectionTuple
     in
-    div ([ id settings.id, class (classPrefix ++ "container"), class (classPrefix ++ "single") ] ++ attributes)
-        [ if List.length settings.presets > 0 then
-            div [ class (classPrefix ++ "presets-container") ]
-                (List.map
-                    (\preset ->
-                        case preset of
-                            PresetDate config ->
-                                viewPresetTab settings model.selectionTuple model.internalMsg config
-
-                            _ ->
-                                text ""
-                    )
-                    settings.presets
-                )
-
-          else
-            text ""
-        , div [ class (classPrefix ++ "picker-container") ]
-            [ div [ class (classPrefix ++ "calendar-container") ]
-                [ viewCalendarHeader settings model offsetTime
-                , viewMonth settings model offsetTime
+    viewContainer ([ id settings.id, class (classPrefix "single") ] ++ attributes)
+        [ viewPresets settings model
+        , viewPickerContainer []
+            [ viewCalendarContainer []
+                [ viewCalendarHeader
+                    { yearText = year
+                    , monthText = monthName
+                    , previousYearMsg = model.internalMsg <| PrevYear
+                    , previousMonthMsg = model.internalMsg <| PrevMonth
+                    , nextYearMsg = model.internalMsg <| NextYear
+                    , nextMonthMsg = model.internalMsg <| NextMonth
+                    , formattedDay = settings.formattedDay
+                    , firstWeekDay = settings.firstWeekDay
+                    , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
+                    }
+                , viewCalendarMonth
+                    { weeks = weeks
+                    , onMouseOutMsg = model.internalMsg ClearHoveredDay
+                    , calendarProps =
+                        { zone = settings.zone
+                        , currentMonth = currentMonth
+                        , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
+                        , focusedDay = focusedDay
+                        , pickedDay = pickedDay
+                        , onDayClickMsg = \day -> model.internalMsg (SetDay day)
+                        , onDayMouseOverMsg = \day -> model.internalMsg (SetHoveredDay day)
+                        }
+                    }
                 ]
             , viewFooter settings timePickerVisible baseDay model
             ]
         ]
 
 
-viewPresetTab : Settings -> Maybe ( PickerDay, Posix ) -> (Msg -> msg) -> PresetDateConfig -> Html msg
-viewPresetTab settings selectionTuple internalMsg presetDate =
-    let
-        activeClass =
-            if isPresetDateActive settings selectionTuple presetDate then
-                classPrefix ++ "active"
+viewPresets : Settings -> Model msg -> Html msg
+viewPresets settings model =
+    if List.length settings.presets > 0 then
+        viewPresetsContainer []
+            (List.map
+                (\preset ->
+                    case preset of
+                        PresetDate config ->
+                            viewPresetTab []
+                                { title = config.title
+                                , active = isPresetDateActive settings model.selectionTuple config
+                                , onClickMsg = model.internalMsg (SetPresetDate config)
+                                }
 
-            else
-                ""
-    in
-    div
-        [ class (classPrefix ++ "preset")
-        , class activeClass
-        , onClick <| internalMsg (SetPresetDate presetDate)
-        ]
-        [ text presetDate.title
-        ]
-
-
-viewCalendarHeader : Settings -> Model msg -> Posix -> Html msg
-viewCalendarHeader settings model time =
-    let
-        monthName =
-            Time.toMonth settings.zone time |> settings.formattedMonth
-
-        year =
-            Time.toYear settings.zone time |> String.fromInt
-    in
-    div
-        [ class (classPrefix ++ "calendar-header") ]
-        [ div [ class (classPrefix ++ "calendar-header-row") ]
-            [ div [ class (classPrefix ++ "calendar-header-navigation") ]
-                [ div
-                    [ id "previous-year"
-                    , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| model.internalMsg <| PrevYear
-                    ]
-                    [ Icons.chevronsLeft
-                        |> Icons.withSize 16
-                        |> Icons.toHtml []
-                    ]
-                , div
-                    [ id "previous-month"
-                    , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| model.internalMsg <| PrevMonth
-                    ]
-                    [ Icons.chevronLeft
-                        |> Icons.withSize 16
-                        |> Icons.toHtml []
-                    ]
-                ]
-            , div
-                [ class (classPrefix ++ "calendar-header-text") ]
-                [ div []
-                    [ span [ id "month" ] [ text monthName ]
-                    , span [] [ text " " ]
-                    , span [ id "year" ] [ text year ]
-                    ]
-                ]
-            , div [ class (classPrefix ++ "calendar-header-navigation") ]
-                [ div
-                    [ id "next-month"
-                    , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| model.internalMsg <| NextMonth
-                    ]
-                    [ Icons.chevronRight
-                        |> Icons.withSize 16
-                        |> Icons.toHtml []
-                    ]
-                , div
-                    [ id "next-year"
-                    , class (classPrefix ++ "calendar-header-chevron")
-                    , onClick <| model.internalMsg <| NextYear
-                    ]
-                    [ Icons.chevronsRight
-                        |> Icons.withSize 16
-                        |> Icons.toHtml []
-                    ]
-                ]
-            ]
-        , viewWeekHeader settings
-        ]
-
-
-viewWeekHeader : Settings -> Html msg
-viewWeekHeader settings =
-    div
-        [ class (classPrefix ++ "calendar-header-week") ]
-        ((if settings.showCalendarWeekNumbers then
-            div [ class (classPrefix ++ "calendar-header-week-number") ] [ text "W" ]
-
-          else
-            text ""
-         )
-            :: List.map (viewHeaderDay settings.formattedDay) (Utilities.generateListOfWeekDay settings.firstWeekDay)
-        )
-
-
-viewHeaderDay : (Weekday -> String) -> Weekday -> Html msg
-viewHeaderDay formatDay day =
-    div
-        [ class (classPrefix ++ "calendar-header-day") ]
-        [ text (formatDay day) ]
-
-
-viewMonth : Settings -> Model msg -> Posix -> Html msg
-viewMonth settings model viewTime =
-    let
-        allowedTimesOfDayFn =
-            Maybe.map .allowedTimesOfDay (getTimePickerSettings settings)
-
-        weeks =
-            Utilities.monthData settings.zone settings.isDayDisabled settings.firstWeekDay allowedTimesOfDayFn viewTime
-
-        currentMonth =
-            Time.posixToParts settings.zone viewTime |> .month
-    in
-    div
-        [ class (classPrefix ++ "calendar-month"), onMouseOut <| model.internalMsg ClearHoveredDay ]
-        [ div [] (List.map (viewWeek settings currentMonth model) weeks)
-        ]
-
-
-viewWeek : Settings -> Month -> Model msg -> List PickerDay -> Html msg
-viewWeek settings currentMonth model week =
-    let
-        firstDateOfWeek =
-            Maybe.map
-                (\day ->
-                    Date.fromPosix settings.zone day.start
+                        _ ->
+                            text ""
                 )
-                (List.head week)
+                settings.presets
+            )
 
-        dateWeekNumber =
-            case firstDateOfWeek of
-                Just date ->
-                    String.fromInt (Date.weekNumber date)
-
-                Nothing ->
-                    ""
-    in
-    div [ class (classPrefix ++ "calendar-week") ]
-        ((if settings.showCalendarWeekNumbers then
-            div [ class (classPrefix ++ "calendar-week-number") ] [ text dateWeekNumber ]
-
-          else
-            text ""
-         )
-            :: List.map (viewDay settings model currentMonth) week
-        )
-
-
-viewDay : Settings -> Model msg -> Month -> PickerDay -> Html msg
-viewDay settings model currentMonth day =
-    let
-        dayParts =
-            Time.posixToParts settings.zone day.start
-
-        isFocused =
-            Maybe.map (\fday -> generatePickerDay settings fday == day) settings.focusedDate
-                |> Maybe.withDefault False
-
-        isPicked =
-            Maybe.map (\( pickerDay, _ ) -> pickerDay == day) model.selectionTuple
-                |> Maybe.withDefault False
-
-        dayClasses =
-            DatePicker.Styles.singleDayClasses classPrefix (dayParts.month /= currentMonth) day.disabled isPicked isFocused
-    in
-    button
-        [ type_ "button"
-        , disabled day.disabled
-        , class dayClasses
-        , onClick <| model.internalMsg (SetDay day)
-        , onMouseOver <| model.internalMsg (SetHoveredDay day)
-        ]
-        [ text (String.fromInt dayParts.day) ]
+    else
+        text ""
 
 
 viewFooter : Settings -> Bool -> PickerDay -> Model msg -> Html msg
@@ -570,131 +428,38 @@ viewFooter settings timePickerVisible baseDay model =
         displayTime =
             determineDateTime settings.zone model.selectionTuple model.hovered
     in
-    div [ class (classPrefix ++ "footer") ]
+    viewFooterContainer []
         [ case displayTime of
             Nothing ->
                 viewEmpty
 
             Just ( _, selection ) ->
-                viewDateOrDateTime settings timePickerVisible baseDay model selection
+                let
+                    dateTimeString =
+                        settings.dateStringFn settings.zone selection
+                in
+                viewFooterBody
+                    { timePickerProps =
+                        { zone = settings.zone
+                        , baseDay = baseDay
+                        , selectionTuple = displayTime
+                        , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map SetHour targetValueIntParse)
+                        , onMinuteChangeDecoder = Decode.map model.internalMsg (Decode.map SetMinute targetValueIntParse)
+                        }
+                    , isTimePickerVisible = timePickerVisible
+                    , timePickerVisibility = settings.timePickerVisibility
+                    , selection = selection
+                    , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
+                    , dateTimeString = dateTimeString
+                    }
         ]
 
 
-viewDateOrDateTime : Settings -> Bool -> PickerDay -> Model msg -> Posix -> Html msg
-viewDateOrDateTime settings timePickerVisible baseDay model selection =
-    Maybe.map
-        (\timePickerSettings ->
-            if settings.timePickerVisibility == NeverVisible && timeIsStartOfDay settings selection then
-                viewDate settings selection
 
-            else
-                viewDateTime settings timePickerVisible baseDay model selection timePickerSettings
-        )
-        (getTimePickerSettings settings)
-        |> Maybe.withDefault (viewDate settings selection)
-
-
-viewEmpty : Html msg
-viewEmpty =
-    div [ class (classPrefix ++ "footer-empty") ]
-        [ text "––.––.––––" ]
-
-
-viewDateTime : Settings -> Bool -> PickerDay -> Model msg -> Posix -> TimePickerSettings -> Html msg
-viewDateTime settings timePickerVisible baseDay model selection timePickerSettings =
-    div [ class (classPrefix ++ "footer-datetime-container") ]
-        [ viewDate settings selection
-        , viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePickerSettings
-        ]
-
-
-viewTimeOrTimePicker : Settings -> Bool -> PickerDay -> Model msg -> Posix -> TimePickerSettings -> Html msg
-viewTimeOrTimePicker settings timePickerVisible baseDay model selection timePickerSettings =
-    let
-        displayTime =
-            determineDateTime settings.zone model.selectionTuple model.hovered
-    in
-    case settings.timePickerVisibility of
-        NeverVisible ->
-            text ""
-
-        Toggleable _ ->
-            let
-                ( viewToggleView, toggleIcon ) =
-                    if timePickerVisible then
-                        ( viewTimePicker settings model baseDay displayTime, Icons.check )
-
-                    else
-                        ( text (timePickerSettings.timeStringFn settings.zone selection), Icons.edit )
-            in
-            div [ class (classPrefix ++ "selection-time") ]
-                [ Icons.clock
-                    |> Icons.withSize 16
-                    |> Icons.toHtml []
-                , viewToggleView
-                , div [ class (classPrefix ++ "time-picker-toggle"), onClick <| model.internalMsg ToggleTimePickerVisibility ]
-                    [ toggleIcon
-                        |> Icons.withSize 16
-                        |> Icons.toHtml []
-                    ]
-                ]
-
-        AlwaysVisible _ ->
-            div [ class (classPrefix ++ "selection-time") ]
-                [ Icons.clock
-                    |> Icons.withSize 16
-                    |> Icons.toHtml []
-                , viewTimePicker settings model baseDay displayTime
-                ]
-
-
-timeIsStartOfDay : Settings -> Posix -> Bool
-timeIsStartOfDay settings time =
-    let
-        { hour, minute } =
-            Time.posixToParts settings.zone time
-    in
-    hour == 0 && minute == 0
-
-
-viewDate : Settings -> Posix -> Html msg
-viewDate settings dateTime =
-    span [ class (classPrefix ++ "selection-date") ]
-        [ Icons.calendar
-            |> Icons.withSize 16
-            |> Icons.toHtml []
-        , text (settings.dateStringFn settings.zone dateTime)
-        ]
-
-
-viewTimePicker : Settings -> Model msg -> PickerDay -> Maybe ( PickerDay, Posix ) -> Html msg
-viewTimePicker settings model baseDay selectionTuple =
-    let
-        { selectableHours, selectableMinutes } =
-            SingleUtilities.filterSelectableTimes settings.zone baseDay selectionTuple
-    in
-    div
-        [ class (classPrefix ++ "time-picker") ]
-        [ div [ class (classPrefix ++ "select-container") ]
-            -- Eventually we would like to use onInput instead of a custom on "change".
-            --
-            -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
-            -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ viewSelect [ id "hour-select", on "change" (Decode.map model.internalMsg (Decode.map SetHour targetValueIntParse)) ]
-                (Utilities.generateHourOptions settings.zone selectionTuple selectableHours)
-            , div [ class (classPrefix ++ "select-spacer") ] [ text ":" ]
-            , viewSelect
-                [ id "minute-select", on "change" (Decode.map model.internalMsg (Decode.map SetMinute targetValueIntParse)) ]
-                (Utilities.generateMinuteOptions settings.zone selectionTuple selectableMinutes)
-            ]
-        ]
-
-
-viewSelect : List (Html.Attribute msg) -> List (Html msg) -> Html msg
-viewSelect attributes content =
-    div [ class (classPrefix ++ "select") ]
-        [ select attributes content
-        , Icons.chevronDown
-            |> Icons.withSize 16
-            |> Icons.toHtml []
-        ]
+-- timeIsStartOfDay : Settings -> Posix -> Bool
+-- timeIsStartOfDay settings time =
+--     let
+--         { hour, minute } =
+--             Time.posixToParts settings.zone time
+--     in
+--     hour == 0 && minute == 0

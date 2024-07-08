@@ -380,18 +380,12 @@ view settings (DatePicker model) =
         ( InsideHierarchy, Open timePickerVisible baseDay ) ->
             viewPicker [] settings timePickerVisible baseDay model
 
-        ( OutsideHierarchy { triggerDomElement, pickerDomElement }, Open timePickerVisible baseDay ) ->
-            let
-                attributes =
-                    case ( triggerDomElement.element, pickerDomElement.element ) of
-                        ( Just triggerEl, Just pickerEl ) ->
-                            Utilities.calculatePositionStyles { triggerEl = triggerEl, pickerEl = pickerEl }
-
-                        _ ->
-                            -- hide picker element until the DOM elements have been found and the positions have been calculated correctly
-                            [ style "visibility" "hidden" ]
-            in
-            viewPicker attributes settings timePickerVisible baseDay model
+        ( OutsideHierarchy elements, Open timePickerVisible baseDay ) ->
+            viewPicker (Utilities.outsideHierarchyStyles elements)
+                settings
+                timePickerVisible
+                baseDay
+                model
 
         _ ->
             text ""

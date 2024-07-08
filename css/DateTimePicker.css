@@ -300,7 +300,7 @@
 .elm-datetimepicker--single
 .elm-datetimepicker--footer-datetime-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     width: 100%;
 }
 
@@ -364,14 +364,17 @@
 }
 
 .elm-datetimepicker--selection-date {
-    display: inline-flex;
+    display: flex;
+    flex-shrink: 0;
     align-items: center;
     gap: 0.5rem;
     min-height: var(--edtp-icon-button-size);
 }
 
 .elm-datetimepicker--selection-time {
-    display: inline-flex;
+    display: flex;
+    justify-content: flex-end;
+    flex-grow: 1;
     align-items: center;
     gap: 0.5rem;
 }

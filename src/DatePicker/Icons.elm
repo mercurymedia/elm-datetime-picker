@@ -1,4 +1,4 @@
-module DatePicker.Icons exposing (arrowRight, calendar, check, chevronDown, chevronLeft, chevronRight, chevronUp, chevronsLeft, chevronsRight, clock, edit, toHtml, withSize)
+module DatePicker.Icons exposing (Icon(..), arrowRight, calendar, check, chevronDown, chevronLeft, chevronRight, chevronUp, chevronsLeft, chevronsRight, clock, edit, toHtml, withSize)
 
 import Html exposing (Html)
 import Svg exposing (Svg, svg)

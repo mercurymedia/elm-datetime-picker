@@ -4,7 +4,7 @@ module DatePicker.Utilities exposing
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
     , calculateCoordinates
-    , clickedOutsidePicker, showHoveredIfEnabled, updateDomElements
+    , clickedOutsidePicker, outsideHierarchyStyles, showHoveredIfEnabled, updateDomElements
     )
 
 {-| Utility functions for both Pickers.
@@ -294,6 +294,17 @@ calculateCoordinates { viewPortWidth, viewPortHeight, triggerX, triggerY, trigge
                 triggerY + triggerHeight
     in
     { x = posX, y = posY }
+
+
+outsideHierarchyStyles : { triggerDomElement : DomElement, pickerDomElement : DomElement } -> List (Html.Attribute msg)
+outsideHierarchyStyles { triggerDomElement, pickerDomElement } =
+    case ( triggerDomElement.element, pickerDomElement.element ) of
+        ( Just triggerElement, Just pickerElement ) ->
+            calculatePositionStyles { triggerEl = triggerElement, pickerEl = pickerElement }
+
+        _ ->
+            -- hide picker element until the DOM elements have been found and the positions have been calculated correctly
+            [ style "visibility" "hidden" ]
 
 
 {-| Generate a list of Html `option`s representing
