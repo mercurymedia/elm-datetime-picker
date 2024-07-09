@@ -295,22 +295,11 @@
 }
 
 .elm-datetimepicker--footer-datetime-container {
-}
-
-.elm-datetimepicker--single
-.elm-datetimepicker--footer-datetime-container {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-}
-
-.elm-datetimepicker--duration
-.elm-datetimepicker--footer-datetime-container {
     flex: 1;
     display: flex;
     justify-content: center;
-    gap: 1rem;
     align-items: center;
+    gap: 1rem;
 }
 
 .elm-datetimepicker--time-picker-toggle {
@@ -365,7 +354,6 @@
 
 .elm-datetimepicker--selection-date {
     display: flex;
-    flex-shrink: 0;
     align-items: center;
     gap: 0.5rem;
     min-height: var(--edtp-icon-button-size);
@@ -374,7 +362,6 @@
 .elm-datetimepicker--selection-time {
     display: flex;
     justify-content: flex-end;
-    flex-grow: 1;
     align-items: center;
     gap: 0.5rem;
 }

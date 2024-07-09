@@ -33,6 +33,7 @@ import Browser.Dom as Dom
 import Browser.Events
 import DatePicker.Settings exposing (..)
 import DatePicker.SingleUtilities as SingleUtilities
+import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html, text)
@@ -358,11 +359,25 @@ viewPicker attributes settings timePickerVisible baseDay model =
         currentMonth =
             Time.posixToParts settings.zone offsetTime |> .month
 
-        focusedDay =
-            Maybe.map (\fday -> generatePickerDay settings fday) settings.focusedDate
+        dayClassesFn =
+            \day ->
+                let
+                    dayParts =
+                        Time.posixToParts settings.zone day.start
 
-        pickedDay =
-            Maybe.map (\( pickerDay, _ ) -> pickerDay) model.selectionTuple
+                    isPicked =
+                        Maybe.map (\( pickerDay, _ ) -> pickerDay == day) model.selectionTuple
+                            |> Maybe.withDefault False
+
+                    isFocused =
+                        Maybe.map (\fday -> generatePickerDay settings fday == day) settings.focusedDate
+                            |> Maybe.withDefault False
+                in
+                DatePicker.Styles.singleDayClasses prefix
+                    (dayParts.month /= currentMonth)
+                    day.disabled
+                    isPicked
+                    isFocused
     in
     viewContainer ([ id settings.id, class (classPrefix "single") ] ++ attributes)
         [ viewPresets settings model
@@ -382,12 +397,10 @@ viewPicker attributes settings timePickerVisible baseDay model =
                 , viewCalendarMonth
                     { weeks = weeks
                     , onMouseOutMsg = model.internalMsg ClearHoveredDay
-                    , calendarProps =
-                        { zone = settings.zone
-                        , currentMonth = currentMonth
-                        , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
-                        , focusedDay = focusedDay
-                        , pickedDay = pickedDay
+                    , zone = settings.zone
+                    , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
+                    , dayProps =
+                        { dayClassesFn = dayClassesFn
                         , onDayClickMsg = \day -> model.internalMsg (SetDay day)
                         , onDayMouseOverMsg = \day -> model.internalMsg (SetHoveredDay day)
                         }
@@ -427,6 +440,9 @@ viewFooter settings timePickerVisible baseDay model =
     let
         displayTime =
             determineDateTime settings.zone model.selectionTuple model.hovered
+
+        { selectableHours, selectableMinutes } =
+            SingleUtilities.filterSelectableTimes settings.zone baseDay model.selectionTuple
     in
     viewFooterContainer []
         [ case displayTime of
@@ -441,10 +457,11 @@ viewFooter settings timePickerVisible baseDay model =
                 viewFooterBody
                     { timePickerProps =
                         { zone = settings.zone
-                        , baseDay = baseDay
                         , selectionTuple = displayTime
                         , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map SetHour targetValueIntParse)
                         , onMinuteChangeDecoder = Decode.map model.internalMsg (Decode.map SetMinute targetValueIntParse)
+                        , selectableHours = selectableHours
+                        , selectableMinutes = selectableMinutes
                         }
                     , isTimePickerVisible = timePickerVisible
                     , timePickerVisibility = settings.timePickerVisibility

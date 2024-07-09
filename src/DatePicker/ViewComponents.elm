@@ -3,8 +3,6 @@ module DatePicker.ViewComponents exposing (..)
 import Date
 import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (..)
-import DatePicker.SingleUtilities as SingleUtilities
-import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import Html exposing (Html, button, div, select, span, text)
 import Html.Attributes exposing (class, classList, disabled, id, type_)
@@ -210,34 +208,49 @@ viewHeaderDay formatDay day =
 
 {-| Calendar Body Components
 -}
-type alias CalendarBodyProps msg =
+type alias CalendarMonthProps msg =
     { zone : Zone
-    , currentMonth : Month
     , showCalendarWeekNumbers : Bool
-    , focusedDay : Maybe PickerDay
-    , pickedDay : Maybe PickerDay
-    , onDayClickMsg : PickerDay -> msg
-    , onDayMouseOverMsg : PickerDay -> msg
-    }
-
-
-type alias MonthProps msg =
-    { weeks : List (List PickerDay)
+    , weeks : List (List PickerDay)
     , onMouseOutMsg : msg
-    , calendarProps : CalendarBodyProps msg
+    , dayProps : DayProps msg
     }
 
 
-viewCalendarMonth : MonthProps msg -> Html msg
-viewCalendarMonth { weeks, onMouseOutMsg, calendarProps } =
+type alias CalendarWeekProps msg =
+    { zone : Zone
+    , showCalendarWeekNumbers : Bool
+    , dayProps : DayProps msg
+    , week : List PickerDay
+    }
+
+
+type alias CalendarDayProps msg =
+    { zone : Zone
+    , day : PickerDay
+    , dayProps : DayProps msg
+    }
+
+
+type alias DayProps msg =
+    { onDayClickMsg : PickerDay -> msg
+    , onDayMouseOverMsg : PickerDay -> msg
+    , dayClassesFn : PickerDay -> String
+    }
+
+
+viewCalendarMonth : CalendarMonthProps msg -> Html msg
+viewCalendarMonth { weeks, onMouseOutMsg, dayProps, showCalendarWeekNumbers, zone } =
     div
         [ class (classPrefix "calendar-month"), onMouseOut onMouseOutMsg ]
         [ div []
             (List.map
                 (\week ->
-                    viewWeek
+                    viewCalendarWeek
                         { week = week
-                        , calendarProps = calendarProps
+                        , dayProps = dayProps
+                        , showCalendarWeekNumbers = showCalendarWeekNumbers
+                        , zone = zone
                         }
                 )
                 weeks
@@ -245,19 +258,13 @@ viewCalendarMonth { weeks, onMouseOutMsg, calendarProps } =
         ]
 
 
-type alias WeekProps msg =
-    { week : List PickerDay
-    , calendarProps : CalendarBodyProps msg
-    }
-
-
-viewWeek : WeekProps msg -> Html msg
-viewWeek { week, calendarProps } =
+viewCalendarWeek : CalendarWeekProps msg -> Html msg
+viewCalendarWeek { week, zone, showCalendarWeekNumbers, dayProps } =
     let
         firstDateOfWeek =
             Maybe.map
                 (\day ->
-                    Date.fromPosix calendarProps.zone day.start
+                    Date.fromPosix zone day.start
                 )
                 (List.head week)
 
@@ -270,7 +277,7 @@ viewWeek { week, calendarProps } =
                     ""
     in
     div [ class (classPrefix "calendar-week") ]
-        ((if calendarProps.showCalendarWeekNumbers then
+        ((if showCalendarWeekNumbers then
             div [ class (classPrefix "calendar-week-number") ]
                 [ text dateWeekNumber ]
 
@@ -279,45 +286,24 @@ viewWeek { week, calendarProps } =
          )
             :: List.map
                 (\day ->
-                    viewDay { day = day, calendarProps = calendarProps }
+                    viewDay { day = day, zone = zone, dayProps = dayProps }
                 )
                 week
         )
 
 
-type alias DayProps msg =
-    { day : PickerDay
-    , calendarProps : CalendarBodyProps msg
-    }
-
-
-viewDay : DayProps msg -> Html msg
-viewDay { day, calendarProps } =
+viewDay : CalendarDayProps msg -> Html msg
+viewDay { zone, dayProps, day } =
     let
         dayParts =
-            Time.posixToParts calendarProps.zone day.start
-
-        isFocused =
-            Maybe.map (\fday -> fday == day) calendarProps.focusedDay
-                |> Maybe.withDefault False
-
-        isPicked =
-            Maybe.map (\pday -> pday == day) calendarProps.pickedDay
-                |> Maybe.withDefault False
-
-        dayClasses =
-            DatePicker.Styles.singleDayClasses prefix
-                (dayParts.month /= calendarProps.currentMonth)
-                day.disabled
-                isPicked
-                isFocused
+            Time.posixToParts zone day.start
     in
     button
         [ type_ "button"
         , disabled day.disabled
-        , class dayClasses
-        , onClick (calendarProps.onDayClickMsg day)
-        , onMouseOver (calendarProps.onDayMouseOverMsg day)
+        , class (dayProps.dayClassesFn day)
+        , onClick (dayProps.onDayClickMsg day)
+        , onMouseOver (dayProps.onDayMouseOverMsg day)
         ]
         [ text (String.fromInt dayParts.day) ]
 
@@ -399,19 +385,16 @@ viewFooterBody { timePickerProps, isTimePickerVisible, timePickerVisibility, sel
 
 type alias TimePickerProps msg =
     { zone : Zone
-    , baseDay : PickerDay
     , selectionTuple : Maybe ( PickerDay, Posix )
     , onHourChangeDecoder : Decode.Decoder msg
     , onMinuteChangeDecoder : Decode.Decoder msg
+    , selectableHours : List Int
+    , selectableMinutes : List Int
     }
 
 
 viewTimePicker : TimePickerProps msg -> Html msg
-viewTimePicker { zone, baseDay, selectionTuple, onHourChangeDecoder, onMinuteChangeDecoder } =
-    let
-        { selectableHours, selectableMinutes } =
-            SingleUtilities.filterSelectableTimes zone baseDay selectionTuple
-    in
+viewTimePicker { zone, selectionTuple, onHourChangeDecoder, onMinuteChangeDecoder, selectableHours, selectableMinutes } =
     div
         [ class (classPrefix "time-picker") ]
         [ div [ class (classPrefix "select-container") ]
