@@ -1,6 +1,7 @@
 .elm-datetimepicker--container {
     background-color: var(--edtp-container-background-color);
     position: absolute;
+    z-index: var(--edtp-container-z-index);
     color: var(--edtp-container-color);
     font-size: var(--edtp-font-size);
     border-radius: var(--edtp-border-radius-lg);
@@ -15,12 +16,13 @@
     background-color: var(--edtp-preset-container-background-color);
     display: flex;
     flex-direction: column;
-    width: 150px;
+    width: var(--edtp-preset-container-width);
     flex-shrink: 0;
 }
 
 .elm-datetimepicker--preset {
     padding: 0.65rem 0.75rem;
+    line-height: 1;
     color: var(--edtp-preset-color);
     background-color: var(--edtp-preset-background-color);
     cursor: pointer;
@@ -42,6 +44,9 @@
 
 .elm-datetimepicker--picker-container {
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .elm-datetimepicker--duration 

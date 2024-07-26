@@ -191,21 +191,46 @@ calculatePositionStyles { triggerEl, pickerEl } =
         ( pickerWidth, pickerHeight ) =
             ( pickerEl.element.width, pickerEl.element.height )
 
+        minOffset =
+            10
+
+        alignRightOfTrigger =
+            triggerX + triggerWidth - pickerWidth
+
+        alignLeftOfTrigger =
+            triggerX
+
+        alignCenterOfTrigger =
+            triggerX + triggerWidth / 2 - pickerWidth / 2
+
         posX =
-            if (triggerX + pickerWidth) > viewPortWidth then
-                triggerX + triggerWidth - pickerWidth
+            if (triggerX + pickerWidth) <= (viewPortWidth - minOffset) then
+                -- 1. align left
+                alignLeftOfTrigger
+
+            else if alignRightOfTrigger >= minOffset then
+                -- 2. align right
+                alignRightOfTrigger
+
+            else if alignCenterOfTrigger >= minOffset then
+                -- 3. align center
+                alignCenterOfTrigger
 
             else
-                triggerX
+                -- 4. align to viewport
+                minOffset
 
         posY =
             if (triggerY + triggerHeight + pickerHeight) > viewPortHeight then
+                -- align top
                 triggerY + triggerHeight - pickerHeight
 
             else
+                -- align bottom
                 triggerY + triggerHeight
     in
-    [ style "left" (String.fromFloat posX ++ "px")
+    [ style "position" "fixed"
+    , style "left" (String.fromFloat posX ++ "px")
     , style "top" (String.fromFloat posY ++ "px")
     ]
 

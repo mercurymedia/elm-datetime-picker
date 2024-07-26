@@ -3,7 +3,7 @@
     "name": "mercurymedia/elm-datetime-picker",
     "summary": "a datetime picker component",
     "license": "MIT",
-    "version": "9.0.0",
+    "version": "9.0.1",
     "exposed-modules": [
         "DurationDatePicker",
         "SingleDatePicker"
