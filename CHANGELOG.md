@@ -2,6 +2,13 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [9.0.1]
+
+### **CHANGED**
+- Improved positioning of datepickers opened outside hierarchy. Based on the viewport size and position of the trigger element the datepicker popover will be aligned in a predefined priority: 1. align left of trigger element, 2. align right of trigger element, 3. align center of trigger element, 4. align left of viewport
+- Fix a few general styles for new presets
+
+
 ## [9.0.0]
 
 ### **ADDED**

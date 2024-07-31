@@ -13,6 +13,7 @@
 
     --edtp-container-color: #22292f;
     --edtp-container-background-color: #fff;
+    --edtp-container-z-index: 100;
 
     --edtp-header-text-color: #22292f;
     --edtp-header-chevron-color: #22292f;
@@ -33,6 +34,7 @@
     --edtp-day-today-color: #3490dc;
     --edtp-day-today-background-color: transparent;
 
+    --edtp-preset-container-width: 150px;
     --edtp-preset-container-border-width: 1px;
     --edtp-preset-container-border-color: #a0aec0;
     --edtp-preset-container-background-color: transparent;

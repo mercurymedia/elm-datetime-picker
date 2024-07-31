@@ -2,10 +2,10 @@
   "repository": {},
   "license": "MIT",
   "scripts": {
-    "test": "elm-test tests"
+    "test": "elm-test"
   },
   "dependencies": {},
   "devDependencies": {
-    "elm-test": "^0.19.1"
+    "elm-test": "^0.19.1-revision12"
   }
 }

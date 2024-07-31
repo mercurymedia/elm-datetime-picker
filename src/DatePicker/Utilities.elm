@@ -3,6 +3,7 @@ module DatePicker.Utilities exposing
     , pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
+    , calculateCoordinates
     )
 
 {-| Utility functions for both Pickers.
@@ -26,6 +27,11 @@ module DatePicker.Utilities exposing
 # Queries
 
 @docs calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
+
+
+# Test
+
+@docs calculateCoordinates
 
 -}
 
@@ -191,23 +197,78 @@ calculatePositionStyles { triggerEl, pickerEl } =
         ( pickerWidth, pickerHeight ) =
             ( pickerEl.element.width, pickerEl.element.height )
 
+        coords =
+            calculateCoordinates
+                { viewPortWidth = viewPortWidth
+                , viewPortHeight = viewPortHeight
+                , triggerX = triggerX
+                , triggerY = triggerY
+                , triggerWidth = triggerWidth
+                , triggerHeight = triggerHeight
+                , pickerWidth = pickerWidth
+                , pickerHeight = pickerHeight
+                }
+    in
+    [ style "position" "fixed"
+    , style "left" (String.fromFloat coords.x ++ "px")
+    , style "top" (String.fromFloat coords.y ++ "px")
+    ]
+
+
+type alias CalculateCoordinates =
+    { viewPortWidth : Float
+    , viewPortHeight : Float
+    , triggerX : Float
+    , triggerY : Float
+    , triggerWidth : Float
+    , triggerHeight : Float
+    , pickerWidth : Float
+    , pickerHeight : Float
+    }
+
+
+calculateCoordinates : CalculateCoordinates -> { x : Float, y : Float }
+calculateCoordinates { viewPortWidth, viewPortHeight, triggerX, triggerY, triggerWidth, triggerHeight, pickerWidth, pickerHeight } =
+    let
+        minOffset =
+            10
+
+        alignRightOfTrigger =
+            triggerX + triggerWidth - pickerWidth
+
+        alignLeftOfTrigger =
+            triggerX
+
+        alignCenterOfTrigger =
+            triggerX + triggerWidth / 2 - pickerWidth / 2
+
         posX =
-            if (triggerX + pickerWidth) > viewPortWidth then
-                triggerX + triggerWidth - pickerWidth
+            if (triggerX + pickerWidth) <= (viewPortWidth - minOffset) then
+                -- 1. align left
+                alignLeftOfTrigger
+
+            else if alignRightOfTrigger >= minOffset then
+                -- 2. align right
+                alignRightOfTrigger
+
+            else if alignCenterOfTrigger >= minOffset then
+                -- 3. align center
+                alignCenterOfTrigger
 
             else
-                triggerX
+                -- 4. align to viewport
+                minOffset
 
         posY =
             if (triggerY + triggerHeight + pickerHeight) > viewPortHeight then
-                triggerY + triggerHeight - pickerHeight
+                -- align top
+                triggerY - pickerHeight
 
             else
+                -- align bottom
                 triggerY + triggerHeight
     in
-    [ style "left" (String.fromFloat posX ++ "px")
-    , style "top" (String.fromFloat posY ++ "px")
-    ]
+    { x = posX, y = posY }
 
 
 {-| Generate a list of Html `option`s representing
