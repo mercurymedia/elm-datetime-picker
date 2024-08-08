@@ -19,7 +19,8 @@
         "elm-community/html-extra": "3.4.0 <= v < 4.0.0",
         "elm-community/list-extra": "8.7.0 <= v < 9.0.0",
         "justinmimbs/date": "4.1.0 <= v < 5.0.0",
-        "justinmimbs/time-extra": "1.2.0 <= v < 2.0.0"
+        "justinmimbs/time-extra": "1.2.0 <= v < 2.0.0",
+        "rtfeldman/elm-css": "18.0.0 <= v < 19.0.0"
     },
     "test-dependencies": {
         "elm-explorations/test": "2.2.0 <= v < 3.0.0"

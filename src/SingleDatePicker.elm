@@ -29,6 +29,8 @@ module SingleDatePicker exposing
 
 -}
 
+-- import Html exposing (Html, text)
+
 import Browser.Dom as Dom
 import Browser.Events
 import DatePicker.Settings exposing (..)
@@ -36,9 +38,10 @@ import DatePicker.SingleUtilities as SingleUtilities
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import DatePicker.ViewComponents exposing (..)
-import Html exposing (Html, text)
-import Html.Attributes exposing (class, id)
+import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
+import Html.Styled exposing (text, toUnstyled)
+import Html.Styled.Attributes exposing (id)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -323,6 +326,12 @@ and the date picker instance you wish to view.
 -}
 view : Settings -> DatePicker msg -> Html msg
 view settings (DatePicker model) =
+    viewStyled settings (DatePicker model)
+        |> toUnstyled
+
+
+viewStyled : Settings -> DatePicker msg -> Html.Styled.Html msg
+viewStyled settings (DatePicker model) =
     case ( model.domLocation, model.status ) of
         ( InsideHierarchy, Open timePickerVisible baseDay ) ->
             viewPicker [] settings timePickerVisible baseDay model
@@ -338,7 +347,7 @@ view settings (DatePicker model) =
             text ""
 
 
-viewPicker : List (Html.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html msg
+viewPicker : List (Html.Styled.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html.Styled.Html msg
 viewPicker attributes settings timePickerVisible baseDay model =
     let
         offsetTime =
@@ -379,11 +388,14 @@ viewPicker attributes settings timePickerVisible baseDay model =
                     isPicked
                     isFocused
     in
-    viewContainer ([ id settings.id, class (classPrefix "single") ] ++ attributes)
+    viewContainer settings.theme
+        (id settings.id :: attributes)
         [ viewPresets settings model
-        , viewPickerContainer []
-            [ viewCalendarContainer []
-                [ viewCalendarHeader
+        , viewPickerContainer settings.theme
+            []
+            [ viewCalendarContainer settings.theme
+                []
+                [ viewCalendarHeader settings.theme
                     { yearText = year
                     , monthText = monthName
                     , previousYearMsg = model.internalMsg <| PrevYear
@@ -394,7 +406,7 @@ viewPicker attributes settings timePickerVisible baseDay model =
                     , firstWeekDay = settings.firstWeekDay
                     , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
                     }
-                , viewCalendarMonth
+                , viewCalendarMonth settings.theme
                     { weeks = weeks
                     , onMouseOutMsg = model.internalMsg ClearHoveredDay
                     , zone = settings.zone
@@ -411,15 +423,17 @@ viewPicker attributes settings timePickerVisible baseDay model =
         ]
 
 
-viewPresets : Settings -> Model msg -> Html msg
+viewPresets : Settings -> Model msg -> Html.Styled.Html msg
 viewPresets settings model =
     if List.length settings.presets > 0 then
-        viewPresetsContainer []
+        viewPresetsContainer settings.theme
+            []
             (List.map
                 (\preset ->
                     case preset of
                         PresetDate config ->
-                            viewPresetTab []
+                            viewPresetTab settings.theme
+                                []
                                 { title = config.title
                                 , active = isPresetDateActive settings model.selectionTuple config
                                 , onClickMsg = model.internalMsg (SetPresetDate config)
@@ -435,7 +449,7 @@ viewPresets settings model =
         text ""
 
 
-viewFooter : Settings -> Bool -> PickerDay -> Model msg -> Html msg
+viewFooter : Settings -> Bool -> PickerDay -> Model msg -> Html.Styled.Html msg
 viewFooter settings timePickerVisible baseDay model =
     let
         displayTime =
@@ -444,17 +458,18 @@ viewFooter settings timePickerVisible baseDay model =
         { selectableHours, selectableMinutes } =
             SingleUtilities.filterSelectableTimes settings.zone baseDay model.selectionTuple
     in
-    viewFooterContainer []
+    viewFooterContainer settings.theme
+        []
         [ case displayTime of
             Nothing ->
-                viewEmpty
+                viewEmpty settings.theme
 
             Just ( _, selection ) ->
                 let
                     dateTimeString =
                         settings.dateStringFn settings.zone selection
                 in
-                viewFooterBody
+                viewFooterBody settings.theme
                     { timePickerProps =
                         { zone = settings.zone
                         , selectionTuple = displayTime

@@ -1,5 +1,6 @@
 module DatePicker.Settings exposing (..)
 
+import Css
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
@@ -33,6 +34,7 @@ type alias Settings =
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
     , presets : List Preset
+    , theme : Theme
     }
 
 
@@ -114,6 +116,95 @@ type alias PresetRangeConfig =
     }
 
 
+type alias Theme =
+    { fontSize :
+        { base : Css.Px
+        , sm : Css.Px
+        , xs : Css.Px
+        , xxs : Css.Px
+        }
+    , color :
+        { text :
+            { primary : Css.Color
+            , secondary : Css.Color
+            , disabled : Css.Color
+            }
+        , primary :
+            { main : Css.Color
+            , contrastText : Css.Color
+            }
+        , background :
+            { container : Css.Color
+            , footer : Css.Color
+            , presets : Css.Color
+            , weekNumbers : Css.Color
+            }
+        }
+    , size :
+        { presetsContainer : Css.Px
+        , day : Css.Px
+        }
+    , borderWidth : Css.Px
+    , borderRadius :
+        { base : Css.Px
+        , lg : Css.Px
+        }
+    , boxShadow :
+        { offsetX : Css.Px
+        , offsetY : Css.Px
+        , blurRadius : Css.Px
+        , spreadRadius : Css.Px
+        , color : Css.Color
+        }
+    , zIndex : Int
+    }
+
+
+defaultTheme : Theme
+defaultTheme =
+    { fontSize =
+        { base = Css.px 16
+        , sm = Css.px 14
+        , xs = Css.px 12
+        , xxs = Css.px 10
+        }
+    , color =
+        { text =
+            { primary = Css.hex "22292f"
+            , secondary = Css.hex "a0aec0"
+            , disabled = Css.hex "a0aec0"
+            }
+        , primary =
+            { main = Css.hex "3490dc"
+            , contrastText = Css.hex "ffffff"
+            }
+        , background =
+            { container = Css.hex "ffffff"
+            , footer = Css.hex "ffffff"
+            , presets = Css.hex "ffffff"
+            , weekNumbers = Css.hex "f1f5f8"
+            }
+        }
+    , size =
+        { presetsContainer = Css.px 150
+        , day = Css.px 36
+        }
+    , borderWidth = Css.px 1
+    , borderRadius =
+        { base = Css.px 3
+        , lg = Css.px 5
+        }
+    , boxShadow =
+        { offsetX = Css.px 0
+        , offsetY = Css.px 0
+        , blurRadius = Css.px 5
+        , spreadRadius = Css.px 0
+        , color = Css.rgba 0 0 0 0.25
+        }
+    , zIndex = 100
+    }
+
+
 {-| A record of default settings for the date picker. Extend this if
 you want to further customize the date picker.
 
@@ -137,6 +228,7 @@ defaultSettings zone =
     , timePickerVisibility = AlwaysVisible defaultTimePickerSettings
     , showCalendarWeekNumbers = False
     , presets = []
+    , theme = defaultTheme
     }
 
 

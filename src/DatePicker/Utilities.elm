@@ -37,8 +37,8 @@ module DatePicker.Utilities exposing
 -}
 
 import Browser.Dom as Dom
-import Html exposing (Html, option, text, th, time)
-import Html.Attributes exposing (disabled, selected, style, value)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (selected, style, value)
 import Json.Decode as Decode
 import List.Extra as List
 import Task
@@ -207,7 +207,7 @@ updateDomElements { triggerElementId, pickerElementId, onSuccess, onError } =
         (Task.sequence [ Dom.getElement triggerElementId, Dom.getElement pickerElementId ])
 
 
-calculatePositionStyles : { triggerEl : Dom.Element, pickerEl : Dom.Element } -> List (Html.Attribute msg)
+calculatePositionStyles : { triggerEl : Dom.Element, pickerEl : Dom.Element } -> List (Html.Styled.Attribute msg)
 calculatePositionStyles { triggerEl, pickerEl } =
     let
         ( viewPortWidth, viewPortHeight ) =
@@ -296,7 +296,7 @@ calculateCoordinates { viewPortWidth, viewPortHeight, triggerX, triggerY, trigge
     { x = posX, y = posY }
 
 
-outsideHierarchyStyles : { triggerDomElement : DomElement, pickerDomElement : DomElement } -> List (Html.Attribute msg)
+outsideHierarchyStyles : { triggerDomElement : DomElement, pickerDomElement : DomElement } -> List (Html.Styled.Attribute msg)
 outsideHierarchyStyles { triggerDomElement, pickerDomElement } =
     case ( triggerDomElement.element, pickerDomElement.element ) of
         ( Just triggerElement, Just pickerElement ) ->
@@ -311,7 +311,7 @@ outsideHierarchyStyles { triggerDomElement, pickerDomElement } =
 selectable hours based on the provided selectable hours
 list.
 -}
-generateHourOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html msg)
+generateHourOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html.Styled.Html msg)
 generateHourOptions zone selectionTuple selectableHours =
     let
         isSelected =
@@ -325,7 +325,7 @@ generateHourOptions zone selectionTuple selectableHours =
 selectable minutes based on the provided selectable minutes
 list.
 -}
-generateMinuteOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html msg)
+generateMinuteOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html.Styled.Html msg)
 generateMinuteOptions zone selectionTuple selectableMinutes =
     let
         isSelected =

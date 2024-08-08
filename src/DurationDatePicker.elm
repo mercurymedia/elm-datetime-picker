@@ -42,9 +42,10 @@ import DatePicker.Settings exposing (..)
 import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import DatePicker.ViewComponents exposing (..)
-import Html exposing (Html, div, text)
-import Html.Attributes exposing (class, id, start)
+import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
+import Html.Styled exposing (div, fromUnstyled, text, toUnstyled)
+import Html.Styled.Attributes exposing (class, id, start)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -366,6 +367,12 @@ and the date picker instance you wish to view.
 -}
 view : Settings -> DatePicker msg -> Html msg
 view settings (DatePicker model) =
+    viewStyled settings (DatePicker model)
+        |> toUnstyled
+
+
+viewStyled : Settings -> DatePicker msg -> Html.Styled.Html msg
+viewStyled settings (DatePicker model) =
     case ( model.domLocation, model.status ) of
         ( InsideHierarchy, Open timePickerVisible baseDay ) ->
             viewPicker [] settings timePickerVisible baseDay model
@@ -381,7 +388,7 @@ view settings (DatePicker model) =
             text ""
 
 
-viewPicker : List (Html.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html msg
+viewPicker : List (Html.Styled.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html.Styled.Html msg
 viewPicker attributes settings timePickerVisible baseDay model =
     let
         leftViewTime =
@@ -390,9 +397,11 @@ viewPicker attributes settings timePickerVisible baseDay model =
         rightViewTime =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
-    viewContainer ([ id settings.id, class (classPrefix ++ "duration") ] ++ attributes)
+    viewContainer settings.theme
+        ([ id settings.id, class (classPrefix ++ "duration") ] ++ attributes)
         [ viewPresets settings model
-        , viewPickerContainer []
+        , viewPickerContainer settings.theme
+            []
             [ div [ class (classPrefix ++ "calendars-container") ]
                 [ viewCalendar [ id "left-container" ] settings model leftViewTime
                 , viewCalendar [ id "right-container" ] settings model rightViewTime
@@ -402,15 +411,17 @@ viewPicker attributes settings timePickerVisible baseDay model =
         ]
 
 
-viewPresets : Settings -> Model msg -> Html msg
+viewPresets : Settings -> Model msg -> Html.Styled.Html msg
 viewPresets settings model =
     if List.length settings.presets > 0 then
-        viewPresetsContainer []
+        viewPresetsContainer settings.theme
+            []
             (List.map
                 (\preset ->
                     case preset of
                         PresetRange config ->
-                            viewPresetTab []
+                            viewPresetTab settings.theme
+                                []
                                 { title = config.title
                                 , active = isPresetRangeActive settings model.startSelectionTuple model.endSelectionTuple config
                                 , onClickMsg = model.internalMsg (SetPresetRange config)
@@ -426,7 +437,7 @@ viewPresets settings model =
         text ""
 
 
-viewCalendar : List (Html.Attribute msg) -> Settings -> Model msg -> Posix -> Html msg
+viewCalendar : List (Html.Styled.Attribute msg) -> Settings -> Model msg -> Posix -> Html.Styled.Html msg
 viewCalendar attrs settings model viewTime =
     let
         monthName =
@@ -467,8 +478,9 @@ viewCalendar attrs settings model viewTime =
                 in
                 dayClasses ++ " " ++ startOrEndClasses
     in
-    viewCalendarContainer attrs
-        [ viewCalendarHeader
+    viewCalendarContainer settings.theme
+        attrs
+        [ viewCalendarHeader settings.theme
             { yearText = year
             , monthText = monthName
             , previousYearMsg = model.internalMsg <| PrevYear
@@ -479,7 +491,7 @@ viewCalendar attrs settings model viewTime =
             , firstWeekDay = settings.firstWeekDay
             , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
             }
-        , viewCalendarMonth
+        , viewCalendarMonth settings.theme
             { weeks = weeks
             , onMouseOutMsg = model.internalMsg ClearHoveredDay
             , zone = settings.zone
@@ -493,7 +505,7 @@ viewCalendar attrs settings model viewTime =
         ]
 
 
-viewFooter : Settings -> Bool -> PickerDay -> Model msg -> Html msg
+viewFooter : Settings -> Bool -> PickerDay -> Model msg -> Html.Styled.Html msg
 viewFooter settings timePickerVisible baseDay model =
     let
         ( startSelectionTuple, endSelectionTuple ) =
@@ -510,7 +522,7 @@ viewFooter settings timePickerVisible baseDay model =
                         dateTimeString =
                             settings.dateStringFn settings.zone startSelection
                     in
-                    viewFooterBody
+                    viewFooterBody settings.theme
                         { timePickerProps =
                             { zone = settings.zone
                             , selectionTuple = startSelectionTuple
@@ -527,7 +539,7 @@ viewFooter settings timePickerVisible baseDay model =
                         }
 
                 Nothing ->
-                    viewEmpty
+                    viewEmpty settings.theme
             , viewDateTimesSeparator
             , case endSelectionTuple of
                 Just ( _, endSelection ) ->
@@ -535,7 +547,7 @@ viewFooter settings timePickerVisible baseDay model =
                         dateTimeString =
                             settings.dateStringFn settings.zone endSelection
                     in
-                    viewFooterBody
+                    viewFooterBody settings.theme
                         { timePickerProps =
                             { zone = settings.zone
                             , selectionTuple = endSelectionTuple
@@ -552,15 +564,16 @@ viewFooter settings timePickerVisible baseDay model =
                         }
 
                 Nothing ->
-                    viewEmpty
+                    viewEmpty settings.theme
             ]
         ]
 
 
-viewDateTimesSeparator : Html msg
+viewDateTimesSeparator : Html.Styled.Html msg
 viewDateTimesSeparator =
     div [ class (classPrefix ++ "footer-datetimes-separator") ]
         [ Icons.arrowRight
             |> Icons.withSize 16
             |> Icons.toHtml []
+            |> fromUnstyled
         ]

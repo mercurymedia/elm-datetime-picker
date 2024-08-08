@@ -1,15 +1,16 @@
 module DatePicker.ViewComponents exposing (..)
 
+import Css
 import Date
 import DatePicker.Icons as Icons
-import DatePicker.Settings exposing (..)
+import DatePicker.Settings exposing (Theme, TimePickerVisibility(..))
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
-import Html exposing (Html, button, div, select, span, text)
-import Html.Attributes exposing (class, classList, disabled, id, type_)
-import Html.Events exposing (on, onClick, onMouseOut, onMouseOver)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (class, classList, css, disabled, id, type_)
+import Html.Styled.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Json.Decode as Decode
 import List.Extra as List
-import Svg.Attributes exposing (direction)
+import Svg.Attributes exposing (direction, display, overflow)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -26,22 +27,40 @@ classPrefix class =
 
 {-| Container Component
 -}
-viewContainer : List (Html.Attribute msg) -> List (Html msg) -> Html msg
-viewContainer attributes children =
-    div (class (classPrefix "container") :: attributes)
+viewContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
+viewContainer theme attributes children =
+    Html.Styled.div
+        (css
+            [ Css.backgroundColor theme.color.background.container
+            , Css.zIndex (Css.int theme.zIndex)
+            , Css.color theme.color.text.primary
+            , Css.fontSize theme.fontSize.base
+            , Css.boxShadow5
+                theme.boxShadow.offsetX
+                theme.boxShadow.offsetY
+                theme.boxShadow.blurRadius
+                theme.boxShadow.spreadRadius
+                theme.boxShadow.color
+            , Css.overflow Css.hidden
+            , Css.displayFlex
+            , Css.borderRadius (Css.px 4)
+            , Css.position Css.absolute
+            ]
+            :: attributes
+        )
         children
 
 
 {-| Preset Components
 -}
-viewPresetsContainer : List (Html.Attribute msg) -> List (Html msg) -> Html msg
-viewPresetsContainer attributes children =
+viewPresetsContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
+viewPresetsContainer theme attributes children =
     div (class (classPrefix "presets-container") :: attributes)
         children
 
 
-viewPresetTab : List (Html.Attribute msg) -> { title : String, active : Bool, onClickMsg : msg } -> Html msg
-viewPresetTab attributes { title, active, onClickMsg } =
+viewPresetTab : Theme -> List (Html.Styled.Attribute msg) -> { title : String, active : Bool, onClickMsg : msg } -> Html msg
+viewPresetTab theme attributes { title, active, onClickMsg } =
     div
         ([ class (classPrefix "preset")
          , classList [ ( classPrefix "active", active ) ]
@@ -55,16 +74,16 @@ viewPresetTab attributes { title, active, onClickMsg } =
 
 {-| Picker Container Component
 -}
-viewPickerContainer : List (Html.Attribute msg) -> List (Html msg) -> Html msg
-viewPickerContainer attributes children =
+viewPickerContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
+viewPickerContainer theme attributes children =
     div (class (classPrefix "picker-container") :: attributes)
         children
 
 
 {-| Calendar Components
 -}
-viewCalendarContainer : List (Html.Attribute msg) -> List (Html msg) -> Html msg
-viewCalendarContainer attributes children =
+viewCalendarContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
+viewCalendarContainer theme attributes children =
     div (class (classPrefix "calendar-container") :: attributes)
         children
 
@@ -81,17 +100,18 @@ type NavScale
     | MonthScale
 
 
-viewIconButton : List (Html.Attribute msg) -> Icons.Icon -> Html msg
-viewIconButton attributes icon =
+viewIconButton : Theme -> List (Html.Styled.Attribute msg) -> Icons.Icon -> Html msg
+viewIconButton theme attributes icon =
     div attributes
         [ icon
             |> Icons.withSize 15
             |> Icons.toHtml []
+            |> fromUnstyled
         ]
 
 
-viewNavigationButton : { direction : NavDirection, scale : NavScale, onClickMsg : msg } -> Html msg
-viewNavigationButton { direction, scale, onClickMsg } =
+viewNavigationButton : Theme -> { direction : NavDirection, scale : NavScale, onClickMsg : msg } -> Html msg
+viewNavigationButton theme { direction, scale, onClickMsg } =
     let
         ( idDirection, idScale, icon ) =
             case ( direction, scale ) of
@@ -107,7 +127,7 @@ viewNavigationButton { direction, scale, onClickMsg } =
                 ( NextNav, MonthScale ) ->
                     ( "next", "month", Icons.chevronRight )
     in
-    viewIconButton
+    viewIconButton theme
         [ id (idDirection ++ "-" ++ idScale)
         , class (classPrefix "calendar-header-chevron")
         , onClick onClickMsg
@@ -115,14 +135,14 @@ viewNavigationButton { direction, scale, onClickMsg } =
         icon
 
 
-viewCalendarHeaderNavigation : List (Html.Attribute msg) -> { direction : NavDirection, yearMsg : msg, monthMsg : msg } -> Html msg
-viewCalendarHeaderNavigation attributes { direction, yearMsg, monthMsg } =
+viewCalendarHeaderNavigation : Theme -> List (Html.Styled.Attribute msg) -> { direction : NavDirection, yearMsg : msg, monthMsg : msg } -> Html msg
+viewCalendarHeaderNavigation theme attributes { direction, yearMsg, monthMsg } =
     let
         yearButton =
-            viewNavigationButton { direction = direction, scale = YearScale, onClickMsg = yearMsg }
+            viewNavigationButton theme { direction = direction, scale = YearScale, onClickMsg = yearMsg }
 
         monthButton =
-            viewNavigationButton { direction = direction, scale = MonthScale, onClickMsg = monthMsg }
+            viewNavigationButton theme { direction = direction, scale = MonthScale, onClickMsg = monthMsg }
 
         ( classSuffix, children ) =
             case direction of
@@ -154,12 +174,13 @@ type alias CalendarHeaderProps msg =
     }
 
 
-viewCalendarHeader : CalendarHeaderProps msg -> Html msg
-viewCalendarHeader { previousYearMsg, previousMonthMsg, nextYearMsg, nextMonthMsg, monthText, yearText, formattedDay, firstWeekDay, showCalendarWeekNumbers } =
+viewCalendarHeader : Theme -> CalendarHeaderProps msg -> Html msg
+viewCalendarHeader theme { previousYearMsg, previousMonthMsg, nextYearMsg, nextMonthMsg, monthText, yearText, formattedDay, firstWeekDay, showCalendarWeekNumbers } =
     div
         [ class (classPrefix "calendar-header") ]
         [ div [ class (classPrefix "calendar-header-row") ]
-            [ viewCalendarHeaderNavigation []
+            [ viewCalendarHeaderNavigation theme
+                []
                 { direction = PreviousNav, yearMsg = previousYearMsg, monthMsg = previousMonthMsg }
             , div
                 [ class (classPrefix "calendar-header-text") ]
@@ -169,10 +190,11 @@ viewCalendarHeader { previousYearMsg, previousMonthMsg, nextYearMsg, nextMonthMs
                     , span [ id "year" ] [ text yearText ]
                     ]
                 ]
-            , viewCalendarHeaderNavigation []
+            , viewCalendarHeaderNavigation theme
+                []
                 { direction = NextNav, yearMsg = nextYearMsg, monthMsg = nextMonthMsg }
             ]
-        , viewWeekHeader
+        , viewWeekHeader theme
             { formattedDay = formattedDay
             , firstWeekDay = firstWeekDay
             , showCalendarWeekNumbers = showCalendarWeekNumbers
@@ -181,12 +203,14 @@ viewCalendarHeader { previousYearMsg, previousMonthMsg, nextYearMsg, nextMonthMs
 
 
 viewWeekHeader :
-    { formattedDay : Weekday -> String
-    , firstWeekDay : Weekday
-    , showCalendarWeekNumbers : Bool
-    }
+    Theme
+    ->
+        { formattedDay : Weekday -> String
+        , firstWeekDay : Weekday
+        , showCalendarWeekNumbers : Bool
+        }
     -> Html msg
-viewWeekHeader { formattedDay, firstWeekDay, showCalendarWeekNumbers } =
+viewWeekHeader theme { formattedDay, firstWeekDay, showCalendarWeekNumbers } =
     div
         [ class (classPrefix "calendar-header-week") ]
         ((if showCalendarWeekNumbers then
@@ -195,12 +219,12 @@ viewWeekHeader { formattedDay, firstWeekDay, showCalendarWeekNumbers } =
           else
             text ""
          )
-            :: List.map (viewHeaderDay formattedDay) (Utilities.generateListOfWeekDay firstWeekDay)
+            :: List.map (viewHeaderDay theme formattedDay) (Utilities.generateListOfWeekDay firstWeekDay)
         )
 
 
-viewHeaderDay : (Weekday -> String) -> Weekday -> Html msg
-viewHeaderDay formatDay day =
+viewHeaderDay : Theme -> (Weekday -> String) -> Weekday -> Html msg
+viewHeaderDay theme formatDay day =
     div
         [ class (classPrefix "calendar-header-day") ]
         [ text (formatDay day) ]
@@ -239,14 +263,14 @@ type alias DayProps msg =
     }
 
 
-viewCalendarMonth : CalendarMonthProps msg -> Html msg
-viewCalendarMonth { weeks, onMouseOutMsg, dayProps, showCalendarWeekNumbers, zone } =
+viewCalendarMonth : Theme -> CalendarMonthProps msg -> Html msg
+viewCalendarMonth theme { weeks, onMouseOutMsg, dayProps, showCalendarWeekNumbers, zone } =
     div
         [ class (classPrefix "calendar-month"), onMouseOut onMouseOutMsg ]
         [ div []
             (List.map
                 (\week ->
-                    viewCalendarWeek
+                    viewCalendarWeek theme
                         { week = week
                         , dayProps = dayProps
                         , showCalendarWeekNumbers = showCalendarWeekNumbers
@@ -258,8 +282,8 @@ viewCalendarMonth { weeks, onMouseOutMsg, dayProps, showCalendarWeekNumbers, zon
         ]
 
 
-viewCalendarWeek : CalendarWeekProps msg -> Html msg
-viewCalendarWeek { week, zone, showCalendarWeekNumbers, dayProps } =
+viewCalendarWeek : Theme -> CalendarWeekProps msg -> Html msg
+viewCalendarWeek theme { week, zone, showCalendarWeekNumbers, dayProps } =
     let
         firstDateOfWeek =
             Maybe.map
@@ -286,14 +310,14 @@ viewCalendarWeek { week, zone, showCalendarWeekNumbers, dayProps } =
          )
             :: List.map
                 (\day ->
-                    viewDay { day = day, zone = zone, dayProps = dayProps }
+                    viewDay theme { day = day, zone = zone, dayProps = dayProps }
                 )
                 week
         )
 
 
-viewDay : CalendarDayProps msg -> Html msg
-viewDay { zone, dayProps, day } =
+viewDay : Theme -> CalendarDayProps msg -> Html msg
+viewDay theme { zone, dayProps, day } =
     let
         dayParts =
             Time.posixToParts zone day.start
@@ -310,24 +334,25 @@ viewDay { zone, dayProps, day } =
 
 {-| Footer Components
 -}
-viewFooterContainer : List (Html.Attribute msg) -> List (Html msg) -> Html msg
-viewFooterContainer attributes children =
+viewFooterContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
+viewFooterContainer theme attributes children =
     div (class (classPrefix "footer") :: attributes)
         children
 
 
-viewEmpty : Html msg
-viewEmpty =
+viewEmpty : Theme -> Html msg
+viewEmpty theme =
     div [ class (classPrefix "footer-empty") ]
         [ text "––.––.––––" ]
 
 
-viewDate : String -> Html msg
-viewDate dateTimeString =
+viewDate : Theme -> String -> Html msg
+viewDate theme dateTimeString =
     span [ class (classPrefix "selection-date") ]
         [ Icons.calendar
             |> Icons.withSize 16
             |> Icons.toHtml []
+            |> fromUnstyled
         , text dateTimeString
         ]
 
@@ -342,10 +367,10 @@ type alias FooterBodyProps msg =
     }
 
 
-viewFooterBody : FooterBodyProps msg -> Html msg
-viewFooterBody { timePickerProps, isTimePickerVisible, timePickerVisibility, selection, onTimePickerToggleMsg, dateTimeString } =
+viewFooterBody : Theme -> FooterBodyProps msg -> Html msg
+viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibility, selection, onTimePickerToggleMsg, dateTimeString } =
     div [ class (classPrefix "footer-datetime-container") ]
-        [ viewDate dateTimeString
+        [ viewDate theme dateTimeString
         , case timePickerVisibility of
             NeverVisible ->
                 text ""
@@ -354,7 +379,7 @@ viewFooterBody { timePickerProps, isTimePickerVisible, timePickerVisibility, sel
                 let
                     ( viewToggleView, toggleIcon ) =
                         if isTimePickerVisible then
-                            ( viewTimePicker timePickerProps
+                            ( viewTimePicker theme timePickerProps
                             , Icons.check
                             )
 
@@ -365,11 +390,13 @@ viewFooterBody { timePickerProps, isTimePickerVisible, timePickerVisibility, sel
                     [ Icons.clock
                         |> Icons.withSize 16
                         |> Icons.toHtml []
+                        |> fromUnstyled
                     , viewToggleView
                     , div [ class (classPrefix "time-picker-toggle"), onClick onTimePickerToggleMsg ]
                         [ toggleIcon
                             |> Icons.withSize 16
                             |> Icons.toHtml []
+                            |> fromUnstyled
                         ]
                     ]
 
@@ -378,7 +405,8 @@ viewFooterBody { timePickerProps, isTimePickerVisible, timePickerVisibility, sel
                     [ Icons.clock
                         |> Icons.withSize 16
                         |> Icons.toHtml []
-                    , viewTimePicker timePickerProps
+                        |> fromUnstyled
+                    , viewTimePicker theme timePickerProps
                     ]
         ]
 
@@ -393,8 +421,8 @@ type alias TimePickerProps msg =
     }
 
 
-viewTimePicker : TimePickerProps msg -> Html msg
-viewTimePicker { zone, selectionTuple, onHourChangeDecoder, onMinuteChangeDecoder, selectableHours, selectableMinutes } =
+viewTimePicker : Theme -> TimePickerProps msg -> Html msg
+viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChangeDecoder, selectableHours, selectableMinutes } =
     div
         [ class (classPrefix "time-picker") ]
         [ div [ class (classPrefix "select-container") ]
@@ -402,21 +430,23 @@ viewTimePicker { zone, selectionTuple, onHourChangeDecoder, onMinuteChangeDecode
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
-            [ viewSelect [ id "hour-select", on "change" onHourChangeDecoder ]
+            [ viewSelect theme
+                [ id "hour-select", on "change" onHourChangeDecoder ]
                 (Utilities.generateHourOptions zone selectionTuple selectableHours)
             , div [ class (classPrefix "select-spacer") ] [ text ":" ]
-            , viewSelect
+            , viewSelect theme
                 [ id "minute-select", on "change" onMinuteChangeDecoder ]
                 (Utilities.generateMinuteOptions zone selectionTuple selectableMinutes)
             ]
         ]
 
 
-viewSelect : List (Html.Attribute msg) -> List (Html msg) -> Html msg
-viewSelect attributes content =
+viewSelect : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
+viewSelect theme attributes content =
     div [ class (classPrefix "select") ]
         [ select attributes content
         , Icons.chevronDown
             |> Icons.withSize 16
             |> Icons.toHtml []
+            |> fromUnstyled
         ]
