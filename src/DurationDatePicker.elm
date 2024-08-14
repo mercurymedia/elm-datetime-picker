@@ -17,11 +17,6 @@ module DurationDatePicker exposing
 @docs openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
 
 
-# Preset Ranges
-
-@docs PresetRange
-
-
 # Query
 
 @docs isOpen

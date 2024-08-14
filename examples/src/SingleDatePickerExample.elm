@@ -1,6 +1,13 @@
 module SingleDatePickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
-import DatePicker.Settings exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
+import Css
+import DatePicker.Settings
+    exposing
+        ( Settings
+        , TimePickerVisibility(..)
+        , defaultSettings
+        , defaultTimePickerSettings
+        )
 import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)

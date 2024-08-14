@@ -1,31 +1,29 @@
-module DatePicker.ViewComponents exposing (..)
+module DatePicker.ViewComponents exposing (durationDayStyles, durationStartOrEndStyles, singleDayStyles, viewCalendarContainer, viewCalendarHeader, viewCalendarMonth, viewContainer, viewEmpty, viewFooterBody, viewFooterContainer, viewPickerContainer, viewPresetTab, viewPresetsContainer)
 
-import Css exposing (Color, ColorValue)
+import Css
 import Css.Transitions
 import Date
 import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (Theme, TimePickerVisibility(..))
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (class, classList, css, disabled, id, type_)
+import Html.Styled.Attributes exposing (css, disabled, id, type_)
 import Html.Styled.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Json.Decode as Decode
 import List.Extra as List
-import Svg.Attributes exposing (direction, display, overflow)
+import Svg.Attributes exposing (direction)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
 
-prefix : String
-prefix =
-    "elm-datetimepicker--"
+{-| ViewComponent functions for both Pickers.
 
 
-classPrefix : String -> String
-classPrefix class =
-    prefix ++ class
+# View Components
 
+@docs durationDayStyles, durationStartOrEndStyles, singleDayStyles, viewCalendarContainer, viewCalendarHeader, viewCalendarMonth, viewContainer, viewEmpty, viewFooterBody, viewFooterContainer, viewPickerContainer, viewPresetTab, viewPresetsContainer
 
+-}
 styleList : List ( List Css.Style, Bool ) -> Css.Style
 styleList list =
     list

@@ -1,4 +1,29 @@
-module DatePicker.Settings exposing (..)
+module DatePicker.Settings exposing
+    ( Settings, defaultSettings
+    , TimePickerVisibility(..), TimePickerSettings, defaultTimePickerSettings
+    , Preset(..), PresetDateConfig, PresetRangeConfig
+    , Theme, defaultTheme
+    , generatePickerDay, getTimePickerSettings
+    , isPresetDateActive, isPresetRangeActive
+    )
+
+{-| All settings and configuration utilities for both pickers.
+
+
+# Settings
+
+@docs Settings, defaultSettings
+@docs TimePickerVisibility, TimePickerSettings, defaultTimePickerSettings
+@docs Preset, PresetDateConfig, PresetRangeConfig
+@docs Theme, defaultTheme
+
+
+# Query
+
+@docs generatePickerDay, getTimePickerSettings
+@docs isPresetDateActive, isPresetRangeActive
+
+-}
 
 import Css
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
@@ -17,7 +42,8 @@ import Time.Extra as Time exposing (Interval(..))
 `dateStringFn` - a function that returns a string representation of the selected day
 `timePickerVisibility` - see below
 `showCalendarWeekNumbers` - wheather to display or not display caldendar week numbers
-`presetRanges` - a list of `PresetDate`, for selectable, preconfigured dates
+`presets` - a list of `Presets`, for selectable, preconfigured dates
+`theme` - a record of customizable design tokens
 
 More information can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples).
 
@@ -90,6 +116,8 @@ type alias TimePickerSettings =
     }
 
 
+{-| A shared type facilitating the preset variants for both pickers
+-}
 type Preset
     = PresetDate PresetDateConfig
     | PresetRange PresetRangeConfig
@@ -116,6 +144,8 @@ type alias PresetRangeConfig =
     }
 
 
+{-| The type facilitating the Theme with the most important design tokens
+-}
 type alias Theme =
     { fontSize :
         { base : Css.Px
@@ -164,6 +194,8 @@ type alias Theme =
     }
 
 
+{-| The default theme that is included in the defaultSettings
+-}
 defaultTheme : Theme
 defaultTheme =
     { fontSize =
@@ -248,6 +280,8 @@ defaultTimePickerSettings =
     { timeStringFn = \_ _ -> "", allowedTimesOfDay = \_ _ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 } }
 
 
+{-| Transforms a `Posix` into a `PickerDay` based on the `Settings`
+-}
 generatePickerDay : Settings -> Posix -> PickerDay
 generatePickerDay settings time =
     Maybe.map
@@ -258,6 +292,8 @@ generatePickerDay settings time =
         |> Maybe.withDefault (Utilities.pickerDayFromPosix settings.zone settings.isDayDisabled Nothing time)
 
 
+{-| Extracts the `TimePickerSettings` from the `Settings`
+-}
 getTimePickerSettings : Settings -> Maybe TimePickerSettings
 getTimePickerSettings settings =
     case settings.timePickerVisibility of
@@ -271,6 +307,8 @@ getTimePickerSettings settings =
             Just timePickerSettings
 
 
+{-| Determines if a selected date matches a given preset
+-}
 isPresetDateActive : Settings -> Maybe ( PickerDay, Posix ) -> PresetDateConfig -> Bool
 isPresetDateActive settings selectionTuple { date } =
     case selectionTuple of
@@ -289,6 +327,8 @@ isPresetDateActive settings selectionTuple { date } =
             False
 
 
+{-| Determines if a selected date range matches a given preset range
+-}
 isPresetRangeActive : Settings -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> PresetRangeConfig -> Bool
 isPresetRangeActive settings startSelectionTuple endSelectionTuple { range } =
     case ( startSelectionTuple, endSelectionTuple ) of

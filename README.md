@@ -18,13 +18,14 @@ Single and duration datetime picker components written in Elm 0.19
 
 ## Usage
 
-This package exposes two modules `SingleDatePicker` and `DurationDatePicker`. As their names imply, `SingleDatePicker` can be used to pick a singular datetime while `DurationDatePicker` is used to select a datetime range. To keep things simple, the documentation here focuses on the `SingleDatePicker` but both types have an example app for additional reference.
+This package exposes two core modules, `SingleDatePicker` and `DurationDatePicker`, and a third one for configuration `DatePicker.Settings`. As their names imply, `SingleDatePicker` can be used to pick a singular datetime while `DurationDatePicker` is used to select a datetime range. To keep things simple, the documentation here focuses on the `SingleDatePicker` but both types have an example app for additional reference.
 
 There are four steps to configure the `DatePicker`:
 
 1. Add the picker to the model and initialize it in the model init. One message needs to be defined that expects an internal `DatePicker` message. This is used to update the selection and view of the picker.
 
 ```elm
+import DatePicker.Settings exposing (Settings, defaultSettings)
 import SingleDatePicker as DatePicker
 
 type alias Model =
@@ -45,12 +46,12 @@ init =
     )
 ```
 
-1. We call the `DatePicker.view` function, passing it the picker `Settings` and the `DatePicker` instance to be operated on. The minimal picker `Settings` only require a `Time.Zone`
+2. We call the `DatePicker.view` function, passing it the picker `Settings` and the `DatePicker` instance to be operated on. The minimal picker `Settings` only require a `Time.Zone`
 
 ```elm
-userDefinedDatePickerSettings : Zone -> DatePicker.Settings
+userDefinedDatePickerSettings : Zone -> Settings
 userDefinedDatePickerSettings timeZone =
-    DatePicker.defaultSettings timeZone
+    defaultSettings timeZone
 
 view : Model -> Html Msg
 view model =
@@ -63,7 +64,7 @@ view model =
 
 While we are on the topic of the `DatePicker.view`, it is worth noting that this date picker does _not_ include an input or button to trigger the view to open, this is up to the user to define and allows the picker to be flexible across different use cases.
 
-1. Now it is time for the meat and potatoes: handling the `DatePicker` updates, including `saving` the time selected in the picker to the calling module's model.
+3. Now it is time for the meat and potatoes: handling the `DatePicker` updates, including `saving` the time selected in the picker to the calling module's model.
 
 ```elm
 type alias Model =
@@ -170,25 +171,25 @@ Date or date range presets can be added with the settings configuration. The lis
 ```elm
 type alias Settings =
     { -- [...]
-    , presetDates : List PresetDate -- for SingleDatePicker
-    , presetRanges : List PresetRange -- for DurationDatePicker
+    , presets : List Preset
     }
 ```
 
-To configure presets, just add data of the following required types to the list:
+To configure presets, just add data of the following required type to the list:
 
 ```elm
-type alias PresetDate =
+
+type Preset
+    = PresetDate PresetDateConfig -- for single date pickers
+    | PresetRange PresetRangeConfig -- for duration date pickers
+
+type alias PresetDateConfig =
     { title : String
     , date : Posix
     }
-```
 
-or
-
-```elm
-type alias PresetRange =
-    { title : String -- the display name of the preset
+type alias PresetRangeConfig =
+    { title : String
     , range : { start : Posix, end : Posix }
     }
 ```
@@ -232,16 +233,118 @@ type alias Settings =
     , dateStringFn : Zone -> Posix -> String
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
-    , presetDates : List PresetDate -- for SingleDatePicker
-    , presetRanges : List PresetRange -- for DurationDatePicker
+    , presets : List Preset
+    , theme : Theme
     }
 ```
 
 ## Examples
 
-Examples can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples) folder. To build the examples to view in the browser run: `cd examples && make && cd ..` from the root of the repository.
+Examples can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples) folder. To view the examples in the browser run `npm install` and `npm start` from the root of the repository.
 
-## CSS
+## CSS & Theming
 
-The CSS for the date picker is distributed separately and can be found [here](https://github.com/mercurymedia/elm-datetime-picker/tree/master/css).
-The styling is based on a CSS-Variables theme that can be easily adjusted for the most important design tokens.
+The CSS for the date picker is now defined in a built-in way using [elm-css](https://package.elm-lang.org/packages/rtfeldman/elm-css/latest/).
+Still, there are some design tokens that can be configured individually in a theme. You can pass your custom theme to the `Settings`.
+The `Theme` record currently looks like this:
+
+```elm
+type alias Theme =
+    { fontSize :
+        { base : Css.Px
+        , sm : Css.Px
+        , xs : Css.Px
+        , xxs : Css.Px
+        }
+    , color :
+        { text :
+            { primary : Css.Color
+            , secondary : Css.Color
+            , disabled : Css.Color
+            }
+        , primary :
+            { main : Css.Color
+            , contrastText : Css.Color
+            , light : Css.Color
+            }
+        , background :
+            { container : Css.Color
+            , footer : Css.Color
+            , presets : Css.Color
+            }
+        , action : { hover : Css.Color }
+        , border : Css.Color
+        }
+    , size :
+        { presetsContainer : Css.Px
+        , day : Css.Px
+        , iconButton : Css.Px
+        }
+    , borderWidth : Css.Px
+    , borderRadius :
+        { base : Css.Px
+        , lg : Css.Px
+        }
+    , boxShadow :
+        { offsetX : Css.Px
+        , offsetY : Css.Px
+        , blurRadius : Css.Px
+        , spreadRadius : Css.Px
+        , color : Css.Color
+        }
+    , zIndex : Int
+    , transition : { duration : Float }
+    }
+```
+
+Passing a customized theme to the settings works like this:
+
+```elm
+import Css -- from elm-css
+import DatePicker.Settings
+    exposing
+        ( Settings
+        , Theme
+        , defaultSettings
+        , defaultTheme
+        )
+
+-- [...]
+
+customTheme : Theme
+customTheme =
+    { defaultTheme
+        | color =
+            { text =
+                { primary = Css.hex "22292f"
+                , secondary = Css.rgba 0 0 0 0.5
+                , disabled = Css.rgba 0 0 0 0.25
+                }
+            , primary =
+                { main = Css.hex "3490dc"
+                , contrastText = Css.hex "ffffff"
+                , light = Css.rgba 52 144 220 0.1
+                }
+            , background =
+                { container = Css.hex "ffffff"
+                , footer = Css.hex "ffffff"
+                , presets = Css.hex "ffffff"
+                }
+            , action = { hover = Css.rgba 0 0 0 0.08 }
+            , border = Css.rgba 0 0 0 0.1
+            }
+    }
+
+
+userDefinedDatePickerSettings : Zone -> Posix -> Settings
+userDefinedDatePickerSettings zone today =
+    let
+        defaults =
+            defaultSettings zone
+    in
+    { defaults
+        | -- [...]
+        , theme = customTheme
+    }
+
+```
