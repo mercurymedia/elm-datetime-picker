@@ -12,12 +12,6 @@ module DurationDatePicker exposing
 @docs DatePicker, Msg, init, view, update, subscriptions
 
 
-# Settings
-
-@docs Settings, defaultSettings, TimePickerVisibility
-@docs TimePickerSettings, defaultTimePickerSettings
-
-
 # Externally Triggered Actions
 
 @docs openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
@@ -36,16 +30,16 @@ module DurationDatePicker exposing
 
 import Browser.Dom as Dom
 import Browser.Events
+import Css
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (..)
-import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Html.Styled exposing (div, fromUnstyled, text, toUnstyled)
-import Html.Styled.Attributes exposing (class, id, start)
+import Html.Styled.Attributes exposing (id, start)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -334,11 +328,6 @@ update settings msg (DatePicker model) =
             ( DatePicker model, Nothing )
 
 
-classPrefix : String
-classPrefix =
-    "elm-datetimepicker--"
-
-
 determineDateTimeRange : Zone -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> ( Maybe ( PickerDay, Posix ), Maybe ( PickerDay, Posix ) )
 determineDateTimeRange zone startSelectionTuple endSelectionTuple hoveredDay =
     let
@@ -398,13 +387,13 @@ viewPicker attributes settings timePickerVisible baseDay model =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
     viewContainer settings.theme
-        ([ id settings.id, class (classPrefix ++ "duration") ] ++ attributes)
+        (id settings.id :: attributes)
         [ viewPresets settings model
         , viewPickerContainer settings.theme
             []
-            [ div [ class (classPrefix ++ "calendars-container") ]
-                [ viewCalendar [ id "left-container" ] settings model leftViewTime
-                , viewCalendar [ id "right-container" ] settings model rightViewTime
+            [ div [ Html.Styled.Attributes.css [ Css.displayFlex ] ]
+                [ viewCalendar [] settings model leftViewTime Left
+                , viewCalendar [] settings model rightViewTime Right
                 ]
             , viewFooter settings timePickerVisible baseDay model
             ]
@@ -437,8 +426,13 @@ viewPresets settings model =
         text ""
 
 
-viewCalendar : List (Html.Styled.Attribute msg) -> Settings -> Model msg -> Posix -> Html.Styled.Html msg
-viewCalendar attrs settings model viewTime =
+type CalendarSide
+    = Left
+    | Right
+
+
+viewCalendar : List (Html.Styled.Attribute msg) -> Settings -> Model msg -> Posix -> CalendarSide -> Html.Styled.Html msg
+viewCalendar attrs settings model viewTime side =
     let
         monthName =
             Time.toMonth settings.zone viewTime |> settings.formattedMonth
@@ -455,7 +449,7 @@ viewCalendar attrs settings model viewTime =
         currentMonth =
             Time.posixToParts settings.zone viewTime |> .month
 
-        dayClassesFn =
+        dayStylesFn =
             \day ->
                 let
                     dayParts =
@@ -468,25 +462,33 @@ viewCalendar attrs settings model viewTime =
                     ( isPicked, isBetween ) =
                         DurationUtilities.dayPickedOrBetween settings.zone day model.hovered ( model.startSelectionTuple, model.endSelectionTuple )
 
-                    dayClasses =
-                        DatePicker.Styles.durationDayClasses classPrefix (dayParts.month /= currentMonth) day.disabled isPicked isFocused isBetween
+                    dayStyles =
+                        durationDayStyles settings.theme (dayParts.month /= currentMonth) day.disabled isPicked isFocused isBetween
 
-                    startOrEndClasses =
-                        DatePicker.Styles.durationStartOrEndClasses classPrefix
+                    startOrEndStyles =
+                        durationStartOrEndStyles settings.theme
                             (DurationUtilities.isPickedDaySelectionTuple day model.startSelectionTuple)
                             (DurationUtilities.isPickedDaySelectionTuple day model.endSelectionTuple)
                 in
-                dayClasses ++ " " ++ startOrEndClasses
+                Css.batch [ dayStyles, startOrEndStyles ]
+
+        ( ( previousYearMsg, previousMonthMsg ), ( nextYearMsg, nextMonthMsg ) ) =
+            case side of
+                Left ->
+                    ( ( Just <| model.internalMsg <| PrevYear, Just <| model.internalMsg <| PrevMonth ), ( Nothing, Nothing ) )
+
+                Right ->
+                    ( ( Nothing, Nothing ), ( Just <| model.internalMsg <| NextYear, Just <| model.internalMsg <| NextMonth ) )
     in
     viewCalendarContainer settings.theme
         attrs
         [ viewCalendarHeader settings.theme
             { yearText = year
             , monthText = monthName
-            , previousYearMsg = model.internalMsg <| PrevYear
-            , previousMonthMsg = model.internalMsg <| PrevMonth
-            , nextYearMsg = model.internalMsg <| NextYear
-            , nextMonthMsg = model.internalMsg <| NextMonth
+            , previousYearMsg = previousYearMsg
+            , previousMonthMsg = previousMonthMsg
+            , nextYearMsg = nextYearMsg
+            , nextMonthMsg = nextMonthMsg
             , formattedDay = settings.formattedDay
             , firstWeekDay = settings.firstWeekDay
             , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
@@ -497,7 +499,7 @@ viewCalendar attrs settings model viewTime =
             , zone = settings.zone
             , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
             , dayProps =
-                { dayClassesFn = dayClassesFn
+                { dayStylesFn = dayStylesFn
                 , onDayClickMsg = \day -> model.internalMsg (SetRange day)
                 , onDayMouseOverMsg = \day -> model.internalMsg (SetHoveredDay day)
                 }
@@ -514,64 +516,63 @@ viewFooter settings timePickerVisible baseDay model =
         { selectableStartHours, selectableStartMinutes, selectableEndHours, selectableEndMinutes } =
             DurationUtilities.filterSelectableTimes settings.zone baseDay startSelectionTuple endSelectionTuple
     in
-    div [ class (classPrefix ++ "footer") ]
-        [ div [ class (classPrefix ++ "footer-datetimes-container") ]
-            [ case startSelectionTuple of
-                Just ( _, startSelection ) ->
-                    let
-                        dateTimeString =
-                            settings.dateStringFn settings.zone startSelection
-                    in
-                    viewFooterBody settings.theme
-                        { timePickerProps =
-                            { zone = settings.zone
-                            , selectionTuple = startSelectionTuple
-                            , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map (SetHour Start) targetValueIntParse)
-                            , onMinuteChangeDecoder = Decode.map model.internalMsg (Decode.map (SetMinute Start) targetValueIntParse)
-                            , selectableHours = selectableStartHours
-                            , selectableMinutes = selectableStartMinutes
-                            }
-                        , isTimePickerVisible = timePickerVisible
-                        , timePickerVisibility = settings.timePickerVisibility
-                        , selection = startSelection
-                        , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
-                        , dateTimeString = dateTimeString
+    viewFooterContainer settings.theme
+        []
+        [ case startSelectionTuple of
+            Just ( _, startSelection ) ->
+                let
+                    dateTimeString =
+                        settings.dateStringFn settings.zone startSelection
+                in
+                viewFooterBody settings.theme
+                    { timePickerProps =
+                        { zone = settings.zone
+                        , selectionTuple = startSelectionTuple
+                        , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map (SetHour Start) targetValueIntParse)
+                        , onMinuteChangeDecoder = Decode.map model.internalMsg (Decode.map (SetMinute Start) targetValueIntParse)
+                        , selectableHours = selectableStartHours
+                        , selectableMinutes = selectableStartMinutes
                         }
+                    , isTimePickerVisible = timePickerVisible
+                    , timePickerVisibility = settings.timePickerVisibility
+                    , selection = startSelection
+                    , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
+                    , dateTimeString = dateTimeString
+                    }
 
-                Nothing ->
-                    viewEmpty settings.theme
-            , viewDateTimesSeparator
-            , case endSelectionTuple of
-                Just ( _, endSelection ) ->
-                    let
-                        dateTimeString =
-                            settings.dateStringFn settings.zone endSelection
-                    in
-                    viewFooterBody settings.theme
-                        { timePickerProps =
-                            { zone = settings.zone
-                            , selectionTuple = endSelectionTuple
-                            , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map (SetHour End) targetValueIntParse)
-                            , onMinuteChangeDecoder = Decode.map model.internalMsg (Decode.map (SetMinute End) targetValueIntParse)
-                            , selectableHours = selectableEndHours
-                            , selectableMinutes = selectableEndMinutes
-                            }
-                        , isTimePickerVisible = timePickerVisible
-                        , timePickerVisibility = settings.timePickerVisibility
-                        , selection = endSelection
-                        , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
-                        , dateTimeString = dateTimeString
+            Nothing ->
+                viewEmpty settings.theme
+        , viewDateTimesSeparator
+        , case endSelectionTuple of
+            Just ( _, endSelection ) ->
+                let
+                    dateTimeString =
+                        settings.dateStringFn settings.zone endSelection
+                in
+                viewFooterBody settings.theme
+                    { timePickerProps =
+                        { zone = settings.zone
+                        , selectionTuple = endSelectionTuple
+                        , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map (SetHour End) targetValueIntParse)
+                        , onMinuteChangeDecoder = Decode.map model.internalMsg (Decode.map (SetMinute End) targetValueIntParse)
+                        , selectableHours = selectableEndHours
+                        , selectableMinutes = selectableEndMinutes
                         }
+                    , isTimePickerVisible = timePickerVisible
+                    , timePickerVisibility = settings.timePickerVisibility
+                    , selection = endSelection
+                    , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
+                    , dateTimeString = dateTimeString
+                    }
 
-                Nothing ->
-                    viewEmpty settings.theme
-            ]
+            Nothing ->
+                viewEmpty settings.theme
         ]
 
 
 viewDateTimesSeparator : Html.Styled.Html msg
 viewDateTimesSeparator =
-    div [ class (classPrefix ++ "footer-datetimes-separator") ]
+    div []
         [ Icons.arrowRight
             |> Icons.withSize 16
             |> Icons.toHtml []

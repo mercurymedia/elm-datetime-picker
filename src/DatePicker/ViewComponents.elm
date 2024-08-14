@@ -1,6 +1,7 @@
 module DatePicker.ViewComponents exposing (..)
 
-import Css
+import Css exposing (Color, ColorValue)
+import Css.Transitions
 import Date
 import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (Theme, TimePickerVisibility(..))
@@ -25,6 +26,143 @@ classPrefix class =
     prefix ++ class
 
 
+styleList : List ( List Css.Style, Bool ) -> Css.Style
+styleList list =
+    list
+        |> List.filter Tuple.second
+        |> List.concatMap Tuple.first
+        |> Css.batch
+
+
+colorsTransition : Theme -> Css.Style
+colorsTransition theme =
+    Css.Transitions.transition
+        [ Css.Transitions.backgroundColor3 theme.transition.duration 0 (Css.Transitions.cubicBezier 0.4 0 0.2 1)
+        , Css.Transitions.color3 theme.transition.duration 0 (Css.Transitions.cubicBezier 0.4 0 0.2 1)
+        ]
+
+
+dayStyles :
+    Theme
+    ->
+        { common : List Css.Style
+        , hidden : List Css.Style
+        , disabled : List Css.Style
+        , picked : List Css.Style
+        , today : List Css.Style
+        }
+dayStyles theme =
+    { common =
+        [ Css.height theme.size.day
+        , Css.width theme.size.day
+        , Css.position Css.relative
+        , Css.fontSize theme.fontSize.xs
+        , Css.display Css.inlineFlex
+        , Css.justifyContent Css.center
+        , Css.alignItems Css.center
+        , Css.cursor Css.pointer
+        , Css.outline Css.none
+        , Css.padding (Css.px 0)
+        , colorsTransition theme
+        , Css.border3 theme.borderWidth Css.solid Css.transparent
+        , Css.hover [ Css.backgroundColor theme.color.action.hover ]
+        , Css.borderRadius theme.borderRadius.lg
+        , Css.backgroundColor theme.color.background.container
+        ]
+    , hidden = [ Css.visibility Css.hidden ]
+    , disabled =
+        [ Css.pointerEvents Css.none
+        , Css.property "filter" "grayscale(1)"
+        , Css.color theme.color.text.disabled
+        , Css.after
+            [ Css.position Css.absolute
+            , Css.width theme.fontSize.xs
+            , Css.height (Css.px 1)
+            , Css.backgroundColor Css.currentColor
+            , Css.property "content" "''"
+            , Css.display Css.block
+            ]
+        ]
+    , picked =
+        [ Css.backgroundColor theme.color.primary.main
+        , Css.color theme.color.primary.contrastText
+        , Css.borderRadius theme.borderRadius.lg
+        , Css.hover
+            [ Css.backgroundColor theme.color.primary.main
+            , Css.color theme.color.primary.contrastText
+            ]
+        ]
+    , today = [ Css.border3 theme.borderWidth Css.solid theme.color.text.disabled ]
+    }
+
+
+{-| Utilities
+-}
+durationDayStyles : Theme -> Bool -> Bool -> Bool -> Bool -> Bool -> Css.Style
+durationDayStyles theme isHidden isDisabled isPicked isToday isBetween =
+    let
+        { common, today, picked, disabled, hidden } =
+            dayStyles theme
+
+        between =
+            [ Css.backgroundColor theme.color.primary.light
+            , Css.borderRadius (Css.px 0)
+            ]
+    in
+    Css.batch
+        [ Css.batch common
+        , styleList
+            [ ( today, isToday )
+            , ( between, isBetween )
+            , ( picked, isPicked )
+            , ( disabled, isDisabled )
+            , ( hidden, isHidden )
+            ]
+        ]
+
+
+durationStartOrEndStyles : Theme -> Bool -> Bool -> Css.Style
+durationStartOrEndStyles theme isStart isEnd =
+    let
+        startStyles =
+            Css.batch
+                [ Css.borderTopRightRadius (Css.px 0)
+                , Css.borderBottomRightRadius (Css.px 0)
+                ]
+
+        endStyles =
+            Css.batch
+                [ Css.borderTopLeftRadius (Css.px 0)
+                , Css.borderBottomLeftRadius (Css.px 0)
+                ]
+    in
+    if isStart && not isEnd then
+        startStyles
+
+    else if isEnd && not isStart then
+        endStyles
+
+    else
+        Css.batch []
+
+
+singleDayStyles : Theme -> Bool -> Bool -> Bool -> Bool -> Css.Style
+singleDayStyles theme isHidden isDisabled isPicked isToday =
+    let
+        { common, today, picked, disabled, hidden } =
+            dayStyles theme
+    in
+    Css.batch
+        [ Css.batch common
+        , styleList
+            [ ( today, isToday )
+            , ( picked, isPicked )
+            , ( disabled, isDisabled )
+            , ( hidden, isHidden )
+            ]
+        ]
+
+
 {-| Container Component
 -}
 viewContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
@@ -41,9 +179,9 @@ viewContainer theme attributes children =
                 theme.boxShadow.blurRadius
                 theme.boxShadow.spreadRadius
                 theme.boxShadow.color
+            , Css.borderRadius theme.borderRadius.lg
             , Css.overflow Css.hidden
             , Css.displayFlex
-            , Css.borderRadius (Css.px 4)
             , Css.position Css.absolute
             ]
             :: attributes
@@ -55,15 +193,50 @@ viewContainer theme attributes children =
 -}
 viewPresetsContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewPresetsContainer theme attributes children =
-    div (class (classPrefix "presets-container") :: attributes)
+    div
+        (css
+            [ Css.padding (Css.rem 0.75)
+            , Css.borderRight3 theme.borderWidth Css.solid theme.color.border
+            , Css.backgroundColor theme.color.background.presets
+            , Css.width theme.size.presetsContainer
+            , Css.displayFlex
+            , Css.flexDirection Css.column
+            , Css.flexShrink (Css.int 0)
+            ]
+            :: attributes
+        )
         children
 
 
 viewPresetTab : Theme -> List (Html.Styled.Attribute msg) -> { title : String, active : Bool, onClickMsg : msg } -> Html msg
 viewPresetTab theme attributes { title, active, onClickMsg } =
+    let
+        defaultStyles =
+            [ Css.padding2 (Css.rem 0.65) (Css.rem 0.75)
+            , Css.lineHeight (Css.num 1.25)
+            , Css.cursor Css.pointer
+            , Css.borderRadius theme.borderRadius.base
+            , Css.fontSize theme.fontSize.sm
+            , colorsTransition theme
+            , Css.hover [ Css.backgroundColor theme.color.action.hover ]
+            ]
+
+        activeStyles =
+            [ Css.color theme.color.primary.contrastText
+            , Css.backgroundColor theme.color.primary.main
+            , Css.hover [ Css.backgroundColor theme.color.primary.main ]
+            , Css.cursor Css.default
+            ]
+
+        styles =
+            if active then
+                defaultStyles ++ activeStyles
+
+            else
+                defaultStyles
+    in
     div
-        ([ class (classPrefix "preset")
-         , classList [ ( classPrefix "active", active ) ]
+        ([ css styles
          , onClick onClickMsg
          ]
             ++ attributes
@@ -76,7 +249,15 @@ viewPresetTab theme attributes { title, active, onClickMsg } =
 -}
 viewPickerContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewPickerContainer theme attributes children =
-    div (class (classPrefix "picker-container") :: attributes)
+    div
+        (css
+            [ Css.flexShrink (Css.num 0)
+            , Css.displayFlex
+            , Css.flexDirection Css.column
+            , Css.justifyContent Css.spaceBetween
+            ]
+            :: attributes
+        )
         children
 
 
@@ -84,7 +265,7 @@ viewPickerContainer theme attributes children =
 -}
 viewCalendarContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewCalendarContainer theme attributes children =
-    div (class (classPrefix "calendar-container") :: attributes)
+    div (css [ Css.padding (Css.rem 1) ] :: attributes)
         children
 
 
@@ -100,42 +281,78 @@ type NavScale
     | MonthScale
 
 
-viewIconButton : Theme -> List (Html.Styled.Attribute msg) -> Icons.Icon -> Html msg
-viewIconButton theme attributes icon =
-    div attributes
+type IconButtonVariant
+    = PrimaryIconButton
+    | SecondaryIconButton
+
+
+viewIconButton : Theme -> List (Html.Styled.Attribute msg) -> { icon : Icons.Icon, variant : IconButtonVariant } -> Html msg
+viewIconButton theme attributes { icon, variant } =
+    let
+        variantStyles =
+            case variant of
+                PrimaryIconButton ->
+                    [ Css.color theme.color.primary.main
+                    , Css.hover [ Css.backgroundColor theme.color.action.hover ]
+                    ]
+
+                SecondaryIconButton ->
+                    [ Css.color theme.color.text.secondary
+                    , Css.hover [ Css.backgroundColor theme.color.action.hover ]
+                    ]
+    in
+    div
+        (css
+            [ Css.display Css.inlineFlex
+            , Css.alignItems Css.center
+            , Css.justifyContent Css.center
+            , Css.width theme.size.iconButton
+            , Css.height theme.size.iconButton
+            , Css.borderRadius (Css.pct 50)
+            , Css.cursor Css.pointer
+            , colorsTransition theme
+            , Css.batch variantStyles
+            ]
+            :: attributes
+        )
         [ icon
-            |> Icons.withSize 15
+            |> Icons.withSize 16
             |> Icons.toHtml []
             |> fromUnstyled
         ]
 
 
-viewNavigationButton : Theme -> { direction : NavDirection, scale : NavScale, onClickMsg : msg } -> Html msg
+viewNavigationButton : Theme -> { direction : NavDirection, scale : NavScale, onClickMsg : Maybe msg } -> Html msg
 viewNavigationButton theme { direction, scale, onClickMsg } =
     let
-        ( idDirection, idScale, icon ) =
+        icon =
             case ( direction, scale ) of
                 ( PreviousNav, YearScale ) ->
-                    ( "previous", "year", Icons.chevronsLeft )
+                    Icons.chevronsLeft
 
                 ( PreviousNav, MonthScale ) ->
-                    ( "previous", "month", Icons.chevronLeft )
+                    Icons.chevronLeft
 
                 ( NextNav, YearScale ) ->
-                    ( "next", "year", Icons.chevronsRight )
+                    Icons.chevronsRight
 
                 ( NextNav, MonthScale ) ->
-                    ( "next", "month", Icons.chevronRight )
+                    Icons.chevronRight
+
+        attrs =
+            case onClickMsg of
+                Just msg ->
+                    [ onClick msg ]
+
+                Nothing ->
+                    [ css [ Css.visibility Css.hidden ] ]
     in
     viewIconButton theme
-        [ id (idDirection ++ "-" ++ idScale)
-        , class (classPrefix "calendar-header-chevron")
-        , onClick onClickMsg
-        ]
-        icon
+        attrs
+        { icon = icon, variant = SecondaryIconButton }
 
 
-viewCalendarHeaderNavigation : Theme -> List (Html.Styled.Attribute msg) -> { direction : NavDirection, yearMsg : msg, monthMsg : msg } -> Html msg
+viewCalendarHeaderNavigation : Theme -> List (Html.Styled.Attribute msg) -> { direction : NavDirection, yearMsg : Maybe msg, monthMsg : Maybe msg } -> Html msg
 viewCalendarHeaderNavigation theme attributes { direction, yearMsg, monthMsg } =
     let
         yearButton =
@@ -144,30 +361,25 @@ viewCalendarHeaderNavigation theme attributes { direction, yearMsg, monthMsg } =
         monthButton =
             viewNavigationButton theme { direction = direction, scale = MonthScale, onClickMsg = monthMsg }
 
-        ( classSuffix, children ) =
+        children =
             case direction of
                 PreviousNav ->
-                    ( "previous", [ yearButton, monthButton ] )
+                    [ yearButton, monthButton ]
 
                 NextNav ->
-                    ( "next", [ monthButton, yearButton ] )
+                    [ monthButton, yearButton ]
     in
-    div
-        ([ class (classPrefix "calendar-header-navigation")
-         , class (classPrefix "calendar-header-navigation--" ++ classSuffix)
-         ]
-            ++ attributes
-        )
+    div ([] ++ attributes)
         children
 
 
 type alias CalendarHeaderProps msg =
     { yearText : String
     , monthText : String
-    , previousYearMsg : msg
-    , previousMonthMsg : msg
-    , nextYearMsg : msg
-    , nextMonthMsg : msg
+    , previousYearMsg : Maybe msg
+    , previousMonthMsg : Maybe msg
+    , nextYearMsg : Maybe msg
+    , nextMonthMsg : Maybe msg
     , formattedDay : Weekday -> String
     , firstWeekDay : Weekday
     , showCalendarWeekNumbers : Bool
@@ -177,17 +389,33 @@ type alias CalendarHeaderProps msg =
 viewCalendarHeader : Theme -> CalendarHeaderProps msg -> Html msg
 viewCalendarHeader theme { previousYearMsg, previousMonthMsg, nextYearMsg, nextMonthMsg, monthText, yearText, formattedDay, firstWeekDay, showCalendarWeekNumbers } =
     div
-        [ class (classPrefix "calendar-header") ]
-        [ div [ class (classPrefix "calendar-header-row") ]
+        [ css
+            [ Css.fontWeight Css.bold
+            , Css.displayFlex
+            , Css.flexDirection Css.column
+            , Css.property "gap" "0.5rem"
+            ]
+        ]
+        [ div
+            [ css
+                [ Css.displayFlex
+                , Css.justifyContent Css.spaceBetween
+                ]
+            ]
             [ viewCalendarHeaderNavigation theme
                 []
                 { direction = PreviousNav, yearMsg = previousYearMsg, monthMsg = previousMonthMsg }
             , div
-                [ class (classPrefix "calendar-header-text") ]
+                [ css
+                    [ Css.display Css.inlineFlex
+                    , Css.alignItems Css.center
+                    , Css.property "user-select" "none"
+                    ]
+                ]
                 [ div []
-                    [ span [ id "month" ] [ text monthText ]
+                    [ span [] [ text monthText ]
                     , span [] [ text " " ]
-                    , span [ id "year" ] [ text yearText ]
+                    , span [] [ text yearText ]
                     ]
                 ]
             , viewCalendarHeaderNavigation theme
@@ -212,22 +440,40 @@ viewWeekHeader :
     -> Html msg
 viewWeekHeader theme { formattedDay, firstWeekDay, showCalendarWeekNumbers } =
     div
-        [ class (classPrefix "calendar-header-week") ]
+        [ css
+            [ Css.displayFlex
+            , Css.color theme.color.text.secondary
+            , Css.fontSize theme.fontSize.xxs
+            , Css.fontWeight Css.normal
+            ]
+        ]
         ((if showCalendarWeekNumbers then
-            div [ class (classPrefix "calendar-header-week-number") ] [ text "W" ]
+            viewHeaderDay theme [ text "#" ]
 
           else
             text ""
          )
-            :: List.map (viewHeaderDay theme formattedDay) (Utilities.generateListOfWeekDay firstWeekDay)
+            :: List.map
+                (\day ->
+                    viewHeaderDay theme
+                        [ text (formattedDay day) ]
+                )
+                (Utilities.generateListOfWeekDay firstWeekDay)
         )
 
 
-viewHeaderDay : Theme -> (Weekday -> String) -> Weekday -> Html msg
-viewHeaderDay theme formatDay day =
+viewHeaderDay : Theme -> List (Html msg) -> Html msg
+viewHeaderDay theme children =
     div
-        [ class (classPrefix "calendar-header-day") ]
-        [ text (formatDay day) ]
+        [ css
+            [ Css.display Css.inlineFlex
+            , Css.alignItems Css.center
+            , Css.justifyContent Css.center
+            , Css.width theme.size.day
+            , Css.height theme.size.day
+            ]
+        ]
+        children
 
 
 {-| Calendar Body Components
@@ -259,15 +505,15 @@ type alias CalendarDayProps msg =
 type alias DayProps msg =
     { onDayClickMsg : PickerDay -> msg
     , onDayMouseOverMsg : PickerDay -> msg
-    , dayClassesFn : PickerDay -> String
+    , dayStylesFn : PickerDay -> Css.Style
     }
 
 
 viewCalendarMonth : Theme -> CalendarMonthProps msg -> Html msg
 viewCalendarMonth theme { weeks, onMouseOutMsg, dayProps, showCalendarWeekNumbers, zone } =
     div
-        [ class (classPrefix "calendar-month"), onMouseOut onMouseOutMsg ]
-        [ div []
+        [ onMouseOut onMouseOutMsg ]
+        [ div [ css [ Css.displayFlex, Css.flexDirection Css.column, Css.property "gap" "2px" ] ]
             (List.map
                 (\week ->
                     viewCalendarWeek theme
@@ -300,9 +546,20 @@ viewCalendarWeek theme { week, zone, showCalendarWeekNumbers, dayProps } =
                 Nothing ->
                     ""
     in
-    div [ class (classPrefix "calendar-week") ]
+    div [ css [ Css.displayFlex ] ]
         ((if showCalendarWeekNumbers then
-            div [ class (classPrefix "calendar-week-number") ]
+            div
+                [ css
+                    [ Css.width theme.size.day
+                    , Css.height theme.size.day
+                    , Css.displayFlex
+                    , Css.alignItems Css.center
+                    , Css.justifyContent Css.center
+                    , Css.fontSize theme.fontSize.xs
+                    , Css.color theme.color.text.secondary
+                    , Css.opacity (Css.num 0.5)
+                    ]
+                ]
                 [ text dateWeekNumber ]
 
           else
@@ -325,7 +582,7 @@ viewDay theme { zone, dayProps, day } =
     button
         [ type_ "button"
         , disabled day.disabled
-        , class (dayProps.dayClassesFn day)
+        , css [ dayProps.dayStylesFn day ]
         , onClick (dayProps.onDayClickMsg day)
         , onMouseOver (dayProps.onDayMouseOverMsg day)
         ]
@@ -336,19 +593,48 @@ viewDay theme { zone, dayProps, day } =
 -}
 viewFooterContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewFooterContainer theme attributes children =
-    div (class (classPrefix "footer") :: attributes)
+    div
+        (css
+            [ Css.width (Css.pct 100)
+            , Css.backgroundColor theme.color.background.footer
+            , Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.fontSize theme.fontSize.sm
+            , Css.borderTop3 theme.borderWidth Css.solid theme.color.border
+            , Css.padding (Css.rem 1)
+            ]
+            :: attributes
+        )
         children
 
 
 viewEmpty : Theme -> Html msg
 viewEmpty theme =
-    div [ class (classPrefix "footer-empty") ]
+    div
+        [ css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.justifyContent Css.center
+            , Css.letterSpacing (Css.px 3)
+            , Css.color theme.color.text.disabled
+            , Css.flexGrow (Css.num 1)
+            , Css.flexBasis (Css.px 0)
+            , Css.minHeight theme.size.iconButton
+            ]
+        ]
         [ text "––.––.––––" ]
 
 
 viewDate : Theme -> String -> Html msg
 viewDate theme dateTimeString =
-    span [ class (classPrefix "selection-date") ]
+    span
+        [ css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.property "gap" "0.5rem"
+            , Css.minHeight theme.size.iconButton
+            ]
+        ]
         [ Icons.calendar
             |> Icons.withSize 16
             |> Icons.toHtml []
@@ -369,7 +655,16 @@ type alias FooterBodyProps msg =
 
 viewFooterBody : Theme -> FooterBodyProps msg -> Html msg
 viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibility, selection, onTimePickerToggleMsg, dateTimeString } =
-    div [ class (classPrefix "footer-datetime-container") ]
+    div
+        [ css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.justifyContent Css.center
+            , Css.property "gap" "1rem"
+            , Css.flexGrow (Css.num 1)
+            , Css.flexBasis (Css.px 0)
+            ]
+        ]
         [ viewDate theme dateTimeString
         , case timePickerVisibility of
             NeverVisible ->
@@ -386,22 +681,29 @@ viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibilit
                         else
                             ( text (timePickerSettings.timeStringFn timePickerProps.zone selection), Icons.edit )
                 in
-                div [ class (classPrefix "selection-time") ]
+                div
+                    [ css
+                        [ Css.displayFlex
+                        , Css.alignItems Css.center
+                        , Css.property "gap" "0.5rem"
+                        ]
+                    ]
                     [ Icons.clock
                         |> Icons.withSize 16
                         |> Icons.toHtml []
                         |> fromUnstyled
                     , viewToggleView
-                    , div [ class (classPrefix "time-picker-toggle"), onClick onTimePickerToggleMsg ]
-                        [ toggleIcon
-                            |> Icons.withSize 16
-                            |> Icons.toHtml []
-                            |> fromUnstyled
-                        ]
+                    , viewIconButton theme [ onClick onTimePickerToggleMsg ] { icon = toggleIcon, variant = PrimaryIconButton }
                     ]
 
             AlwaysVisible _ ->
-                div [ class (classPrefix "selection-time") ]
+                div
+                    [ css
+                        [ Css.displayFlex
+                        , Css.alignItems Css.center
+                        , Css.property "gap" "0.5rem"
+                        ]
+                    ]
                     [ Icons.clock
                         |> Icons.withSize 16
                         |> Icons.toHtml []
@@ -424,8 +726,8 @@ type alias TimePickerProps msg =
 viewTimePicker : Theme -> TimePickerProps msg -> Html msg
 viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChangeDecoder, selectableHours, selectableMinutes } =
     div
-        [ class (classPrefix "time-picker") ]
-        [ div [ class (classPrefix "select-container") ]
+        [ css [ Css.displayFlex, Css.justifyContent Css.spaceBetween ] ]
+        [ div [ css [ Css.display Css.inlineFlex ] ]
             -- Eventually we would like to use onInput instead of a custom on "change".
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
@@ -433,7 +735,15 @@ viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChange
             [ viewSelect theme
                 [ id "hour-select", on "change" onHourChangeDecoder ]
                 (Utilities.generateHourOptions zone selectionTuple selectableHours)
-            , div [ class (classPrefix "select-spacer") ] [ text ":" ]
+            , div
+                [ css
+                    [ Css.display Css.inlineFlex
+                    , Css.alignItems Css.center
+                    , Css.padding2 (Css.px 0) (Css.rem 0.25)
+                    , Css.property "user-select" "none"
+                    ]
+                ]
+                [ text ":" ]
             , viewSelect theme
                 [ id "minute-select", on "change" onMinuteChangeDecoder ]
                 (Utilities.generateMinuteOptions zone selectionTuple selectableMinutes)
@@ -443,10 +753,38 @@ viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChange
 
 viewSelect : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewSelect theme attributes content =
-    div [ class (classPrefix "select") ]
-        [ select attributes content
-        , Icons.chevronDown
-            |> Icons.withSize 16
-            |> Icons.toHtml []
-            |> fromUnstyled
+    div
+        [ css
+            [ Css.position Css.relative
+            , Css.display Css.inlineFlex
+            , Css.alignItems Css.center
+            ]
+        ]
+        [ select
+            (css
+                [ Css.borderRadius theme.borderRadius.base
+                , Css.height theme.size.iconButton
+                , Css.outline Css.zero
+                , Css.fontWeight Css.normal
+                , Css.border3 theme.borderWidth Css.solid theme.color.border
+                , Css.property "appearance" "none"
+                , Css.padding4 (Css.px 0) (Css.px 24) (Css.px 0) (Css.px 4)
+                ]
+                :: attributes
+            )
+            content
+        , span
+            [ css
+                [ Css.position Css.absolute
+                , Css.right (Css.px 4)
+                , Css.pointerEvents Css.none
+                , Css.display Css.inlineFlex
+                , Css.alignItems Css.center
+                ]
+            ]
+            [ Icons.chevronDown
+                |> Icons.withSize 16
+                |> Icons.toHtml []
+                |> fromUnstyled
+            ]
         ]

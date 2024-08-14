@@ -132,17 +132,20 @@ type alias Theme =
         , primary :
             { main : Css.Color
             , contrastText : Css.Color
+            , light : Css.Color
             }
         , background :
             { container : Css.Color
             , footer : Css.Color
             , presets : Css.Color
-            , weekNumbers : Css.Color
             }
+        , action : { hover : Css.Color }
+        , border : Css.Color
         }
     , size :
         { presetsContainer : Css.Px
         , day : Css.Px
+        , iconButton : Css.Px
         }
     , borderWidth : Css.Px
     , borderRadius :
@@ -157,6 +160,7 @@ type alias Theme =
         , color : Css.Color
         }
     , zIndex : Int
+    , transition : { duration : Float }
     }
 
 
@@ -171,28 +175,31 @@ defaultTheme =
     , color =
         { text =
             { primary = Css.hex "22292f"
-            , secondary = Css.hex "a0aec0"
-            , disabled = Css.hex "a0aec0"
+            , secondary = Css.rgba 0 0 0 0.5
+            , disabled = Css.rgba 0 0 0 0.25
             }
         , primary =
             { main = Css.hex "3490dc"
             , contrastText = Css.hex "ffffff"
+            , light = Css.rgba 52 144 220 0.1
             }
         , background =
             { container = Css.hex "ffffff"
             , footer = Css.hex "ffffff"
             , presets = Css.hex "ffffff"
-            , weekNumbers = Css.hex "f1f5f8"
             }
+        , action = { hover = Css.rgba 0 0 0 0.08 }
+        , border = Css.rgba 0 0 0 0.1
         }
     , size =
         { presetsContainer = Css.px 150
         , day = Css.px 36
+        , iconButton = Css.px 32
         }
     , borderWidth = Css.px 1
     , borderRadius =
         { base = Css.px 3
-        , lg = Css.px 5
+        , lg = Css.px 6
         }
     , boxShadow =
         { offsetX = Css.px 0
@@ -202,6 +209,7 @@ defaultTheme =
         , color = Css.rgba 0 0 0 0.25
         }
     , zIndex = 100
+    , transition = { duration = 300 }
     }
 
 

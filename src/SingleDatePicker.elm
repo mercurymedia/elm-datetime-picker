@@ -12,12 +12,6 @@ module SingleDatePicker exposing
 @docs DatePicker, Msg, init, view, update, subscriptions
 
 
-# Settings
-
-@docs Settings, defaultSettings, TimePickerVisibility
-@docs TimePickerSettings, defaultTimePickerSettings
-
-
 # Externally Triggered Actions
 
 @docs openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
@@ -29,13 +23,10 @@ module SingleDatePicker exposing
 
 -}
 
--- import Html exposing (Html, text)
-
 import Browser.Dom as Dom
 import Browser.Events
 import DatePicker.Settings exposing (..)
 import DatePicker.SingleUtilities as SingleUtilities
-import DatePicker.Styles
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
@@ -368,7 +359,7 @@ viewPicker attributes settings timePickerVisible baseDay model =
         currentMonth =
             Time.posixToParts settings.zone offsetTime |> .month
 
-        dayClassesFn =
+        dayStylesFn =
             \day ->
                 let
                     dayParts =
@@ -382,7 +373,7 @@ viewPicker attributes settings timePickerVisible baseDay model =
                         Maybe.map (\fday -> generatePickerDay settings fday == day) settings.focusedDate
                             |> Maybe.withDefault False
                 in
-                DatePicker.Styles.singleDayClasses prefix
+                singleDayStyles settings.theme
                     (dayParts.month /= currentMonth)
                     day.disabled
                     isPicked
@@ -398,10 +389,10 @@ viewPicker attributes settings timePickerVisible baseDay model =
                 [ viewCalendarHeader settings.theme
                     { yearText = year
                     , monthText = monthName
-                    , previousYearMsg = model.internalMsg <| PrevYear
-                    , previousMonthMsg = model.internalMsg <| PrevMonth
-                    , nextYearMsg = model.internalMsg <| NextYear
-                    , nextMonthMsg = model.internalMsg <| NextMonth
+                    , previousYearMsg = Just <| model.internalMsg <| PrevYear
+                    , previousMonthMsg = Just <| model.internalMsg <| PrevMonth
+                    , nextYearMsg = Just <| model.internalMsg <| NextYear
+                    , nextMonthMsg = Just <| model.internalMsg <| NextMonth
                     , formattedDay = settings.formattedDay
                     , firstWeekDay = settings.firstWeekDay
                     , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
@@ -412,7 +403,7 @@ viewPicker attributes settings timePickerVisible baseDay model =
                     , zone = settings.zone
                     , showCalendarWeekNumbers = settings.showCalendarWeekNumbers
                     , dayProps =
-                        { dayClassesFn = dayClassesFn
+                        { dayStylesFn = dayStylesFn
                         , onDayClickMsg = \day -> model.internalMsg (SetDay day)
                         , onDayMouseOverMsg = \day -> model.internalMsg (SetHoveredDay day)
                         }
@@ -485,13 +476,3 @@ viewFooter settings timePickerVisible baseDay model =
                     , dateTimeString = dateTimeString
                     }
         ]
-
-
-
--- timeIsStartOfDay : Settings -> Posix -> Bool
--- timeIsStartOfDay settings time =
---     let
---         { hour, minute } =
---             Time.posixToParts settings.zone time
---     in
---     hour == 0 && minute == 0
