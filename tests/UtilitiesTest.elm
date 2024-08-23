@@ -2,8 +2,8 @@ module UtilitiesTest exposing (suite)
 
 import DatePicker.Utilities as Utilities exposing (calculateCoordinates, timeOfDayFromPosix)
 import Expect
-import Html exposing (option, text)
-import Html.Attributes exposing (selected, value)
+import Html.Styled exposing (option, text)
+import Html.Styled.Attributes exposing (selected, value)
 import Test exposing (..)
 import Time exposing (Month(..), Posix, Weekday(..))
 import Time.Extra as Time exposing (Parts, partsToPosix)
