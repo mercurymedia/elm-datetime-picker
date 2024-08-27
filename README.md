@@ -10,11 +10,11 @@ Single and duration datetime picker components written in Elm 0.19
 
 #### Single Picker
 
-![basic](https://user-images.githubusercontent.com/32676430/219370444-3e942c63-822f-45a7-8029-f7b0f1c30190.gif)
+![single-datepicker](https://github.com/user-attachments/assets/0bd666e8-7805-48c9-b188-a27a6205742c)
 
 #### Duration Picker
 
-![duration](https://user-images.githubusercontent.com/32676430/219370489-f9d21925-a7be-43b6-a2b9-b2e844c3c547.gif)
+![duration-datepicker](https://github.com/user-attachments/assets/e6d570c7-3bab-4f6c-a235-69fdd5195218)
 
 ## Usage
 
