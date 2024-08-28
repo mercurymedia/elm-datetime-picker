@@ -1,4 +1,22 @@
-module DatePicker.ViewComponents exposing (durationDayStyles, durationStartOrEndStyles, singleDayStyles, viewCalendarContainer, viewCalendarHeader, viewCalendarMonth, viewContainer, viewEmpty, viewFooterBody, viewFooterContainer, viewPickerContainer, viewPresetTab, viewPresetsContainer)
+module DatePicker.ViewComponents exposing
+    ( classPrefix
+    , durationDayClasses
+    , durationDayStyles
+    , durationStartOrEndClasses
+    , durationStartOrEndStyles
+    , singleDayClasses
+    , singleDayStyles
+    , viewCalendarContainer
+    , viewCalendarHeader
+    , viewCalendarMonth
+    , viewContainer
+    , viewEmpty
+    , viewFooterBody
+    , viewFooterContainer
+    , viewPickerContainer
+    , viewPresetTab
+    , viewPresetsContainer
+    )
 
 import Css
 import Css.Transitions
@@ -7,7 +25,7 @@ import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (Theme, TimePickerVisibility(..))
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css, disabled, id, type_)
+import Html.Styled.Attributes exposing (class, css, disabled, id, type_)
 import Html.Styled.Events exposing (on, onClick, onMouseOut, onMouseOver)
 import Json.Decode as Decode
 import List.Extra as List
@@ -24,12 +42,25 @@ import Time.Extra as Time exposing (Interval(..))
 @docs durationDayStyles, durationStartOrEndStyles, singleDayStyles, viewCalendarContainer, viewCalendarHeader, viewCalendarMonth, viewContainer, viewEmpty, viewFooterBody, viewFooterContainer, viewPickerContainer, viewPresetTab, viewPresetsContainer
 
 -}
+classPrefix : String -> String -> String
+classPrefix prefix className =
+    prefix ++ "--" ++ className
+
+
 styleList : List ( List Css.Style, Bool ) -> Css.Style
 styleList list =
     list
         |> List.filter Tuple.second
         |> List.concatMap Tuple.first
         |> Css.batch
+
+
+classList : List ( String, Bool ) -> String
+classList list =
+    list
+        |> List.filter Tuple.second
+        |> List.map Tuple.first
+        |> String.join " "
 
 
 colorsTransition : Theme -> Css.Style
@@ -94,6 +125,24 @@ dayStyles theme =
     }
 
 
+dayClasses :
+    Theme
+    ->
+        { common : String
+        , hidden : String
+        , disabled : String
+        , picked : String
+        , today : String
+        }
+dayClasses theme =
+    { common = classPrefix theme.classNamePrefix "calendar-day"
+    , hidden = classPrefix theme.classNamePrefix "hidden"
+    , disabled = classPrefix theme.classNamePrefix "disabled"
+    , picked = classPrefix theme.classNamePrefix "picked"
+    , today = classPrefix theme.classNamePrefix "today"
+    }
+
+
 {-| Utilities
 -}
 durationDayStyles : Theme -> Bool -> Bool -> Bool -> Bool -> Bool -> Css.Style
@@ -116,6 +165,22 @@ durationDayStyles theme isHidden isDisabled isPicked isToday isBetween =
             , ( disabled, isDisabled )
             , ( hidden, isHidden )
             ]
+        ]
+
+
+durationDayClasses : Theme -> Bool -> Bool -> Bool -> Bool -> Bool -> String
+durationDayClasses theme isHidden isDisabled isPicked isToday isBetween =
+    let
+        { common, today, picked, disabled, hidden } =
+            dayClasses theme
+    in
+    classList
+        [ ( common, True )
+        , ( today, isToday )
+        , ( classPrefix theme.classNamePrefix "between", isBetween )
+        , ( picked, isPicked )
+        , ( disabled, isDisabled )
+        , ( hidden, isHidden )
         ]
 
 
@@ -144,6 +209,18 @@ durationStartOrEndStyles theme isStart isEnd =
         Css.batch []
 
 
+durationStartOrEndClasses : Theme -> Bool -> Bool -> String
+durationStartOrEndClasses theme isStart isEnd =
+    if isStart && not isEnd then
+        classPrefix theme.classNamePrefix "start"
+
+    else if isEnd && not isStart then
+        classPrefix theme.classNamePrefix "end"
+
+    else
+        ""
+
+
 singleDayStyles : Theme -> Bool -> Bool -> Bool -> Bool -> Css.Style
 singleDayStyles theme isHidden isDisabled isPicked isToday =
     let
@@ -161,12 +238,27 @@ singleDayStyles theme isHidden isDisabled isPicked isToday =
         ]
 
 
+singleDayClasses : Theme -> Bool -> Bool -> Bool -> Bool -> String
+singleDayClasses theme isHidden isDisabled isPicked isToday =
+    let
+        { common, today, picked, disabled, hidden } =
+            dayClasses theme
+    in
+    classList
+        [ ( common, True )
+        , ( today, isToday )
+        , ( picked, isPicked )
+        , ( disabled, isDisabled )
+        , ( hidden, isHidden )
+        ]
+
+
 {-| Container Component
 -}
 viewContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewContainer theme attributes children =
     Html.Styled.div
-        (css
+        ([ css
             [ Css.backgroundColor theme.color.background.container
             , Css.zIndex (Css.int theme.zIndex)
             , Css.color theme.color.text.primary
@@ -182,7 +274,9 @@ viewContainer theme attributes children =
             , Css.displayFlex
             , Css.position Css.absolute
             ]
-            :: attributes
+         , class (classPrefix theme.classNamePrefix "container")
+         ]
+            ++ attributes
         )
         children
 
@@ -192,7 +286,7 @@ viewContainer theme attributes children =
 viewPresetsContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewPresetsContainer theme attributes children =
     div
-        (css
+        ([ css
             [ Css.padding (Css.rem 0.75)
             , Css.borderRight3 theme.borderWidth Css.solid theme.color.border
             , Css.backgroundColor theme.color.background.presets
@@ -201,7 +295,9 @@ viewPresetsContainer theme attributes children =
             , Css.flexDirection Css.column
             , Css.flexShrink (Css.int 0)
             ]
-            :: attributes
+         , class (classPrefix theme.classNamePrefix "presets-container")
+         ]
+            ++ attributes
         )
         children
 
@@ -226,16 +322,17 @@ viewPresetTab theme attributes { title, active, onClickMsg } =
             , Css.cursor Css.default
             ]
 
-        styles =
+        ( styles, classes ) =
             if active then
-                defaultStyles ++ activeStyles
+                ( defaultStyles ++ activeStyles, classPrefix theme.classNamePrefix "preset-tab" ++ " " ++ "active" )
 
             else
-                defaultStyles
+                ( defaultStyles, classPrefix theme.classNamePrefix "preset-tab" )
     in
     div
         ([ css styles
          , onClick onClickMsg
+         , class classes
          ]
             ++ attributes
         )
@@ -248,13 +345,15 @@ viewPresetTab theme attributes { title, active, onClickMsg } =
 viewPickerContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewPickerContainer theme attributes children =
     div
-        (css
+        ([ css
             [ Css.flexShrink (Css.num 0)
             , Css.displayFlex
             , Css.flexDirection Css.column
             , Css.justifyContent Css.spaceBetween
             ]
-            :: attributes
+         , class (classPrefix theme.classNamePrefix "picker-container")
+         ]
+            ++ attributes
         )
         children
 
@@ -263,7 +362,12 @@ viewPickerContainer theme attributes children =
 -}
 viewCalendarContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewCalendarContainer theme attributes children =
-    div (css [ Css.padding (Css.rem 1) ] :: attributes)
+    div
+        ([ css [ Css.padding (Css.rem 1) ]
+         , class (classPrefix theme.classNamePrefix "calendar-container")
+         ]
+            ++ attributes
+        )
         children
 
 
@@ -346,7 +450,7 @@ viewNavigationButton theme { direction, scale, onClickMsg } =
                     [ css [ Css.visibility Css.hidden ] ]
     in
     viewIconButton theme
-        attrs
+        (class (classPrefix theme.classNamePrefix "calendar-header-navigation-button") :: attrs)
         { icon = icon, variant = SecondaryIconButton }
 
 
@@ -367,7 +471,7 @@ viewCalendarHeaderNavigation theme attributes { direction, yearMsg, monthMsg } =
                 NextNav ->
                     [ monthButton, yearButton ]
     in
-    div ([] ++ attributes)
+    div (class (classPrefix theme.classNamePrefix "calendar-header-navigation") :: attributes)
         children
 
 
@@ -393,15 +497,17 @@ viewCalendarHeader theme { previousYearMsg, previousMonthMsg, nextYearMsg, nextM
             , Css.flexDirection Css.column
             , Css.property "gap" "0.5rem"
             ]
+        , class (classPrefix theme.classNamePrefix "calendar-header")
         ]
         [ div
             [ css
                 [ Css.displayFlex
                 , Css.justifyContent Css.spaceBetween
                 ]
+            , class (classPrefix theme.classNamePrefix "calendar-header-row")
             ]
             [ viewCalendarHeaderNavigation theme
-                []
+                [ class (classPrefix theme.classNamePrefix "previous") ]
                 { direction = PreviousNav, yearMsg = previousYearMsg, monthMsg = previousMonthMsg }
             , div
                 [ css
@@ -409,15 +515,16 @@ viewCalendarHeader theme { previousYearMsg, previousMonthMsg, nextYearMsg, nextM
                     , Css.alignItems Css.center
                     , Css.property "user-select" "none"
                     ]
+                , class "calendar-header-text"
                 ]
                 [ div []
-                    [ span [] [ text monthText ]
+                    [ span [ class (classPrefix theme.classNamePrefix "calendar-header-text-month") ] [ text monthText ]
                     , span [] [ text " " ]
-                    , span [] [ text yearText ]
+                    , span [ class (classPrefix theme.classNamePrefix "calendar-header-text-year") ] [ text yearText ]
                     ]
                 ]
             , viewCalendarHeaderNavigation theme
-                []
+                [ class (classPrefix theme.classNamePrefix "next") ]
                 { direction = NextNav, yearMsg = nextYearMsg, monthMsg = nextMonthMsg }
             ]
         , viewWeekHeader theme
@@ -444,9 +551,10 @@ viewWeekHeader theme { formattedDay, firstWeekDay, showCalendarWeekNumbers } =
             , Css.fontSize theme.fontSize.xxs
             , Css.fontWeight Css.normal
             ]
+        , class (classPrefix theme.classNamePrefix "calendar-header-week")
         ]
         ((if showCalendarWeekNumbers then
-            viewHeaderDay theme [ text "#" ]
+            viewHeaderDay theme [ class (classPrefix theme.classNamePrefix "calendar-header-day-week-number") ] [ text "#" ]
 
           else
             text ""
@@ -454,23 +562,27 @@ viewWeekHeader theme { formattedDay, firstWeekDay, showCalendarWeekNumbers } =
             :: List.map
                 (\day ->
                     viewHeaderDay theme
+                        []
                         [ text (formattedDay day) ]
                 )
                 (Utilities.generateListOfWeekDay firstWeekDay)
         )
 
 
-viewHeaderDay : Theme -> List (Html msg) -> Html msg
-viewHeaderDay theme children =
+viewHeaderDay : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
+viewHeaderDay theme attributes children =
     div
-        [ css
+        ([ css
             [ Css.display Css.inlineFlex
             , Css.alignItems Css.center
             , Css.justifyContent Css.center
             , Css.width theme.size.day
             , Css.height theme.size.day
             ]
-        ]
+         , class "calendar-header-day"
+         ]
+            ++ attributes
+        )
         children
 
 
@@ -503,14 +615,14 @@ type alias CalendarDayProps msg =
 type alias DayProps msg =
     { onDayClickMsg : PickerDay -> msg
     , onDayMouseOverMsg : PickerDay -> msg
-    , dayStylesFn : PickerDay -> Css.Style
+    , dayStylesFn : PickerDay -> ( Css.Style, String )
     }
 
 
 viewCalendarMonth : Theme -> CalendarMonthProps msg -> Html msg
 viewCalendarMonth theme { weeks, onMouseOutMsg, dayProps, showCalendarWeekNumbers, zone } =
     div
-        [ onMouseOut onMouseOutMsg ]
+        [ onMouseOut onMouseOutMsg, class (classPrefix theme.classNamePrefix "calendar-month") ]
         [ div [ css [ Css.displayFlex, Css.flexDirection Css.column, Css.property "gap" "2px" ] ]
             (List.map
                 (\week ->
@@ -544,7 +656,7 @@ viewCalendarWeek theme { week, zone, showCalendarWeekNumbers, dayProps } =
                 Nothing ->
                     ""
     in
-    div [ css [ Css.displayFlex ] ]
+    div [ css [ Css.displayFlex ], class (classPrefix theme.classNamePrefix "calendar-week") ]
         ((if showCalendarWeekNumbers then
             div
                 [ css
@@ -557,6 +669,7 @@ viewCalendarWeek theme { week, zone, showCalendarWeekNumbers, dayProps } =
                     , Css.color theme.color.text.secondary
                     , Css.opacity (Css.num 0.5)
                     ]
+                , class (classPrefix theme.classNamePrefix "calendar-week-number")
                 ]
                 [ text dateWeekNumber ]
 
@@ -576,13 +689,17 @@ viewDay theme { zone, dayProps, day } =
     let
         dayParts =
             Time.posixToParts zone day.start
+
+        ( styles, classes ) =
+            dayProps.dayStylesFn day
     in
     button
         [ type_ "button"
         , disabled day.disabled
-        , css [ dayProps.dayStylesFn day ]
+        , css [ styles ]
         , onClick (dayProps.onDayClickMsg day)
         , onMouseOver (dayProps.onDayMouseOverMsg day)
+        , class classes
         ]
         [ text (String.fromInt dayParts.day) ]
 
@@ -592,7 +709,7 @@ viewDay theme { zone, dayProps, day } =
 viewFooterContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewFooterContainer theme attributes children =
     div
-        (css
+        ([ css
             [ Css.width (Css.pct 100)
             , Css.backgroundColor theme.color.background.footer
             , Css.displayFlex
@@ -601,7 +718,9 @@ viewFooterContainer theme attributes children =
             , Css.borderTop3 theme.borderWidth Css.solid theme.color.border
             , Css.padding (Css.rem 1)
             ]
-            :: attributes
+         , class (classPrefix theme.classNamePrefix "footer-container")
+         ]
+            ++ attributes
         )
         children
 
@@ -619,6 +738,7 @@ viewEmpty theme =
             , Css.flexBasis (Css.px 0)
             , Css.minHeight theme.size.iconButton
             ]
+        , class (classPrefix theme.classNamePrefix "footer-empty")
         ]
         [ text "––.––.––––" ]
 
@@ -632,6 +752,7 @@ viewDate theme dateTimeString =
             , Css.property "gap" "0.5rem"
             , Css.minHeight theme.size.iconButton
             ]
+        , class (classPrefix theme.classNamePrefix "footer-selected-date")
         ]
         [ Icons.calendar
             |> Icons.withSize 16
@@ -662,6 +783,7 @@ viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibilit
             , Css.flexGrow (Css.num 1)
             , Css.flexBasis (Css.px 0)
             ]
+        , class (classPrefix theme.classNamePrefix "footer-body")
         ]
         [ viewDate theme dateTimeString
         , case timePickerVisibility of
@@ -685,13 +807,18 @@ viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibilit
                         , Css.alignItems Css.center
                         , Css.property "gap" "0.5rem"
                         ]
+                    , class (classPrefix theme.classNamePrefix "footer-time")
                     ]
                     [ Icons.clock
                         |> Icons.withSize 16
                         |> Icons.toHtml []
                         |> fromUnstyled
                     , viewToggleView
-                    , viewIconButton theme [ onClick onTimePickerToggleMsg ] { icon = toggleIcon, variant = PrimaryIconButton }
+                    , viewIconButton theme
+                        [ onClick onTimePickerToggleMsg
+                        , class (classPrefix theme.classNamePrefix "footer-time-picker-toggle")
+                        ]
+                        { icon = toggleIcon, variant = PrimaryIconButton }
                     ]
 
             AlwaysVisible _ ->
@@ -701,6 +828,7 @@ viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibilit
                         , Css.alignItems Css.center
                         , Css.property "gap" "0.5rem"
                         ]
+                    , class (classPrefix theme.classNamePrefix "footer-selected-time")
                     ]
                     [ Icons.clock
                         |> Icons.withSize 16
@@ -724,8 +852,10 @@ type alias TimePickerProps msg =
 viewTimePicker : Theme -> TimePickerProps msg -> Html msg
 viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChangeDecoder, selectableHours, selectableMinutes } =
     div
-        [ css [ Css.displayFlex, Css.justifyContent Css.spaceBetween ] ]
-        [ div [ css [ Css.display Css.inlineFlex ] ]
+        [ css [ Css.displayFlex, Css.justifyContent Css.spaceBetween ]
+        , class (classPrefix theme.classNamePrefix "footer-time-picker")
+        ]
+        [ div [ css [ Css.display Css.inlineFlex ], class (classPrefix theme.classNamePrefix "footer-time-picker-select-container") ]
             -- Eventually we would like to use onInput instead of a custom on "change".
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
@@ -757,6 +887,7 @@ viewSelect theme attributes content =
             , Css.display Css.inlineFlex
             , Css.alignItems Css.center
             ]
+        , class (classPrefix theme.classNamePrefix "footer-select")
         ]
         [ select
             (css

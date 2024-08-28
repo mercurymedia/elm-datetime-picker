@@ -34,7 +34,7 @@ import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Html.Styled exposing (div, fromUnstyled, text, toUnstyled)
-import Html.Styled.Attributes exposing (id, start)
+import Html.Styled.Attributes exposing (class, id, start)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -382,7 +382,7 @@ viewPicker attributes settings timePickerVisible baseDay model =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
     viewContainer settings.theme
-        (id settings.id :: attributes)
+        ([ id settings.id, class (classPrefix settings.theme.classNamePrefix "duration") ] ++ attributes)
         [ viewPresets settings model
         , viewPickerContainer settings.theme
             []
@@ -460,12 +460,23 @@ viewCalendar attrs settings model viewTime side =
                     dayStyles =
                         durationDayStyles settings.theme (dayParts.month /= currentMonth) day.disabled isPicked isFocused isBetween
 
+                    dayClasses =
+                        durationDayClasses settings.theme (dayParts.month /= currentMonth) day.disabled isPicked isFocused isBetween
+
                     startOrEndStyles =
                         durationStartOrEndStyles settings.theme
                             (DurationUtilities.isPickedDaySelectionTuple day model.startSelectionTuple)
                             (DurationUtilities.isPickedDaySelectionTuple day model.endSelectionTuple)
+
+                    startOrEndClasses =
+                        durationStartOrEndClasses settings.theme
+                            (DurationUtilities.isPickedDaySelectionTuple day model.startSelectionTuple)
+                            (DurationUtilities.isPickedDaySelectionTuple day model.endSelectionTuple)
+
+                    classes =
+                        dayClasses ++ " " ++ startOrEndClasses
                 in
-                Css.batch [ dayStyles, startOrEndStyles ]
+                ( Css.batch [ dayStyles, startOrEndStyles ], classes )
 
         ( ( previousYearMsg, previousMonthMsg ), ( nextYearMsg, nextMonthMsg ) ) =
             case side of

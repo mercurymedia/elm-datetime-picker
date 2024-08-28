@@ -32,7 +32,7 @@ import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Html.Styled exposing (text, toUnstyled)
-import Html.Styled.Attributes exposing (id)
+import Html.Styled.Attributes exposing (class, id)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -373,14 +373,21 @@ viewPicker attributes settings timePickerVisible baseDay model =
                         Maybe.map (\fday -> generatePickerDay settings fday == day) settings.focusedDate
                             |> Maybe.withDefault False
                 in
-                singleDayStyles settings.theme
+                ( singleDayStyles settings.theme
                     (dayParts.month /= currentMonth)
                     day.disabled
                     isPicked
                     isFocused
+                , singleDayClasses
+                    settings.theme
+                    (dayParts.month /= currentMonth)
+                    day.disabled
+                    isPicked
+                    isFocused
+                )
     in
     viewContainer settings.theme
-        (id settings.id :: attributes)
+        ([ id settings.id, class (classPrefix settings.theme.classNamePrefix "single") ] ++ attributes)
         [ viewPresets settings model
         , viewPickerContainer settings.theme
             []

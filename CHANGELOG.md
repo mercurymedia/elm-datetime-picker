@@ -5,9 +5,9 @@ NOTE: as is the case in the README, all code snippets below are specific to the 
 ## [10.0.0]
 
 ### **MAJOR/BREAKING CHANGES**
-- The CSS is now defined in a built-in way with `elm-css`, all separately distributed CSS-files have been removed.
-- To allow custom styling, there's a newly created `Theme` as part of the `Settings`. A predefined `defaultTheme` is included in the `defaultSettings` but as all other settings it can be overwritten (see README.md). 
 - All view functions have been moved to a shared module to reduce duplicate code between the `SingleDatePicker` and `DurationDatePicker`.
+- The CSS is now defined in a built-in way with `elm-css`, all separately distributed styles have been removed. The CSS classes are still available and attached to all of the components. So in case more individual styling is needed, you can still use the classes – even though the markup and classNames might have changed. 
+- To allow custom styling, there's a newly created `Theme` as part of the `Settings`. A predefined `defaultTheme` is included in the `defaultSettings` but as all other settings it can be overwritten (see README.md). 
 - Also the `Settings` have been unified for both pickers and extracted to a shared module. The `Settings` is now an `exposed-module` that needs to be imported separately when using the date pickers like this:
 
     ```elm

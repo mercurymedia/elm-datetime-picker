@@ -245,8 +245,10 @@ Examples can be found in the [examples](https://github.com/mercurymedia/elm-date
 ## CSS & Theming
 
 The CSS for the date picker is now defined in a built-in way using [elm-css](https://package.elm-lang.org/packages/rtfeldman/elm-css/latest/).
-Still, there are some design tokens that can be configured individually in a theme. You can pass your custom theme to the `Settings`.
-The `Theme` record currently looks like this:
+There are some design tokens that can be configured individually in a theme.
+In case you need to add additional styling, you can use the CSS-classes that are attached to all the components. You'll find a list of all classes under `/css/DateTimePicker.css`.
+
+In case you'd like to use the Theme, you can pass your custom theme to the `Settings`. sThe `Theme` record currently looks like this:
 
 ```elm
 type alias Theme =

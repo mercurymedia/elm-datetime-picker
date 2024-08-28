@@ -191,6 +191,7 @@ type alias Theme =
         }
     , zIndex : Int
     , transition : { duration : Float }
+    , classNamePrefix : String
     }
 
 
@@ -242,6 +243,7 @@ defaultTheme =
         }
     , zIndex = 100
     , transition = { duration = 300 }
+    , classNamePrefix = "elm-datetimepicker"
     }
 
 
