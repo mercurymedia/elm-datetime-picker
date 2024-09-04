@@ -2,6 +2,27 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [10.0.0]
+
+### **MAJOR/BREAKING CHANGES**
+- All view functions have been moved to a shared module to reduce duplicate code between the `SingleDatePicker` and `DurationDatePicker`.
+- The CSS is now defined in a built-in way with `elm-css`, all separately distributed styles have been removed. The CSS classes are still available and attached to all of the components. So in case more individual styling is needed, you can still use the classes – even though the markup and classNames might have changed. 
+- To allow custom styling, there's a newly created `Theme` as part of the `Settings`. A predefined `defaultTheme` is included in the `defaultSettings` but as all other settings it can be overwritten (see README.md). 
+- Also the `Settings` have been unified for both pickers and extracted to a shared module. The `Settings` is now an `exposed-module` that needs to be imported separately when using the date pickers like this:
+
+    ```elm
+    import DatePicker.Settings
+        exposing
+            ( Settings
+            , TimePickerVisibility(..)
+            , defaultSettings
+            , defaultTimePickerSettings
+            )
+    import SingleDatePicker
+    ``` 
+- The examples have been moved to a parcel app to simplify local development. Simply run `npm install` and `npm start` to run the examples locally.
+
+
 ## [9.0.1]
 
 ### **CHANGED**

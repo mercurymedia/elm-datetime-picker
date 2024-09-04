@@ -2,10 +2,14 @@
   "repository": {},
   "license": "MIT",
   "scripts": {
-    "test": "elm-test"
+    "test": "elm-test",
+    "start": "parcel serve --no-cache examples/index.html"
   },
-  "dependencies": {},
   "devDependencies": {
-    "elm-test": "^0.19.1-revision12"
+    "@parcel/transformer-elm": "^2.12.0",
+    "elm-test": "^0.19.1-revision12",
+    "elm": "^0.19.1-6",
+    "elm-format": "^0.8.7",
+    "parcel": "^2.12.0"
   }
 }

@@ -4,6 +4,7 @@ module DatePicker.Utilities exposing
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
     , calculateCoordinates
+    , clickedOutsidePicker, outsideHierarchyStyles, showHoveredIfEnabled, updateDomElements
     )
 
 {-| Utility functions for both Pickers.
@@ -36,10 +37,11 @@ module DatePicker.Utilities exposing
 -}
 
 import Browser.Dom as Dom
-import Html exposing (Html, option, text, th, time)
-import Html.Attributes exposing (disabled, selected, style, value)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (selected, style, value)
 import Json.Decode as Decode
 import List.Extra as List
+import Task
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
@@ -182,7 +184,30 @@ generateListOfWeekDay firstWeekDay =
             [ Sun, Mon, Tue, Wed, Thu, Fri, Sat ]
 
 
-calculatePositionStyles : { triggerEl : Dom.Element, pickerEl : Dom.Element } -> List (Html.Attribute msg)
+{-| Performs the tasks of finding the trigger and picker DOM elements
+-}
+updateDomElements :
+    { triggerElementId : String
+    , pickerElementId : String
+    , onSuccess : { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element } -> msg
+    , onError : msg
+    }
+    -> Cmd msg
+updateDomElements { triggerElementId, pickerElementId, onSuccess, onError } =
+    Task.attempt
+        (\result ->
+            case result of
+                Ok [ triggerEl, pickerEl ] ->
+                    onSuccess { triggerDomElement = triggerEl, pickerDomElement = pickerEl }
+
+                _ ->
+                    -- Dom element not found
+                    onError
+        )
+        (Task.sequence [ Dom.getElement triggerElementId, Dom.getElement pickerElementId ])
+
+
+calculatePositionStyles : { triggerEl : Dom.Element, pickerEl : Dom.Element } -> List (Html.Styled.Attribute msg)
 calculatePositionStyles { triggerEl, pickerEl } =
     let
         ( viewPortWidth, viewPortHeight ) =
@@ -271,11 +296,22 @@ calculateCoordinates { viewPortWidth, viewPortHeight, triggerX, triggerY, trigge
     { x = posX, y = posY }
 
 
+outsideHierarchyStyles : { triggerDomElement : DomElement, pickerDomElement : DomElement } -> List (Html.Styled.Attribute msg)
+outsideHierarchyStyles { triggerDomElement, pickerDomElement } =
+    case ( triggerDomElement.element, pickerDomElement.element ) of
+        ( Just triggerElement, Just pickerElement ) ->
+            calculatePositionStyles { triggerEl = triggerElement, pickerEl = pickerElement }
+
+        _ ->
+            -- hide picker element until the DOM elements have been found and the positions have been calculated correctly
+            [ style "visibility" "hidden" ]
+
+
 {-| Generate a list of Html `option`s representing
 selectable hours based on the provided selectable hours
 list.
 -}
-generateHourOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html msg)
+generateHourOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html.Styled.Html msg)
 generateHourOptions zone selectionTuple selectableHours =
     let
         isSelected =
@@ -289,7 +325,7 @@ generateHourOptions zone selectionTuple selectableHours =
 selectable minutes based on the provided selectable minutes
 list.
 -}
-generateMinuteOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html msg)
+generateMinuteOptions : Zone -> Maybe ( PickerDay, Posix ) -> List Int -> List (Html.Styled.Html msg)
 generateMinuteOptions zone selectionTuple selectableMinutes =
     let
         isSelected =
@@ -502,6 +538,19 @@ calculateViewOffset zone referenceTime subjectTime =
                 0 - Time.diff Month zone flooredSubject flooredReference
 
 
+clickedOutsidePicker : String -> msg -> Decode.Decoder msg
+clickedOutsidePicker componentId msg =
+    Decode.field "target" (eventIsOutsideComponent componentId)
+        |> Decode.andThen
+            (\isOutside ->
+                if isOutside then
+                    Decode.succeed <| msg
+
+                else
+                    Decode.fail "inside component"
+            )
+
+
 {-| Determine if the user has clicked outside of the datepicker component.
 -}
 eventIsOutsideComponent : String -> Decode.Decoder Bool
@@ -667,3 +716,12 @@ calculatePad firstWeekDay monthStartDay isFrontPad =
                     0
     in
     calculatedPadInt
+
+
+showHoveredIfEnabled : PickerDay -> Maybe PickerDay
+showHoveredIfEnabled hovered =
+    if hovered.disabled then
+        Nothing
+
+    else
+        Just hovered

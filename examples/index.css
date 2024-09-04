@@ -1,0 +1,51 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    margin: 0px;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 14px;
+}
+
+.sidebar {
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    padding: 0 2.5rem;
+    color: #555555;
+}
+
+.sidebar>.header {
+    margin-top: 1rem;
+    font-size: 2.4rem;
+}
+
+.sidebar>.navigation {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.navigation>div {
+    color: black;
+    font-weight: normal;
+}
+
+a {
+    text-decoration: none;
+    cursor: pointer;
+    color: "#177fd6";
+}
+
+.page {
+    display: flex;
+    flex: 0;
+    flex-grow: 1;
+    flex-shrink: 0;
+    background-color: #f2f2f2;
+    overflow: scroll;
+}
