@@ -2,6 +2,11 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [10.0.1]
+
+### **CHANGED**
+- Some CSS classNames and ids have been renamed or re-added so that most of the elements' selectors can be targeted the same way as before elm-css was introduced (this was needed for testing purposes for example).
+
 ## [10.0.0]
 
 ### **MAJOR/BREAKING CHANGES**

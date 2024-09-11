@@ -387,8 +387,8 @@ viewPicker attributes settings timePickerVisible baseDay model =
         , viewPickerContainer settings.theme
             []
             [ div [ Html.Styled.Attributes.css [ Css.displayFlex ] ]
-                [ viewCalendar [] settings model leftViewTime Left
-                , viewCalendar [] settings model rightViewTime Right
+                [ viewCalendar [ class (classPrefix settings.theme.classNamePrefix "left-calendar") ] settings model leftViewTime Left
+                , viewCalendar [ class (classPrefix settings.theme.classNamePrefix "right-calendar") ] settings model rightViewTime Right
                 ]
             , viewFooter settings timePickerVisible baseDay model
             ]
