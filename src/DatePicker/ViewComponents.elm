@@ -427,19 +427,19 @@ viewIconButton theme attributes { icon, variant } =
 viewNavigationButton : Theme -> { direction : NavDirection, scale : NavScale, onClickMsg : Maybe msg } -> Html msg
 viewNavigationButton theme { direction, scale, onClickMsg } =
     let
-        icon =
+        ( icon, identifier ) =
             case ( direction, scale ) of
                 ( PreviousNav, YearScale ) ->
-                    Icons.chevronsLeft
+                    ( Icons.chevronsLeft, "previous-year" )
 
                 ( PreviousNav, MonthScale ) ->
-                    Icons.chevronLeft
+                    ( Icons.chevronLeft, "previous-month" )
 
                 ( NextNav, YearScale ) ->
-                    Icons.chevronsRight
+                    ( Icons.chevronsRight, "next-year" )
 
                 ( NextNav, MonthScale ) ->
-                    Icons.chevronRight
+                    ( Icons.chevronRight, "next-month" )
 
         attrs =
             case onClickMsg of
@@ -450,7 +450,7 @@ viewNavigationButton theme { direction, scale, onClickMsg } =
                     [ css [ Css.visibility Css.hidden ] ]
     in
     viewIconButton theme
-        (class (classPrefix theme.classNamePrefix "calendar-header-navigation-button") :: attrs)
+        ([ class (classPrefix theme.classNamePrefix "calendar-header-navigation-button"), id identifier ] ++ attrs)
         { icon = icon, variant = SecondaryIconButton }
 
 
@@ -507,7 +507,7 @@ viewCalendarHeader theme { previousYearMsg, previousMonthMsg, nextYearMsg, nextM
             , class (classPrefix theme.classNamePrefix "calendar-header-row")
             ]
             [ viewCalendarHeaderNavigation theme
-                [ class (classPrefix theme.classNamePrefix "previous") ]
+                [ class (classPrefix theme.classNamePrefix "calendar-header-navigation--previous") ]
                 { direction = PreviousNav, yearMsg = previousYearMsg, monthMsg = previousMonthMsg }
             , div
                 [ css
@@ -518,13 +518,13 @@ viewCalendarHeader theme { previousYearMsg, previousMonthMsg, nextYearMsg, nextM
                 , class "calendar-header-text"
                 ]
                 [ div []
-                    [ span [ class (classPrefix theme.classNamePrefix "calendar-header-text-month") ] [ text monthText ]
+                    [ span [ class (classPrefix theme.classNamePrefix "calendar-header-text-month"), id "month" ] [ text monthText ]
                     , span [] [ text " " ]
-                    , span [ class (classPrefix theme.classNamePrefix "calendar-header-text-year") ] [ text yearText ]
+                    , span [ class (classPrefix theme.classNamePrefix "calendar-header-text-year"), id "year" ] [ text yearText ]
                     ]
                 ]
             , viewCalendarHeaderNavigation theme
-                [ class (classPrefix theme.classNamePrefix "next") ]
+                [ class (classPrefix theme.classNamePrefix "calendar-header-navigation--next") ]
                 { direction = NextNav, yearMsg = nextYearMsg, monthMsg = nextMonthMsg }
             ]
         , viewWeekHeader theme
@@ -853,15 +853,15 @@ viewTimePicker : Theme -> TimePickerProps msg -> Html msg
 viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChangeDecoder, selectableHours, selectableMinutes } =
     div
         [ css [ Css.displayFlex, Css.justifyContent Css.spaceBetween ]
-        , class (classPrefix theme.classNamePrefix "footer-time-picker")
+        , class (classPrefix theme.classNamePrefix "time-picker")
         ]
-        [ div [ css [ Css.display Css.inlineFlex ], class (classPrefix theme.classNamePrefix "footer-time-picker-select-container") ]
+        [ div [ css [ Css.display Css.inlineFlex ], class (classPrefix theme.classNamePrefix "time-picker-select-container") ]
             -- Eventually we would like to use onInput instead of a custom on "change".
             --
             -- It will be easier to reason through. However, at the moment, a few browsers are not compatible
             -- with that behaviour. See: https://caniuse.com/#search=oninput
             [ viewSelect theme
-                [ id "hour-select", on "change" onHourChangeDecoder ]
+                [ class "hour-select", on "change" onHourChangeDecoder ]
                 (Utilities.generateHourOptions zone selectionTuple selectableHours)
             , div
                 [ css
@@ -873,7 +873,7 @@ viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChange
                 ]
                 [ text ":" ]
             , viewSelect theme
-                [ id "minute-select", on "change" onMinuteChangeDecoder ]
+                [ class "minute-select", on "change" onMinuteChangeDecoder ]
                 (Utilities.generateMinuteOptions zone selectionTuple selectableMinutes)
             ]
         ]
