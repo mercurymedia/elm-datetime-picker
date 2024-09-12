@@ -275,6 +275,7 @@ viewContainer theme attributes children =
             , Css.position Css.absolute
             ]
          , class (classPrefix theme.classNamePrefix "container")
+         , class "elm-css"
          ]
             ++ attributes
         )
