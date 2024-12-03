@@ -48,10 +48,10 @@ update msg model =
 
         UpdatePicker subMsg ->
             let
-                ( newPicker, maybeNewTime ) =
+                ( ( newPicker, maybeNewTime ), cmd ) =
                     SingleDatePicker.update pickerSettings subMsg model.picker
             in
-            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, cmd )
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }, Cmd.none )

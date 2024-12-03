@@ -4,7 +4,7 @@ module DatePicker.Utilities exposing
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
     , calculateCoordinates
-    , clickedOutsidePicker, outsideHierarchyStyles, showHoveredIfEnabled, updateDomElements
+    , clickedOutsidePicker, monthToNumber, outsideHierarchyStyles, showHoveredIfEnabled, updateDomElements
     )
 
 {-| Utility functions for both Pickers.
@@ -433,6 +433,46 @@ monthToNameString month =
 
         Dec ->
             "Dec"
+
+
+monthToNumber : Month -> Int
+monthToNumber month =
+    case month of
+        Jan ->
+            1
+
+        Feb ->
+            2
+
+        Mar ->
+            3
+
+        Apr ->
+            4
+
+        May ->
+            5
+
+        Jun ->
+            6
+
+        Jul ->
+            7
+
+        Aug ->
+            8
+
+        Sep ->
+            9
+
+        Oct ->
+            10
+
+        Nov ->
+            11
+
+        Dec ->
+            12
 
 
 {-| Convert the provided `Weekday` type into a string

@@ -41,10 +41,10 @@ update msg model =
 
         UpdatePicker subMsg ->
             let
-                ( newPicker, maybeNewTime ) =
+                ( ( newPicker, maybeNewTime ), cmd ) =
                     SingleDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.picker
             in
-            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+            ( { model | picker = newPicker, pickedTime = maybeNewTime }, cmd )
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }, Cmd.none )
@@ -85,17 +85,20 @@ view model =
         , div []
             [ div [ style "margin-bottom" "1rem" ]
                 [ text "This is a basic picker" ]
-            , div [ style "margin-bottom" "1rem" ]
-                [ button [ id "my-button", onClick <| OpenPicker ]
-                    [ text "Picker" ]
-                , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
-                ]
-            , case model.pickedTime of
-                Just date ->
-                    text (posixToDateString model.zone date ++ " " ++ posixToTimeString model.zone date)
+            , div [ style "position" "relative", style "margin-bottom" "1rem" ]
+                [ case model.pickedTime of
+                    Just date ->
+                        text (posixToDateString model.zone date ++ " " ++ posixToTimeString model.zone date)
 
-                Nothing ->
-                    text "No date selected yet!"
+                    Nothing ->
+                        text "No date selected yet!"
+                , div []
+                    [ SingleDatePicker.viewDateInput [ onClick <| OpenPicker ]
+                        (userDefinedDatePickerSettings model.zone model.currentTime)
+                        model.picker
+                    , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
+                    ]
+                ]
             ]
         ]
 

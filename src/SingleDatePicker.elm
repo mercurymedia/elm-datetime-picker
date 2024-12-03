@@ -2,6 +2,7 @@ module SingleDatePicker exposing
     ( DatePicker, Msg, init, view, update, subscriptions
     , openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
     , isOpen
+    , viewDateInput
     )
 
 {-| A date picker component for a single datetime.
@@ -25,11 +26,13 @@ module SingleDatePicker exposing
 
 import Browser.Dom as Dom
 import Browser.Events
+import DatePicker.DateInput as DateInput
 import DatePicker.Settings exposing (..)
 import DatePicker.SingleUtilities as SingleUtilities
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
+import Html.Events exposing (onClick)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Html.Styled exposing (text, toUnstyled)
 import Html.Styled.Attributes exposing (class, id)
@@ -52,6 +55,7 @@ type alias Model msg =
     , viewOffset : Int
     , selectionTuple : Maybe ( PickerDay, Posix )
     , domLocation : DomLocation
+    , dateInput : DateInput.DateInput msg
     }
 
 
@@ -71,6 +75,9 @@ init internalMsg =
         , viewOffset = 0
         , selectionTuple = Nothing
         , domLocation = InsideHierarchy
+        , dateInput =
+            DateInput.init
+                (internalMsg << HandleDateInputUpdate)
         }
 
 
@@ -111,7 +118,12 @@ openPicker settings baseTime pickedTime (DatePicker model) =
                 AlwaysVisible _ ->
                     True
     in
-    DatePicker { model | status = Open timePickerVisible (generatePickerDay settings baseTime), selectionTuple = selectionTuple, viewOffset = viewOffset }
+    DatePicker
+        { model
+            | status = Open timePickerVisible (generatePickerDay settings baseTime)
+            , selectionTuple = selectionTuple
+            , viewOffset = viewOffset
+        }
 
 
 {-| Open the provided date picker outside the DOM hierarchy. Uses the openPicker function
@@ -193,6 +205,7 @@ type Msg
     | Close
     | SetDomElements { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element }
     | SetPresetDate PresetDateConfig
+    | HandleDateInputUpdate DateInput.Msg
     | NoOp
 
 
@@ -201,63 +214,76 @@ type Msg
 Returns the updated picker and the currently selected datetime, if available.
 
 -}
-update : Settings -> Msg -> DatePicker msg -> ( DatePicker msg, Maybe Posix )
+update : Settings -> Msg -> DatePicker msg -> ( ( DatePicker msg, Maybe Posix ), Cmd msg )
 update settings msg (DatePicker model) =
+    let
+        pickedTime =
+            Maybe.map (\( _, time ) -> time) model.selectionTuple
+    in
     case model.status of
         Open timePickerVisible baseDay ->
             case msg of
                 NextMonth ->
-                    ( DatePicker { model | viewOffset = model.viewOffset + 1 }, Nothing )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset + 1 }, pickedTime ), Cmd.none )
 
                 PrevMonth ->
-                    ( DatePicker { model | viewOffset = model.viewOffset - 1 }, Nothing )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset - 1 }, pickedTime ), Cmd.none )
 
                 NextYear ->
-                    ( DatePicker { model | viewOffset = model.viewOffset + 12 }, Nothing )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset + 12 }, pickedTime ), Cmd.none )
 
                 PrevYear ->
-                    ( DatePicker { model | viewOffset = model.viewOffset - 12 }, Nothing )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset - 12 }, pickedTime ), Cmd.none )
 
                 SetHoveredDay pickerDay ->
-                    ( DatePicker { model | hovered = Just pickerDay }, Nothing )
+                    ( ( DatePicker { model | hovered = Just pickerDay }, pickedTime ), Cmd.none )
 
                 ClearHoveredDay ->
-                    ( DatePicker { model | hovered = Nothing }, Nothing )
+                    ( ( DatePicker { model | hovered = Nothing }, pickedTime ), Cmd.none )
 
                 SetDay pickerDay ->
-                    case SingleUtilities.selectDay settings.zone model.selectionTuple pickerDay of
-                        Just ( newPickerDay, newSelection ) ->
-                            ( DatePicker { model | selectionTuple = Just ( newPickerDay, newSelection ) }, Just newSelection )
-
-                        Nothing ->
-                            ( DatePicker { model | selectionTuple = Nothing }, Nothing )
-
-                ToggleTimePickerVisibility ->
-                    case settings.timePickerVisibility of
-                        Toggleable _ ->
-                            ( DatePicker { model | status = Open (not timePickerVisible) baseDay }, Nothing )
-
-                        _ ->
-                            ( DatePicker model, Nothing )
+                    Maybe.map
+                        (\( newPickerDay, newSelection ) ->
+                            ( ( DatePicker
+                                    { model
+                                        | selectionTuple = Just ( newPickerDay, newSelection )
+                                        , dateInput = DateInput.updateFromPosix settings.zone newSelection model.dateInput
+                                        , viewOffset = Utilities.calculateViewOffset settings.zone baseDay.start (Just newPickerDay.start)
+                                    }
+                              , Just newSelection
+                              )
+                            , Cmd.none
+                            )
+                        )
+                        (SingleUtilities.selectDay settings.zone model.selectionTuple pickerDay)
+                        |> Maybe.withDefault ( ( DatePicker { model | selectionTuple = Nothing }, Nothing ), Cmd.none )
 
                 SetHour hour ->
                     Maybe.map
                         (\( pickerDay, selection ) ->
-                            ( DatePicker { model | selectionTuple = Just ( pickerDay, selection ) }, Just selection )
+                            ( ( DatePicker { model | selectionTuple = Just ( pickerDay, selection ) }, Just selection ), Cmd.none )
                         )
                         (SingleUtilities.selectHour settings.zone baseDay model.selectionTuple hour)
-                        |> Maybe.withDefault ( DatePicker model, Nothing )
+                        |> Maybe.withDefault ( ( DatePicker model, pickedTime ), Cmd.none )
 
                 SetMinute minute ->
                     Maybe.map
                         (\( pickerDay, selection ) ->
-                            ( DatePicker { model | selectionTuple = Just ( pickerDay, selection ) }, Just selection )
+                            ( ( DatePicker { model | selectionTuple = Just ( pickerDay, selection ) }, Just selection ), Cmd.none )
                         )
                         (SingleUtilities.selectMinute settings.zone baseDay model.selectionTuple minute)
-                        |> Maybe.withDefault ( DatePicker model, Nothing )
+                        |> Maybe.withDefault ( ( DatePicker model, pickedTime ), Cmd.none )
+
+                ToggleTimePickerVisibility ->
+                    case settings.timePickerVisibility of
+                        Toggleable _ ->
+                            ( ( DatePicker { model | status = Open (not timePickerVisible) baseDay }, pickedTime ), Cmd.none )
+
+                        _ ->
+                            ( ( DatePicker model, pickedTime ), Cmd.none )
 
                 Close ->
-                    ( DatePicker { model | status = Closed }, Nothing )
+                    ( ( DatePicker { model | status = Closed }, pickedTime ), Cmd.none )
 
                 SetDomElements newDomElements ->
                     let
@@ -273,7 +299,7 @@ update settings msg (DatePicker model) =
                                 InsideHierarchy ->
                                     InsideHierarchy
                     in
-                    ( DatePicker { model | domLocation = updatedDomLocation }, Nothing )
+                    ( ( DatePicker { model | domLocation = updatedDomLocation }, pickedTime ), Cmd.none )
 
                 SetPresetDate presetDate ->
                     let
@@ -283,19 +309,63 @@ update settings msg (DatePicker model) =
                         viewOffset =
                             Utilities.calculateViewOffset settings.zone baseDay.start (Just presetPickerDay.start)
                     in
-                    ( DatePicker
-                        { model
-                            | selectionTuple = Just ( presetPickerDay, presetPickerDay.start )
-                            , viewOffset = viewOffset
-                        }
-                    , Just presetPickerDay.start
+                    ( ( DatePicker
+                            { model
+                                | selectionTuple = Just ( presetPickerDay, presetPickerDay.start )
+                                , viewOffset = viewOffset
+                            }
+                      , Just presetPickerDay.start
+                      )
+                    , Cmd.none
+                    )
+
+                HandleDateInputUpdate subMsg ->
+                    let
+                        ( updatedDateInput, dateInputCmd ) =
+                            DateInput.update subMsg model.dateInput
+
+                        newSelectionTuple =
+                            Maybe.map
+                                (\date ->
+                                    let
+                                        pickerDay =
+                                            generatePickerDay settings date
+                                    in
+                                    ( pickerDay, pickerDay.start )
+                                )
+                                (DateInput.toPosix settings.zone updatedDateInput)
+
+                        newPickedTime =
+                            Maybe.map (\( _, time ) -> time) newSelectionTuple
+
+                        viewOffset =
+                            Utilities.calculateViewOffset settings.zone baseDay.start newPickedTime
+                    in
+                    ( ( DatePicker
+                            { model
+                                | dateInput = updatedDateInput
+                                , viewOffset = viewOffset
+                                , selectionTuple = newSelectionTuple
+                            }
+                      , newPickedTime
+                      )
+                    , dateInputCmd
                     )
 
                 NoOp ->
-                    ( DatePicker model, Nothing )
+                    ( ( DatePicker model, pickedTime ), Cmd.none )
 
         Closed ->
-            ( DatePicker model, Nothing )
+            case msg of
+                HandleDateInputUpdate subMsg ->
+                    let
+                        ( updatedDateInput, dateInputCmd ) =
+                            DateInput.update subMsg model.dateInput
+                    in
+                    ( ( DatePicker { model | dateInput = updatedDateInput }, pickedTime ), dateInputCmd )
+
+                _ ->
+                    ( ( DatePicker model, pickedTime ), Cmd.none )
 
 
 determineDateTime : Zone -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> Maybe ( PickerDay, Posix )
@@ -336,6 +406,11 @@ viewStyled settings (DatePicker model) =
 
         _ ->
             text ""
+
+
+viewDateInput : List (Html.Attribute msg) -> Settings -> DatePicker msg -> Html msg
+viewDateInput attrs settings (DatePicker model) =
+    DateInput.view attrs model.dateInput
 
 
 viewPicker : List (Html.Styled.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html.Styled.Html msg
