@@ -26,6 +26,7 @@ module SingleDatePicker exposing
 
 import Browser.Dom as Dom
 import Browser.Events
+import Css
 import DatePicker.DateInput as DateInput
 import DatePicker.Settings exposing (..)
 import DatePicker.SingleUtilities as SingleUtilities
@@ -34,8 +35,8 @@ import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events exposing (onClick)
 import Html.Events.Extra exposing (targetValueIntParse)
-import Html.Styled exposing (text, toUnstyled)
-import Html.Styled.Attributes exposing (class, id)
+import Html.Styled exposing (div, text, toUnstyled)
+import Html.Styled.Attributes exposing (class, css, id)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -410,7 +411,16 @@ viewStyled settings (DatePicker model) =
 
 viewDateInput : List (Html.Attribute msg) -> Settings -> DatePicker msg -> Html msg
 viewDateInput attrs settings (DatePicker model) =
-    DateInput.view attrs model.dateInput
+    viewDateInputStyled (Utilities.toStyledAttrs attrs) settings (DatePicker model)
+        |> toUnstyled
+
+
+viewDateInputStyled : List (Html.Styled.Attribute msg) -> Settings -> DatePicker msg -> Html.Styled.Html msg
+viewDateInputStyled attrs settings (DatePicker model) =
+    div [ css [ Css.position Css.relative ] ]
+        [ DateInput.viewStyled attrs model.dateInput
+        , viewStyled settings (DatePicker model)
+        ]
 
 
 viewPicker : List (Html.Styled.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html.Styled.Html msg

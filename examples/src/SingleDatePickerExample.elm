@@ -93,10 +93,9 @@ view model =
                     Nothing ->
                         text "No date selected yet!"
                 , div []
-                    [ SingleDatePicker.viewDateInput [ onClick <| OpenPicker ]
-                        (userDefinedDatePickerSettings model.zone model.currentTime)
+                    [ SingleDatePicker.viewDateInput [ onClick OpenPicker ] 
+                        (userDefinedDatePickerSettings model.zone model.currentTime) 
                         model.picker
-                    , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                     ]
                 ]
             ]

@@ -3,9 +3,10 @@ module DatePicker.DateInput exposing (..)
 import Date exposing (format, numberToMonth)
 import DatePicker.Icons as Icons
 import DatePicker.Utilities as Utilities
-import Html exposing (Html, div, input, span)
-import Html.Attributes as Attrs
-import Html.Events exposing (onBlur, onInput)
+import Html exposing (Html)
+import Html.Styled exposing (div, input, span)
+import Html.Styled.Attributes as Attrs
+import Html.Styled.Events exposing (onBlur, onInput)
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra
 
@@ -33,7 +34,7 @@ type alias Parts a =
 type alias Format =
     { pattern : Pattern
     , separator : Char
-    , placeholders : Parts String
+    , placeholders : Parts Char
     }
 
 
@@ -48,12 +49,6 @@ type Msg
     = NoOp
     | UpdateValue String
     | OnBlur
-
-
-type alias Config =
-    { format : Format
-    , isDayDisabled : Zone -> Posix -> Bool
-    }
 
 
 init : (Msg -> msg) -> DateInput msg
@@ -71,7 +66,7 @@ defaultFormat : Format
 defaultFormat =
     { pattern = DDMMYYYY
     , separator = '/'
-    , placeholders = { day = "dd", month = "mm", year = "yyyy" }
+    , placeholders = { day = 'd', month = 'm', year = 'y' }
     }
 
 
@@ -210,46 +205,28 @@ partsToInputValue : Format -> Parts (Maybe Int) -> Maybe String
 partsToInputValue format { day, month, year } =
     case ( day, month, year ) of
         ( Just d, Just m, Just y ) ->
+            let
+                ( dd, mm, yyyy ) =
+                    ( addLeadingZeros 2 (String.fromInt d)
+                    , addLeadingZeros 2 (String.fromInt m)
+                    , addLeadingZeros 4 (String.fromInt y)
+                    )
+
+                s =
+                    String.fromChar format.separator
+            in
             case format.pattern of
                 DDMMYYYY ->
-                    [ addLeadingZeros 2 (String.fromInt d)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 2 (String.fromInt m)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 4 (String.fromInt y)
-                    ]
-                        |> String.concat
-                        |> Just
+                    [ dd, s, mm, s, yyyy ] |> String.concat |> Just
 
                 MMDDYYYY ->
-                    [ addLeadingZeros 2 (String.fromInt m)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 2 (String.fromInt d)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 4 (String.fromInt y)
-                    ]
-                        |> String.concat
-                        |> Just
+                    [ mm, s, dd, s, yyyy ] |> String.concat |> Just
 
                 YYYYMMDD ->
-                    [ addLeadingZeros 4 (String.fromInt y)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 2 (String.fromInt m)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 2 (String.fromInt d)
-                    ]
-                        |> String.concat
-                        |> Just
+                    [ yyyy, s, mm, s, dd ] |> String.concat |> Just
 
                 YYYYDDMM ->
-                    [ addLeadingZeros 4 (String.fromInt y)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 2 (String.fromInt d)
-                    , String.fromChar format.separator
-                    , addLeadingZeros 2 (String.fromInt m)
-                    ]
-                        |> String.concat
-                        |> Just
+                    [ yyyy, s, dd, s, mm ] |> String.concat |> Just
 
         _ ->
             Nothing
@@ -269,6 +246,12 @@ classPrefix class =
 
 view : List (Html.Attribute msg) -> DateInput msg -> Html msg
 view attrs (DateInput model) =
+    viewStyled (Utilities.toStyledAttrs attrs) (DateInput model)
+        |> Html.Styled.toUnstyled
+
+
+viewStyled : List (Html.Styled.Attribute msg) -> DateInput msg -> Html.Styled.Html msg
+viewStyled attrs (DateInput model) =
     let
         placeholder =
             buildPlaceholderFromFormat defaultFormat
@@ -293,6 +276,7 @@ view attrs (DateInput model) =
             [ Icons.calendar
                 |> Icons.withSize 16
                 |> Icons.toHtml []
+                |> Html.Styled.fromUnstyled
             ]
         ]
 
@@ -303,21 +287,36 @@ buildPlaceholderFromFormat format =
         { day, month, year } =
             format.placeholders
 
-        separator =
+        ( dd, mm, yyyy ) =
+            ( repeatCharToString day 2
+            , repeatCharToString month 2
+            , repeatCharToString year 4
+            )
+
+        s =
             String.fromChar format.separator
     in
     case format.pattern of
         DDMMYYYY ->
-            [ day, separator, month, separator, year ] |> String.concat
+            [ dd, s, mm, s, yyyy ] |> String.concat
 
         MMDDYYYY ->
-            [ month, separator, day, separator, year ] |> String.concat
+            [ mm, s, dd, s, yyyy ] |> String.concat
 
         YYYYMMDD ->
-            [ year, separator, month, separator, day ] |> String.concat
+            [ yyyy, s, mm, s, dd ] |> String.concat
 
         YYYYDDMM ->
-            [ year, separator, day, separator, month ] |> String.concat
+            [ yyyy, s, dd, s, mm ] |> String.concat
+
+
+repeatCharToString : Char -> Int -> String
+repeatCharToString char count =
+    if count <= 0 then
+        ""
+
+    else
+        String.fromChar char ++ repeatCharToString char (count - 1)
 
 
 addLeadingZeros : Int -> String -> String

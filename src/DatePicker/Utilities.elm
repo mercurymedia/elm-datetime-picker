@@ -4,7 +4,7 @@ module DatePicker.Utilities exposing
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
     , calculateCoordinates
-    , clickedOutsidePicker, monthToNumber, outsideHierarchyStyles, showHoveredIfEnabled, updateDomElements
+    , clickedOutsidePicker, monthToNumber, outsideHierarchyStyles, showHoveredIfEnabled, toStyledAttrs, updateDomElements
     )
 
 {-| Utility functions for both Pickers.
@@ -37,8 +37,9 @@ module DatePicker.Utilities exposing
 -}
 
 import Browser.Dom as Dom
+import Html
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (selected, style, value)
+import Html.Styled.Attributes as Attrs exposing (selected, style, value)
 import Json.Decode as Decode
 import List.Extra as List
 import Task
@@ -305,6 +306,11 @@ outsideHierarchyStyles { triggerDomElement, pickerDomElement } =
         _ ->
             -- hide picker element until the DOM elements have been found and the positions have been calculated correctly
             [ style "visibility" "hidden" ]
+
+
+toStyledAttrs : List (Html.Attribute msg) -> List (Html.Styled.Attribute msg)
+toStyledAttrs attrs =
+    List.map (\attr -> Attrs.fromUnstyled attr) attrs
 
 
 {-| Generate a list of Html `option`s representing
