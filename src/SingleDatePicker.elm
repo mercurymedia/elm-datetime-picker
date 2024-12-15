@@ -248,7 +248,7 @@ update settings msg (DatePicker model) =
                             ( ( DatePicker
                                     { model
                                         | selectionTuple = Just ( newPickerDay, newSelection )
-                                        , dateInput = DateInput.updateFromPosix settings.zone newSelection model.dateInput
+                                        , dateInput = DateInput.updateFromPosix dateInputConfig settings.zone newSelection model.dateInput
                                         , viewOffset = Utilities.calculateViewOffset settings.zone baseDay.start (Just newPickerDay.start)
                                     }
                               , Just newSelection
@@ -323,7 +323,7 @@ update settings msg (DatePicker model) =
                 HandleDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update subMsg model.dateInput
+                            DateInput.update dateInputConfig subMsg model.dateInput
 
                         newSelectionTuple =
                             Maybe.map
@@ -361,7 +361,7 @@ update settings msg (DatePicker model) =
                 HandleDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update subMsg model.dateInput
+                            DateInput.update dateInputConfig subMsg model.dateInput
                     in
                     ( ( DatePicker { model | dateInput = updatedDateInput }, pickedTime ), dateInputCmd )
 
@@ -409,6 +409,10 @@ viewStyled settings (DatePicker model) =
             text ""
 
 
+dateInputConfig =
+    DateInput.defaultConfig
+
+
 viewDateInput : List (Html.Attribute msg) -> Settings -> DatePicker msg -> Html msg
 viewDateInput attrs settings (DatePicker model) =
     viewDateInputStyled (Utilities.toStyledAttrs attrs) settings (DatePicker model)
@@ -418,7 +422,7 @@ viewDateInput attrs settings (DatePicker model) =
 viewDateInputStyled : List (Html.Styled.Attribute msg) -> Settings -> DatePicker msg -> Html.Styled.Html msg
 viewDateInputStyled attrs settings (DatePicker model) =
     div [ css [ Css.position Css.relative ] ]
-        [ DateInput.viewStyled attrs model.dateInput
+        [ DateInput.viewStyled attrs dateInputConfig model.dateInput
         , viewStyled settings (DatePicker model)
         ]
 

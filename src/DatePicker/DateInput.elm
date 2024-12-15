@@ -1,9 +1,10 @@
 module DatePicker.DateInput exposing (..)
 
+import Css
 import Date exposing (format, numberToMonth)
 import DatePicker.Icons as Icons
 import DatePicker.Utilities as Utilities
-import Html exposing (Html)
+import Html exposing (Html, time)
 import Html.Styled exposing (div, input, span)
 import Html.Styled.Attributes as Attrs
 import Html.Styled.Events exposing (onBlur, onInput)
@@ -16,29 +17,48 @@ type DateInput msg
 
 
 type alias Model msg =
-    { parts : Parts (Maybe Int)
+    { parts : DateParts (Maybe Int)
     , inputValue : String
     , hasErrors : Bool
     , isTouched : Bool
     , internalMsg : Msg -> msg
+    , dateParts : DateParts (Maybe Int)
+    , timeParts : TimeParts (Maybe Int)
     }
 
 
-type alias Parts a =
+type alias DateParts a =
     { day : a
     , month : a
     , year : a
     }
 
 
-type alias Format =
-    { pattern : Pattern
-    , separator : Char
-    , placeholders : Parts Char
+type alias TimeParts a =
+    { hour : a
+    , minute : a
     }
 
 
-type Pattern
+type Format
+    = Date DateFormat
+    | DateTime DateFormat TimeFormat
+
+
+type alias DateFormat =
+    { pattern : DatePattern
+    , separator : Char
+    , placeholders : DateParts Char
+    }
+
+
+type alias TimeFormat =
+    { separator : Char
+    , placeholders : TimeParts Char
+    }
+
+
+type DatePattern
     = DDMMYYYY
     | MMDDYYYY
     | YYYYMMDD
@@ -51,6 +71,31 @@ type Msg
     | OnBlur
 
 
+type alias Config =
+    { format : Format
+    }
+
+
+defaultConfig : Config
+defaultConfig =
+    { format = DateTime defaultDateFormat defaultTimeFormat }
+
+
+defaultDateFormat : DateFormat
+defaultDateFormat =
+    { pattern = DDMMYYYY
+    , separator = '/'
+    , placeholders = { day = 'd', month = 'm', year = 'y' }
+    }
+
+
+defaultTimeFormat : TimeFormat
+defaultTimeFormat =
+    { separator = ':'
+    , placeholders = { hour = 'h', minute = 'm' }
+    }
+
+
 init : (Msg -> msg) -> DateInput msg
 init internalMsg =
     DateInput
@@ -59,19 +104,13 @@ init internalMsg =
         , hasErrors = False
         , isTouched = False
         , internalMsg = internalMsg
+        , dateParts = { day = Nothing, month = Nothing, year = Nothing }
+        , timeParts = { hour = Nothing, minute = Nothing }
         }
 
 
-defaultFormat : Format
-defaultFormat =
-    { pattern = DDMMYYYY
-    , separator = '/'
-    , placeholders = { day = 'd', month = 'm', year = 'y' }
-    }
-
-
-update : Msg -> DateInput msg -> ( DateInput msg, Cmd msg )
-update msg (DateInput model) =
+update : Config -> Msg -> DateInput msg -> ( DateInput msg, Cmd msg )
+update config msg (DateInput model) =
     case msg of
         NoOp ->
             ( DateInput model, Cmd.none )
@@ -79,18 +118,20 @@ update msg (DateInput model) =
         UpdateValue value ->
             let
                 sanitizedInputValue =
-                    sanitizeInputValue defaultFormat value
+                    sanitizeInputValue config.format value
 
-                parts =
-                    inputValueToParts defaultFormat sanitizedInputValue
+                ( dateParts, timeParts ) =
+                    inputValueToParts config.format sanitizedInputValue
 
                 hasErrors_ =
-                    hasErrors model.isTouched sanitizedInputValue parts
+                    hasErrors config.format model.isTouched sanitizedInputValue dateParts timeParts
             in
             ( DateInput
                 { model
                     | inputValue = sanitizedInputValue
-                    , parts = parts
+                    , parts = dateParts
+                    , dateParts = dateParts
+                    , timeParts = timeParts
                     , hasErrors = hasErrors_
                 }
             , Cmd.none
@@ -102,10 +143,10 @@ update msg (DateInput model) =
                     not (String.isEmpty model.inputValue)
 
                 hasErrors_ =
-                    hasErrors isTouched model.inputValue model.parts
+                    hasErrors config.format isTouched model.inputValue model.dateParts model.timeParts
 
                 formattedInputValue =
-                    partsToInputValue defaultFormat model.parts
+                    partsToInputValue config.format model.dateParts model.timeParts
                         |> Maybe.withDefault model.inputValue
             in
             ( DateInput
@@ -118,28 +159,35 @@ update msg (DateInput model) =
             )
 
 
-updateFromPosix : Zone -> Posix -> DateInput msg -> DateInput msg
-updateFromPosix zone time (DateInput model) =
+updateFromPosix : Config -> Zone -> Posix -> DateInput msg -> DateInput msg
+updateFromPosix config zone time (DateInput model) =
     let
         posixToParts =
             Time.Extra.posixToParts zone time
 
-        parts =
+        dateParts =
             { day = Just posixToParts.day
             , month = Just (Utilities.monthToNumber posixToParts.month)
             , year = Just posixToParts.year
             }
 
+        timeParts =
+            { hour = Just posixToParts.hour
+            , minute = Just posixToParts.minute
+            }
+
         inputValue =
-            partsToInputValue defaultFormat parts
+            partsToInputValue config.format dateParts timeParts
                 |> Maybe.withDefault model.inputValue
 
         hasErrors_ =
-            hasErrors model.isTouched inputValue parts
+            hasErrors config.format model.isTouched inputValue dateParts timeParts
     in
     DateInput
         { model
-            | parts = parts
+            | parts = dateParts
+            , dateParts = dateParts
+            , timeParts = timeParts
             , inputValue = inputValue
             , hasErrors = hasErrors_
         }
@@ -163,7 +211,12 @@ sanitizeInputValue format value =
             buildPlaceholderFromFormat format |> String.length
 
         sanitizedValue =
-            String.filter (\ch -> Char.isDigit ch || ch == format.separator) value
+            case format of
+                Date dateFormat ->
+                    String.filter (\ch -> Char.isDigit ch || ch == dateFormat.separator) value
+
+                DateTime dateFormat timeFormat ->
+                    String.filter (\ch -> Char.isDigit ch || ch == dateFormat.separator || ch == timeFormat.separator || ch == ' ') value
 
         trimmedValue =
             if String.length sanitizedValue > maxLength then
@@ -175,14 +228,36 @@ sanitizeInputValue format value =
     trimmedValue
 
 
-inputValueToParts : Format -> String -> Parts (Maybe Int)
+inputValueToParts : Format -> String -> ( DateParts (Maybe Int), TimeParts (Maybe Int) )
 inputValueToParts format value =
+    case format of
+        Date dateFormat ->
+            ( toDateParts dateFormat value, { hour = Nothing, minute = Nothing } )
+
+        DateTime dateFormat timeFormat ->
+            let
+                segments =
+                    String.split " " value
+            in
+            case segments of
+                [ dateString ] ->
+                    ( toDateParts dateFormat dateString, { hour = Nothing, minute = Nothing } )
+
+                [ dateString, timeString ] ->
+                    ( toDateParts dateFormat dateString, toTimeParts timeFormat timeString )
+
+                _ ->
+                    ( { day = Nothing, month = Nothing, year = Nothing }, { hour = Nothing, minute = Nothing } )
+
+
+toDateParts : DateFormat -> String -> DateParts (Maybe Int)
+toDateParts dateFormat value =
     let
         segments =
-            String.split (String.fromChar format.separator) value
+            String.split (String.fromChar dateFormat.separator) value
 
         segmentsInParts =
-            case ( format.pattern, segments ) of
+            case ( dateFormat.pattern, segments ) of
                 ( DDMMYYYY, [ dd, mm, yyyy ] ) ->
                     { day = String.toInt dd, month = String.toInt mm, year = String.toInt yyyy }
 
@@ -201,8 +276,47 @@ inputValueToParts format value =
     segmentsInParts
 
 
-partsToInputValue : Format -> Parts (Maybe Int) -> Maybe String
-partsToInputValue format { day, month, year } =
+toTimeParts : TimeFormat -> String -> TimeParts (Maybe Int)
+toTimeParts timeFormat value =
+    let
+        segments =
+            String.split (String.fromChar timeFormat.separator) value
+
+        segmentsInParts =
+            case segments of
+                [ hh, mm ] ->
+                    { hour = String.toInt hh, minute = String.toInt mm }
+
+                _ ->
+                    { hour = Nothing, minute = Nothing }
+    in
+    segmentsInParts
+
+
+partsToInputValue : Format -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Maybe String
+partsToInputValue format dateParts timeParts =
+    case format of
+        Date dateFormat ->
+            datePartsToInputValue dateFormat dateParts
+
+        DateTime dateFormat timeFormat ->
+            let
+                dateValue =
+                    datePartsToInputValue dateFormat dateParts
+
+                timeValue =
+                    timePartsToInputValue timeFormat timeParts
+            in
+            case ( dateValue, timeValue ) of
+                ( Just d, Just t ) ->
+                    [ d, " ", t ] |> String.concat |> Just
+
+                _ ->
+                    Nothing
+
+
+datePartsToInputValue : DateFormat -> DateParts (Maybe Int) -> Maybe String
+datePartsToInputValue dateFormat { day, month, year } =
     case ( day, month, year ) of
         ( Just d, Just m, Just y ) ->
             let
@@ -213,9 +327,9 @@ partsToInputValue format { day, month, year } =
                     )
 
                 s =
-                    String.fromChar format.separator
+                    String.fromChar dateFormat.separator
             in
-            case format.pattern of
+            case dateFormat.pattern of
                 DDMMYYYY ->
                     [ dd, s, mm, s, yyyy ] |> String.concat |> Just
 
@@ -232,11 +346,39 @@ partsToInputValue format { day, month, year } =
             Nothing
 
 
-hasErrors : Bool -> String -> Parts (Maybe Int) -> Bool
-hasErrors isTouched inputValue parts =
+timePartsToInputValue : TimeFormat -> TimeParts (Maybe Int) -> Maybe String
+timePartsToInputValue timeFormat { hour, minute } =
+    case ( hour, minute ) of
+        ( Just h, Just m ) ->
+            let
+                ( hh, mm ) =
+                    ( addLeadingZeros 2 (String.fromInt h)
+                    , addLeadingZeros 2 (String.fromInt m)
+                    )
+
+                s =
+                    String.fromChar timeFormat.separator
+            in
+            [ hh, s, mm ] |> String.concat |> Just
+
+        _ ->
+            Nothing
+
+
+hasErrors : Format -> Bool -> String -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Bool
+hasErrors format isTouched inputValue dateParts timeParts =
+    let
+        isValid =
+            case format of
+                Date _ ->
+                    isValidDate dateParts
+
+                DateTime _ _ ->
+                    isValidDate dateParts && isValidTime timeParts
+    in
     isTouched
         && not (String.isEmpty inputValue)
-        && not (isValidDate parts)
+        && not isValid
 
 
 classPrefix : String -> String
@@ -244,27 +386,38 @@ classPrefix class =
     "elm-datetimepicker--" ++ class
 
 
-view : List (Html.Attribute msg) -> DateInput msg -> Html msg
-view attrs (DateInput model) =
-    viewStyled (Utilities.toStyledAttrs attrs) (DateInput model)
+view : List (Html.Attribute msg) -> Config -> DateInput msg -> Html msg
+view attrs config (DateInput model) =
+    viewStyled (Utilities.toStyledAttrs attrs) config (DateInput model)
         |> Html.Styled.toUnstyled
 
 
-viewStyled : List (Html.Styled.Attribute msg) -> DateInput msg -> Html.Styled.Html msg
-viewStyled attrs (DateInput model) =
+viewStyled : List (Html.Styled.Attribute msg) -> Config -> DateInput msg -> Html.Styled.Html msg
+viewStyled attrs config (DateInput model) =
     let
         placeholder =
-            buildPlaceholderFromFormat defaultFormat
+            buildPlaceholderFromFormat config.format
+
+        errorStyles =
+            if model.hasErrors then
+                [ Css.color (Css.hex "#c00") ]
+
+            else
+                []
     in
     div
-        (Attrs.classList
-            [ ( classPrefix "input-container", True )
-            , ( classPrefix "error", model.hasErrors )
+        (Attrs.css
+            [ Css.backgroundColor (Css.hex "#fff")
+            , Css.display Css.inlineFlex
+            , Css.alignItems Css.center
+            , Css.border3 (Css.px 1) Css.solid (Css.hex "#ccc")
+            , Css.borderRadius (Css.px 3)
+            , Css.batch errorStyles
             ]
             :: attrs
         )
         [ input
-            [ Attrs.class (classPrefix "input")
+            [ Attrs.css [ Css.border (Css.px 0), Css.color Css.currentColor ]
             , Attrs.type_ "text"
             , Attrs.value model.inputValue
             , Attrs.placeholder placeholder
@@ -283,9 +436,19 @@ viewStyled attrs (DateInput model) =
 
 buildPlaceholderFromFormat : Format -> String
 buildPlaceholderFromFormat format =
+    case format of
+        Date dateFormat ->
+            buildDatePlaceholder dateFormat
+
+        DateTime dateFormat timeFormat ->
+            buildDatePlaceholder dateFormat ++ " " ++ buildTimePlaceholder timeFormat
+
+
+buildDatePlaceholder : DateFormat -> String
+buildDatePlaceholder dateFormat =
     let
         { day, month, year } =
-            format.placeholders
+            dateFormat.placeholders
 
         ( dd, mm, yyyy ) =
             ( repeatCharToString day 2
@@ -294,9 +457,9 @@ buildPlaceholderFromFormat format =
             )
 
         s =
-            String.fromChar format.separator
+            String.fromChar dateFormat.separator
     in
-    case format.pattern of
+    case dateFormat.pattern of
         DDMMYYYY ->
             [ dd, s, mm, s, yyyy ] |> String.concat
 
@@ -308,6 +471,23 @@ buildPlaceholderFromFormat format =
 
         YYYYDDMM ->
             [ yyyy, s, dd, s, mm ] |> String.concat
+
+
+buildTimePlaceholder : TimeFormat -> String
+buildTimePlaceholder timeFormat =
+    let
+        { hour, minute } =
+            timeFormat.placeholders
+
+        ( hh, mm ) =
+            ( repeatCharToString hour 2
+            , repeatCharToString minute 2
+            )
+
+        s =
+            String.fromChar timeFormat.separator
+    in
+    [ hh, s, mm ] |> String.concat
 
 
 repeatCharToString : Char -> Int -> String
@@ -338,7 +518,7 @@ addLeadingZeros size value =
         value
 
 
-isValidDate : Parts (Maybe Int) -> Bool
+isValidDate : DateParts (Maybe Int) -> Bool
 isValidDate { day, month, year } =
     case ( day, month, year ) of
         ( Just d, Just m, Just y ) ->
@@ -354,6 +534,16 @@ isValidDate { day, month, year } =
                     False
 
         ( _, _, _ ) ->
+            False
+
+
+isValidTime : TimeParts (Maybe Int) -> Bool
+isValidTime { hour, minute } =
+    case ( hour, minute ) of
+        ( Just h, Just m ) ->
+            h >= 0 && h < 24 && m >= 0 && m < 60
+
+        ( _, _ ) ->
             False
 
 
