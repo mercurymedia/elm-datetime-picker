@@ -195,13 +195,43 @@ updateFromPosix config zone time (DateInput model) =
 
 toPosix : Zone -> DateInput msg -> Maybe Posix
 toPosix zone (DateInput model) =
-    case ( model.parts.day, model.parts.month, model.parts.year ) of
-        ( Just day, Just month, Just year ) ->
-            Just
-                (Time.Extra.partsToPosix zone (Time.Extra.Parts year (Date.numberToMonth month) day 0 0 0 0))
+    let
+        maybeDate =
+            case ( model.dateParts.day, model.dateParts.month, model.dateParts.year ) of
+                ( Just day, Just month, Just year ) ->
+                    Just ( year, Date.numberToMonth month, day )
 
-        ( _, _, _ ) ->
+                ( _, _, _ ) ->
+                    Nothing
+
+        maybeTime =
+            case ( model.timeParts.hour, model.timeParts.minute ) of
+                ( Just hour, Just minute ) ->
+                    Just ( hour, minute )
+
+                ( _, _ ) ->
+                    Nothing
+    in
+    case ( maybeDate, maybeTime ) of
+        ( Just ( year, month, day ), Nothing ) ->
+            Just (Time.Extra.partsToPosix zone (Time.Extra.Parts year month day 0 0 0 0))
+
+        ( Just ( year, month, day ), Just ( hour, minute ) ) ->
+            Just (Time.Extra.partsToPosix zone (Time.Extra.Parts year month day hour minute 0 0))
+
+        ( _, _ ) ->
             Nothing
+
+
+
+-- toPosix : Zone -> DateInput msg -> Maybe Posix
+-- toPosix zone (DateInput model) =
+--     case ( model.parts.day, model.parts.month, model.parts.year ) of
+--         ( Just day, Just month, Just year ) ->
+--             Just
+--                 (Time.Extra.partsToPosix zone (Time.Extra.Parts year (Date.numberToMonth month) day 0 0 0 0))
+--         ( _, _, _ ) ->
+--             Nothing
 
 
 sanitizeInputValue : Format -> String -> String

@@ -243,37 +243,31 @@ update settings msg (DatePicker model) =
                     ( ( DatePicker { model | hovered = Nothing }, pickedTime ), Cmd.none )
 
                 SetDay pickerDay ->
-                    Maybe.map
-                        (\( newPickerDay, newSelection ) ->
-                            ( ( DatePicker
-                                    { model
-                                        | selectionTuple = Just ( newPickerDay, newSelection )
-                                        , dateInput = DateInput.updateFromPosix dateInputConfig settings.zone newSelection model.dateInput
-                                        , viewOffset = Utilities.calculateViewOffset settings.zone baseDay.start (Just newPickerDay.start)
-                                    }
-                              , Just newSelection
-                              )
-                            , Cmd.none
-                            )
-                        )
-                        (SingleUtilities.selectDay settings.zone model.selectionTuple pickerDay)
-                        |> Maybe.withDefault ( ( DatePicker { model | selectionTuple = Nothing }, Nothing ), Cmd.none )
+                    let
+                        newSelectionTuple =
+                            SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Day pickerDay) model.selectionTuple
+                    in
+                    ( updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                    , Cmd.none
+                    )
 
                 SetHour hour ->
-                    Maybe.map
-                        (\( pickerDay, selection ) ->
-                            ( ( DatePicker { model | selectionTuple = Just ( pickerDay, selection ) }, Just selection ), Cmd.none )
-                        )
-                        (SingleUtilities.selectHour settings.zone baseDay model.selectionTuple hour)
-                        |> Maybe.withDefault ( ( DatePicker model, pickedTime ), Cmd.none )
+                    let
+                        newSelectionTuple =
+                            SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Hour hour) model.selectionTuple
+                    in
+                    ( updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                    , Cmd.none
+                    )
 
                 SetMinute minute ->
-                    Maybe.map
-                        (\( pickerDay, selection ) ->
-                            ( ( DatePicker { model | selectionTuple = Just ( pickerDay, selection ) }, Just selection ), Cmd.none )
-                        )
-                        (SingleUtilities.selectMinute settings.zone baseDay model.selectionTuple minute)
-                        |> Maybe.withDefault ( ( DatePicker model, pickedTime ), Cmd.none )
+                    let
+                        newSelectionTuple =
+                            SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Minute minute) model.selectionTuple
+                    in
+                    ( updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                    , Cmd.none
+                    )
 
                 ToggleTimePickerVisibility ->
                     case settings.timePickerVisibility of
@@ -324,34 +318,29 @@ update settings msg (DatePicker model) =
                     let
                         ( updatedDateInput, dateInputCmd ) =
                             DateInput.update dateInputConfig subMsg model.dateInput
-
-                        newSelectionTuple =
-                            Maybe.map
-                                (\date ->
-                                    let
-                                        pickerDay =
-                                            generatePickerDay settings date
-                                    in
-                                    ( pickerDay, pickerDay.start )
-                                )
-                                (DateInput.toPosix settings.zone updatedDateInput)
-
-                        newPickedTime =
-                            Maybe.map (\( _, time ) -> time) newSelectionTuple
-
-                        viewOffset =
-                            Utilities.calculateViewOffset settings.zone baseDay.start newPickedTime
                     in
-                    ( ( DatePicker
-                            { model
-                                | dateInput = updatedDateInput
-                                , viewOffset = viewOffset
-                                , selectionTuple = newSelectionTuple
-                            }
-                      , newPickedTime
-                      )
-                    , dateInputCmd
-                    )
+                    case DateInput.toPosix settings.zone updatedDateInput of
+                        Just posix ->
+                            let
+                                pickerDay =
+                                    generatePickerDay settings posix
+
+                                { hour, minute } =
+                                    Time.posixToParts settings.zone posix
+
+                                newSelectionTuple =
+                                    model.selectionTuple
+                                        |> SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Day pickerDay)
+                                        |> SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Hour hour)
+                                        |> SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Minute minute)
+
+                                ( DatePicker updatedModel, updatedSelection ) =
+                                    updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                            in
+                            ( ( DatePicker { updatedModel | dateInput = updatedDateInput }, updatedSelection ), dateInputCmd )
+
+                        Nothing ->
+                            ( ( DatePicker { model | dateInput = updatedDateInput, selectionTuple = Nothing }, Nothing ), dateInputCmd )
 
                 NoOp ->
                     ( ( DatePicker model, pickedTime ), Cmd.none )
@@ -367,6 +356,23 @@ update settings msg (DatePicker model) =
 
                 _ ->
                     ( ( DatePicker model, pickedTime ), Cmd.none )
+
+
+updateSelection : Zone -> PickerDay -> Maybe ( PickerDay, Posix ) -> ( DatePicker msg, Maybe Posix ) -> ( DatePicker msg, Maybe Posix )
+updateSelection zone baseDay newSelectionTuple ( DatePicker model, pickedTime ) =
+    case newSelectionTuple of
+        Just ( newPickerDay, newSelection ) ->
+            ( DatePicker
+                { model
+                    | selectionTuple = Just ( newPickerDay, newSelection )
+                    , dateInput = DateInput.updateFromPosix dateInputConfig zone newSelection model.dateInput
+                    , viewOffset = Utilities.calculateViewOffset zone baseDay.start (Just newPickerDay.start)
+                }
+            , Just newSelection
+            )
+
+        Nothing ->
+            ( DatePicker model, pickedTime )
 
 
 determineDateTime : Zone -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> Maybe ( PickerDay, Posix )
