@@ -1,8 +1,8 @@
-
-module Utilities exposing (posixToDateString, posixToTimeString, isDateBeforeToday, adjustAllowedTimesOfDayToClientZone)
+module Utilities exposing (adjustAllowedTimesOfDayToClientZone, isDateBeforeToday, posixToDateString, posixToTimeString)
 
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as TimeExtra exposing (Interval(..))
+
 
 addLeadingZero : Int -> String
 addLeadingZero value =
@@ -15,6 +15,7 @@ addLeadingZero value =
 
     else
         string
+
 
 monthToNmbString : Month -> String
 monthToNmbString month =
@@ -55,9 +56,11 @@ monthToNmbString month =
         Dec ->
             "12"
 
+
 isDateBeforeToday : Posix -> Posix -> Bool
 isDateBeforeToday today datetime =
     Time.posixToMillis today > Time.posixToMillis datetime
+
 
 posixToDateString : Zone -> Posix -> String
 posixToDateString zone date =

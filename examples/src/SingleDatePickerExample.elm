@@ -1,6 +1,7 @@
 module SingleDatePickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
 import Css
+import DatePicker.DateInput as DateInput
 import DatePicker.Settings
     exposing
         ( Settings
@@ -15,7 +16,7 @@ import SingleDatePicker
 import Task
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as TimeExtra exposing (Interval(..))
-import Utilities exposing (posixToDateString, posixToTimeString, isDateBeforeToday, adjustAllowedTimesOfDayToClientZone)
+import Utilities exposing (adjustAllowedTimesOfDayToClientZone, isDateBeforeToday, posixToDateString, posixToTimeString)
 
 
 type Msg
@@ -58,6 +59,18 @@ userDefinedDatePickerSettings zone today =
     let
         defaults =
             defaultSettings zone
+
+        allowedTimesOfDay =
+            \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
+
+        dateFormat =
+            DateInput.defaultDateFormat
+
+        timeFormat =
+            DateInput.defaultTimeFormat
+
+        dateInputSettings =
+            { format = DateInput.DateTime dateFormat { timeFormat | allowedTimesOfDay = allowedTimesOfDay }, getErrorMessage = getErrorMessage }
     in
     { defaults
         | isDayDisabled = \clientZone datetime -> isDateBeforeToday (TimeExtra.floor Day clientZone today) datetime
@@ -71,7 +84,18 @@ userDefinedDatePickerSettings zone today =
                 }
         , showCalendarWeekNumbers = True
         , presets = []
+        , dateInputSettings = dateInputSettings
     }
+
+
+getErrorMessage : DateInput.InputError -> String
+getErrorMessage error =
+    case error of
+        DateInput.ValueInvalid ->
+            "Invalid value. Make sure to use the correct format."
+
+        DateInput.ValueNotAllowed ->
+            "Date not allowed."
 
 
 view : Model -> Html Msg
@@ -93,8 +117,8 @@ view model =
                     Nothing ->
                         text "No date selected yet!"
                 , div []
-                    [ SingleDatePicker.viewDateInput [ onClick OpenPicker ] 
-                        (userDefinedDatePickerSettings model.zone model.currentTime) 
+                    [ SingleDatePicker.viewDateInput [ onClick OpenPicker ]
+                        (userDefinedDatePickerSettings model.zone model.currentTime)
                         model.picker
                     ]
                 ]

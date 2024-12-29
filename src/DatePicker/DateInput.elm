@@ -1,11 +1,12 @@
 module DatePicker.DateInput exposing (..)
 
+import Array exposing (get)
 import Css
 import Date exposing (format, numberToMonth)
 import DatePicker.Icons as Icons
 import DatePicker.Utilities as Utilities
 import Html exposing (Html, time)
-import Html.Styled exposing (div, input, span)
+import Html.Styled exposing (div, input, span, text)
 import Html.Styled.Attributes as Attrs
 import Html.Styled.Events exposing (onBlur, onInput)
 import Time exposing (Month(..), Posix, Zone)
@@ -17,9 +18,8 @@ type DateInput msg
 
 
 type alias Model msg =
-    { parts : DateParts (Maybe Int)
-    , inputValue : String
-    , hasErrors : Bool
+    { inputValue : String
+    , error : Maybe InputError
     , isTouched : Bool
     , internalMsg : Msg -> msg
     , dateParts : DateParts (Maybe Int)
@@ -55,6 +55,7 @@ type alias DateFormat =
 type alias TimeFormat =
     { separator : Char
     , placeholders : TimeParts Char
+    , allowedTimesOfDay : Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }
     }
 
 
@@ -72,13 +73,41 @@ type Msg
 
 
 type alias Config =
-    { format : Format
+    { dateInputSettings : Settings
+    , isDayDisabled : Zone -> Posix -> Bool
+    , zone : Zone
     }
 
 
-defaultConfig : Config
-defaultConfig =
-    { format = DateTime defaultDateFormat defaultTimeFormat }
+type alias Settings =
+    { format : Format
+    , getErrorMessage : InputError -> String
+    }
+
+
+type InputError
+    = ValueInvalid
+    | ValueNotAllowed
+
+
+defaultConfig : Zone -> Config
+defaultConfig zone =
+    { dateInputSettings = defaultSettings
+    , isDayDisabled = \_ _ -> False
+    , zone = zone
+    }
+
+
+defaultSettings : Settings
+defaultSettings =
+    { format = Date defaultDateFormat
+    , getErrorMessage = getDefaultErrorMessage
+    }
+
+
+defaultFormat : Format
+defaultFormat =
+    Date defaultDateFormat
 
 
 defaultDateFormat : DateFormat
@@ -93,15 +122,25 @@ defaultTimeFormat : TimeFormat
 defaultTimeFormat =
     { separator = ':'
     , placeholders = { hour = 'h', minute = 'm' }
+    , allowedTimesOfDay = \_ _ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 }
     }
+
+
+getDefaultErrorMessage : InputError -> String
+getDefaultErrorMessage error =
+    case error of
+        ValueInvalid ->
+            "Invalid value. Make sure to use the correct format."
+
+        ValueNotAllowed ->
+            "Date not allowed."
 
 
 init : (Msg -> msg) -> DateInput msg
 init internalMsg =
     DateInput
-        { parts = { day = Nothing, month = Nothing, year = Nothing }
-        , inputValue = ""
-        , hasErrors = False
+        { inputValue = ""
+        , error = Nothing
         , isTouched = False
         , internalMsg = internalMsg
         , dateParts = { day = Nothing, month = Nothing, year = Nothing }
@@ -110,7 +149,7 @@ init internalMsg =
 
 
 update : Config -> Msg -> DateInput msg -> ( DateInput msg, Cmd msg )
-update config msg (DateInput model) =
+update ({ dateInputSettings } as config) msg (DateInput model) =
     case msg of
         NoOp ->
             ( DateInput model, Cmd.none )
@@ -118,22 +157,23 @@ update config msg (DateInput model) =
         UpdateValue value ->
             let
                 sanitizedInputValue =
-                    sanitizeInputValue config.format value
+                    sanitizeInputValue dateInputSettings.format value
 
                 ( dateParts, timeParts ) =
-                    inputValueToParts config.format sanitizedInputValue
+                    inputValueToParts dateInputSettings.format sanitizedInputValue
 
-                hasErrors_ =
-                    hasErrors config.format model.isTouched sanitizedInputValue dateParts timeParts
+                error =
+                    catchError config sanitizedInputValue dateParts timeParts
+
+                updatedModel =
+                    { model
+                        | inputValue = sanitizedInputValue
+                        , dateParts = dateParts
+                        , timeParts = timeParts
+                        , error = error
+                    }
             in
-            ( DateInput
-                { model
-                    | inputValue = sanitizedInputValue
-                    , parts = dateParts
-                    , dateParts = dateParts
-                    , timeParts = timeParts
-                    , hasErrors = hasErrors_
-                }
+            ( DateInput updatedModel
             , Cmd.none
             )
 
@@ -142,25 +182,25 @@ update config msg (DateInput model) =
                 isTouched =
                     not (String.isEmpty model.inputValue)
 
-                hasErrors_ =
-                    hasErrors config.format isTouched model.inputValue model.dateParts model.timeParts
+                error =
+                    catchError config model.inputValue model.dateParts model.timeParts
 
                 formattedInputValue =
-                    partsToInputValue config.format model.dateParts model.timeParts
+                    partsToInputValue dateInputSettings.format model.dateParts model.timeParts
                         |> Maybe.withDefault model.inputValue
             in
             ( DateInput
                 { model
                     | inputValue = formattedInputValue
-                    , hasErrors = hasErrors_
                     , isTouched = isTouched
+                    , error = error
                 }
             , Cmd.none
             )
 
 
 updateFromPosix : Config -> Zone -> Posix -> DateInput msg -> DateInput msg
-updateFromPosix config zone time (DateInput model) =
+updateFromPosix ({ dateInputSettings } as config) zone time (DateInput model) =
     let
         posixToParts =
             Time.Extra.posixToParts zone time
@@ -177,27 +217,31 @@ updateFromPosix config zone time (DateInput model) =
             }
 
         inputValue =
-            partsToInputValue config.format dateParts timeParts
+            partsToInputValue dateInputSettings.format dateParts timeParts
                 |> Maybe.withDefault model.inputValue
 
-        hasErrors_ =
-            hasErrors config.format model.isTouched inputValue dateParts timeParts
+        error =
+            catchError config inputValue dateParts timeParts
     in
     DateInput
         { model
-            | parts = dateParts
-            , dateParts = dateParts
+            | dateParts = dateParts
             , timeParts = timeParts
             , inputValue = inputValue
-            , hasErrors = hasErrors_
+            , error = error
         }
 
 
 toPosix : Zone -> DateInput msg -> Maybe Posix
 toPosix zone (DateInput model) =
+    partsToPosix zone model.dateParts model.timeParts
+
+
+partsToPosix : Zone -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Maybe Posix
+partsToPosix zone dateParts timeParts =
     let
         maybeDate =
-            case ( model.dateParts.day, model.dateParts.month, model.dateParts.year ) of
+            case ( dateParts.day, dateParts.month, dateParts.year ) of
                 ( Just day, Just month, Just year ) ->
                     Just ( year, Date.numberToMonth month, day )
 
@@ -205,7 +249,7 @@ toPosix zone (DateInput model) =
                     Nothing
 
         maybeTime =
-            case ( model.timeParts.hour, model.timeParts.minute ) of
+            case ( timeParts.hour, timeParts.minute ) of
                 ( Just hour, Just minute ) ->
                     Just ( hour, minute )
 
@@ -221,17 +265,6 @@ toPosix zone (DateInput model) =
 
         ( _, _ ) ->
             Nothing
-
-
-
--- toPosix : Zone -> DateInput msg -> Maybe Posix
--- toPosix zone (DateInput model) =
---     case ( model.parts.day, model.parts.month, model.parts.year ) of
---         ( Just day, Just month, Just year ) ->
---             Just
---                 (Time.Extra.partsToPosix zone (Time.Extra.Parts year (Date.numberToMonth month) day 0 0 0 0))
---         ( _, _, _ ) ->
---             Nothing
 
 
 sanitizeInputValue : Format -> String -> String
@@ -395,25 +428,58 @@ timePartsToInputValue timeFormat { hour, minute } =
             Nothing
 
 
-hasErrors : Format -> Bool -> String -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Bool
-hasErrors format isTouched inputValue dateParts timeParts =
+hasError : Bool -> Maybe InputError -> Bool
+hasError isTouched error =
+    case error of
+        Just _ ->
+            isTouched
+
+        Nothing ->
+            False
+
+
+catchError : Config -> String -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Maybe InputError
+catchError { dateInputSettings, isDayDisabled, zone } inputValue dateParts timeParts =
     let
         isValid =
-            case format of
+            case dateInputSettings.format of
                 Date _ ->
                     isValidDate dateParts
 
                 DateTime _ _ ->
                     isValidDate dateParts && isValidTime timeParts
+
+        hasValidationError =
+            not (String.isEmpty inputValue)
+                && not isValid
+
+        hasNotAllowedError =
+            case ( partsToPosix zone dateParts timeParts, dateInputSettings.format ) of
+                ( Just posix, Date _ ) ->
+                    isDayDisabled zone posix
+
+                ( Just posix, DateTime _ timeFormat ) ->
+                    let
+                        timeBoundaries =
+                            timeFormat.allowedTimesOfDay zone posix
+
+                        isAllowedTime =
+                            Utilities.posixWithinTimeBoundaries zone timeBoundaries posix
+                    in
+                    isDayDisabled zone posix || not isAllowedTime
+
+                ( _, _ ) ->
+                    False
     in
-    isTouched
-        && not (String.isEmpty inputValue)
-        && not isValid
+    case ( hasValidationError, hasNotAllowedError ) of
+        ( True, _ ) ->
+            Just ValueInvalid
 
+        ( False, True ) ->
+            Just ValueNotAllowed
 
-classPrefix : String -> String
-classPrefix class =
-    "elm-datetimepicker--" ++ class
+        ( _, _ ) ->
+            Nothing
 
 
 view : List (Html.Attribute msg) -> Config -> DateInput msg -> Html msg
@@ -423,13 +489,16 @@ view attrs config (DateInput model) =
 
 
 viewStyled : List (Html.Styled.Attribute msg) -> Config -> DateInput msg -> Html.Styled.Html msg
-viewStyled attrs config (DateInput model) =
+viewStyled attrs ({ dateInputSettings } as config) (DateInput model) =
     let
         placeholder =
-            buildPlaceholderFromFormat config.format
+            buildPlaceholderFromFormat dateInputSettings.format
+
+        hasError_ =
+            hasError model.isTouched model.error
 
         errorStyles =
-            if model.hasErrors then
+            if hasError_ then
                 [ Css.color (Css.hex "#c00") ]
 
             else
@@ -443,6 +512,7 @@ viewStyled attrs config (DateInput model) =
             , Css.border3 (Css.px 1) Css.solid (Css.hex "#ccc")
             , Css.borderRadius (Css.px 3)
             , Css.batch errorStyles
+            , Css.position Css.relative
             ]
             :: attrs
         )
@@ -455,12 +525,19 @@ viewStyled attrs config (DateInput model) =
             , onBlur (model.internalMsg OnBlur)
             ]
             []
-        , span [ Attrs.class (classPrefix "input-icon") ]
+        , span []
             [ Icons.calendar
                 |> Icons.withSize 16
                 |> Icons.toHtml []
                 |> Html.Styled.fromUnstyled
             ]
+        , case model.error of
+            Just err ->
+                span [ Attrs.css [ Css.position Css.absolute, Css.top (Css.pct 100) ] ]
+                    [ text <| getDefaultErrorMessage err ]
+
+            Nothing ->
+                text ""
         ]
 
 
@@ -520,34 +597,6 @@ buildTimePlaceholder timeFormat =
     [ hh, s, mm ] |> String.concat
 
 
-repeatCharToString : Char -> Int -> String
-repeatCharToString char count =
-    if count <= 0 then
-        ""
-
-    else
-        String.fromChar char ++ repeatCharToString char (count - 1)
-
-
-addLeadingZeros : Int -> String -> String
-addLeadingZeros size value =
-    let
-        currentLength =
-            String.length value
-
-        zerosToAdd =
-            size - currentLength
-
-        leadingZeros =
-            String.repeat zerosToAdd "0"
-    in
-    if zerosToAdd > 0 && value /= "" then
-        leadingZeros ++ value
-
-    else
-        value
-
-
 isValidDate : DateParts (Maybe Int) -> Bool
 isValidDate { day, month, year } =
     case ( day, month, year ) of
@@ -575,6 +624,34 @@ isValidTime { hour, minute } =
 
         ( _, _ ) ->
             False
+
+
+repeatCharToString : Char -> Int -> String
+repeatCharToString char count =
+    if count <= 0 then
+        ""
+
+    else
+        String.fromChar char ++ repeatCharToString char (count - 1)
+
+
+addLeadingZeros : Int -> String -> String
+addLeadingZeros size value =
+    let
+        currentLength =
+            String.length value
+
+        zerosToAdd =
+            size - currentLength
+
+        leadingZeros =
+            String.repeat zerosToAdd "0"
+    in
+    if zerosToAdd > 0 && value /= "" then
+        leadingZeros ++ value
+
+    else
+        value
 
 
 isLeapYear : Int -> Bool

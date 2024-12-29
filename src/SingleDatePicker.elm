@@ -27,6 +27,7 @@ module SingleDatePicker exposing
 import Browser.Dom as Dom
 import Browser.Events
 import Css
+import Date exposing (Date)
 import DatePicker.DateInput as DateInput
 import DatePicker.Settings exposing (..)
 import DatePicker.SingleUtilities as SingleUtilities
@@ -247,7 +248,7 @@ update settings msg (DatePicker model) =
                         newSelectionTuple =
                             SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Day pickerDay) model.selectionTuple
                     in
-                    ( updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                    ( updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTime )
                     , Cmd.none
                     )
 
@@ -256,7 +257,7 @@ update settings msg (DatePicker model) =
                         newSelectionTuple =
                             SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Hour hour) model.selectionTuple
                     in
-                    ( updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                    ( updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTime )
                     , Cmd.none
                     )
 
@@ -265,7 +266,7 @@ update settings msg (DatePicker model) =
                         newSelectionTuple =
                             SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Minute minute) model.selectionTuple
                     in
-                    ( updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                    ( updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTime )
                     , Cmd.none
                     )
 
@@ -317,7 +318,7 @@ update settings msg (DatePicker model) =
                 HandleDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update dateInputConfig subMsg model.dateInput
+                            DateInput.update (dateInputConfig settings) subMsg model.dateInput
                     in
                     case DateInput.toPosix settings.zone updatedDateInput of
                         Just posix ->
@@ -325,17 +326,11 @@ update settings msg (DatePicker model) =
                                 pickerDay =
                                     generatePickerDay settings posix
 
-                                { hour, minute } =
-                                    Time.posixToParts settings.zone posix
-
                                 newSelectionTuple =
-                                    model.selectionTuple
-                                        |> SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Day pickerDay)
-                                        |> SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Hour hour)
-                                        |> SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Minute minute)
+                                    ( pickerDay, posix )
 
                                 ( DatePicker updatedModel, updatedSelection ) =
-                                    updateSelection settings.zone baseDay newSelectionTuple ( DatePicker model, pickedTime )
+                                    updateSelection settings baseDay (Just newSelectionTuple) ( DatePicker model, pickedTime )
                             in
                             ( ( DatePicker { updatedModel | dateInput = updatedDateInput }, updatedSelection ), dateInputCmd )
 
@@ -350,7 +345,7 @@ update settings msg (DatePicker model) =
                 HandleDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update dateInputConfig subMsg model.dateInput
+                            DateInput.update (dateInputConfig settings) subMsg model.dateInput
                     in
                     ( ( DatePicker { model | dateInput = updatedDateInput }, pickedTime ), dateInputCmd )
 
@@ -358,15 +353,15 @@ update settings msg (DatePicker model) =
                     ( ( DatePicker model, pickedTime ), Cmd.none )
 
 
-updateSelection : Zone -> PickerDay -> Maybe ( PickerDay, Posix ) -> ( DatePicker msg, Maybe Posix ) -> ( DatePicker msg, Maybe Posix )
-updateSelection zone baseDay newSelectionTuple ( DatePicker model, pickedTime ) =
+updateSelection : Settings -> PickerDay -> Maybe ( PickerDay, Posix ) -> ( DatePicker msg, Maybe Posix ) -> ( DatePicker msg, Maybe Posix )
+updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTime ) =
     case newSelectionTuple of
         Just ( newPickerDay, newSelection ) ->
             ( DatePicker
                 { model
                     | selectionTuple = Just ( newPickerDay, newSelection )
-                    , dateInput = DateInput.updateFromPosix dateInputConfig zone newSelection model.dateInput
-                    , viewOffset = Utilities.calculateViewOffset zone baseDay.start (Just newPickerDay.start)
+                    , dateInput = DateInput.updateFromPosix (dateInputConfig settings) settings.zone newSelection model.dateInput
+                    , viewOffset = Utilities.calculateViewOffset settings.zone baseDay.start (Just newPickerDay.start)
                 }
             , Just newSelection
             )
@@ -415,8 +410,16 @@ viewStyled settings (DatePicker model) =
             text ""
 
 
-dateInputConfig =
-    DateInput.defaultConfig
+dateInputConfig : Settings -> DateInput.Config
+dateInputConfig settings =
+    let
+        defaultConfig =
+            DateInput.defaultConfig settings.zone
+    in
+    { defaultConfig
+        | dateInputSettings = settings.dateInputSettings
+        , isDayDisabled = settings.isDayDisabled
+    }
 
 
 viewDateInput : List (Html.Attribute msg) -> Settings -> DatePicker msg -> Html msg
@@ -428,7 +431,7 @@ viewDateInput attrs settings (DatePicker model) =
 viewDateInputStyled : List (Html.Styled.Attribute msg) -> Settings -> DatePicker msg -> Html.Styled.Html msg
 viewDateInputStyled attrs settings (DatePicker model) =
     div [ css [ Css.position Css.relative ] ]
-        [ DateInput.viewStyled attrs dateInputConfig model.dateInput
+        [ DateInput.viewStyled attrs (dateInputConfig settings) model.dateInput
         , viewStyled settings (DatePicker model)
         ]
 

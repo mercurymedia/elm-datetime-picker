@@ -8,7 +8,7 @@ import Html.Events exposing (onClick)
 import Task
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as TimeExtra exposing (Interval(..))
-import Utilities exposing (posixToDateString, posixToTimeString, isDateBeforeToday, adjustAllowedTimesOfDayToClientZone)
+import Utilities exposing (adjustAllowedTimesOfDayToClientZone, isDateBeforeToday, posixToDateString, posixToTimeString)
 
 
 type Msg

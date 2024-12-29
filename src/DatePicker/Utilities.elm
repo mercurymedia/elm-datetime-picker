@@ -4,7 +4,7 @@ module DatePicker.Utilities exposing
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
     , calculateCoordinates
-    , clickedOutsidePicker, monthToNumber, outsideHierarchyStyles, showHoveredIfEnabled, toStyledAttrs, updateDomElements
+    , clickedOutsidePicker, monthToNumber, outsideHierarchyStyles, posixWithinTimeBoundaries, showHoveredIfEnabled, toStyledAttrs, updateDomElements
     )
 
 {-| Utility functions for both Pickers.
@@ -707,7 +707,19 @@ posixWithinPickerDayBoundaries zone pickerDay selection =
 
         ( endHour, endMinute ) =
             timeOfDayFromPosix zone pickerDay.end
+    in
+    posixWithinTimeBoundaries zone
+        { startHour = startHour
+        , startMinute = startMinute
+        , endHour = endHour
+        , endMinute = endMinute
+        }
+        selection
 
+
+posixWithinTimeBoundaries : Zone -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int } -> Posix -> Bool
+posixWithinTimeBoundaries zone { startHour, startMinute, endHour, endMinute } selection =
+    let
         ( selectionHour, selectionMinute ) =
             timeOfDayFromPosix zone selection
     in

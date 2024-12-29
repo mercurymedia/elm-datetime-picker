@@ -26,6 +26,7 @@ module DatePicker.Settings exposing
 -}
 
 import Css
+import DatePicker.DateInput as DateInput
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
@@ -61,6 +62,7 @@ type alias Settings =
     , showCalendarWeekNumbers : Bool
     , presets : List Preset
     , theme : Theme
+    , dateInputSettings : DateInput.Settings
     }
 
 
@@ -271,6 +273,7 @@ defaultSettings zone =
     , showCalendarWeekNumbers = False
     , presets = []
     , theme = defaultTheme
+    , dateInputSettings = DateInput.defaultSettings
     }
 
 
