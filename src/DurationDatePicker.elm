@@ -26,10 +26,11 @@ module DurationDatePicker exposing
 import Browser.Dom as Dom
 import Browser.Events
 import Css
+import DatePicker.Alignment as Alignment exposing (Alignment)
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (..)
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
+import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay, classPrefix)
 import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
@@ -55,6 +56,7 @@ type alias Model msg =
     , startSelectionTuple : Maybe ( PickerDay, Posix )
     , endSelectionTuple : Maybe ( PickerDay, Posix )
     , domLocation : DomLocation
+    , alignment : Maybe Alignment
     }
 
 
@@ -75,6 +77,7 @@ init internalMsg =
         , startSelectionTuple = Nothing
         , endSelectionTuple = Nothing
         , domLocation = InsideHierarchy
+        , alignment = Nothing
         }
 
 
@@ -84,7 +87,7 @@ subscriptions : Settings -> DatePicker msg -> Sub msg
 subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker settings.id (model.internalMsg Close))
+            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id ] (model.internalMsg Close))
 
         Closed ->
             Sub.none
@@ -204,6 +207,7 @@ type Msg
     | PrevYear
     | SetHoveredDay PickerDay
     | ClearHoveredDay
+    | GotAlignment (Result Dom.Error Alignment)
     | SetRange PickerDay
     | ToggleTimePickerVisibility
     | SetHour StartOrEnd Int
@@ -286,6 +290,14 @@ update settings msg (DatePicker model) =
                 Close ->
                     ( DatePicker { model | status = Closed }, Nothing )
 
+                GotAlignment result ->
+                    case result of
+                        Ok alignment ->
+                            ( DatePicker { model | alignment = Just alignment }, Nothing )
+
+                        Err _ ->
+                            ( DatePicker model, Nothing )
+
                 SetDomElements newDomElements ->
                     let
                         updatedDomLocation =
@@ -357,12 +369,13 @@ view settings (DatePicker model) =
 
 viewStyled : Settings -> DatePicker msg -> Html.Styled.Html msg
 viewStyled settings (DatePicker model) =
-    case ( model.domLocation, model.status ) of
-        ( InsideHierarchy, Open timePickerVisible baseDay ) ->
-            viewPicker [] settings timePickerVisible baseDay model
-
-        ( OutsideHierarchy elements, Open timePickerVisible baseDay ) ->
-            viewPicker (Utilities.outsideHierarchyStyles elements)
+    case model.status of
+        Open timePickerVisible baseDay ->
+            let
+                styles =
+                    Alignment.pickerStylesFromAlignment settings.theme model.alignment
+            in
+            viewPicker [ Html.Styled.Attributes.css styles ]
                 settings
                 timePickerVisible
                 baseDay
@@ -529,9 +542,8 @@ viewFooter settings timePickerVisible baseDay model =
                 let
                     dateTimeString =
                         settings.dateStringFn settings.zone startSelection
-                in
-                viewFooterBody settings.theme
-                    { timePickerProps =
+
+                    timePickerProps =
                         { zone = settings.zone
                         , selectionTuple = startSelectionTuple
                         , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map (SetHour Start) targetValueIntParse)
@@ -539,11 +551,25 @@ viewFooter settings timePickerVisible baseDay model =
                         , selectableHours = selectableStartHours
                         , selectableMinutes = selectableStartMinutes
                         }
-                    , isTimePickerVisible = timePickerVisible
-                    , timePickerVisibility = settings.timePickerVisibility
-                    , selection = startSelection
-                    , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
-                    , dateTimeString = dateTimeString
+                in
+                viewFooterBody settings.theme
+                    { dateTimeString = dateTimeString
+                    , timePickerView =
+                        case settings.timePickerVisibility of
+                            NeverVisible ->
+                                text ""
+
+                            Toggleable timePickerSettings ->
+                                viewToggleableTimePicker settings.theme
+                                    { timePickerProps = timePickerProps
+                                    , timeString = timePickerSettings.timeStringFn timePickerProps.zone startSelection
+                                    , isTimePickerVisible = timePickerVisible
+                                    , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
+                                    }
+
+                            AlwaysVisible _ ->
+                                viewAlwaysVisibleTimePicker settings.theme
+                                    { timePickerProps = timePickerProps }
                     }
 
             Nothing ->
@@ -554,9 +580,8 @@ viewFooter settings timePickerVisible baseDay model =
                 let
                     dateTimeString =
                         settings.dateStringFn settings.zone endSelection
-                in
-                viewFooterBody settings.theme
-                    { timePickerProps =
+
+                    timePickerProps =
                         { zone = settings.zone
                         , selectionTuple = endSelectionTuple
                         , onHourChangeDecoder = Decode.map model.internalMsg (Decode.map (SetHour End) targetValueIntParse)
@@ -564,11 +589,25 @@ viewFooter settings timePickerVisible baseDay model =
                         , selectableHours = selectableEndHours
                         , selectableMinutes = selectableEndMinutes
                         }
-                    , isTimePickerVisible = timePickerVisible
-                    , timePickerVisibility = settings.timePickerVisibility
-                    , selection = endSelection
-                    , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
-                    , dateTimeString = dateTimeString
+                in
+                viewFooterBody settings.theme
+                    { dateTimeString = dateTimeString
+                    , timePickerView =
+                        case settings.timePickerVisibility of
+                            NeverVisible ->
+                                text ""
+
+                            Toggleable timePickerSettings ->
+                                viewToggleableTimePicker settings.theme
+                                    { timePickerProps = timePickerProps
+                                    , timeString = timePickerSettings.timeStringFn timePickerProps.zone endSelection
+                                    , isTimePickerVisible = timePickerVisible
+                                    , onTimePickerToggleMsg = model.internalMsg ToggleTimePickerVisibility
+                                    }
+
+                            AlwaysVisible _ ->
+                                viewAlwaysVisibleTimePicker settings.theme
+                                    { timePickerProps = timePickerProps }
                     }
 
             Nothing ->

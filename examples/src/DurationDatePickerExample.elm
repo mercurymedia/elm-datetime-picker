@@ -124,7 +124,7 @@ view model =
         , div [ style "margin-bottom" "1rem" ]
             [ div [ style "margin-bottom" "1rem" ]
                 [ text "This is a duration picker" ]
-            , div [ style "margin-bottom" "1rem" ]
+            , div [ style "margin-bottom" "1rem", style "position" "relative" ]
                 [ button [ id "my-button", onClick <| OpenPicker ]
                     [ text "Picker" ]
                 , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker

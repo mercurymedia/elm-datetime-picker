@@ -2,9 +2,9 @@ module DatePicker.Settings exposing
     ( Settings, defaultSettings
     , TimePickerVisibility(..), TimePickerSettings, defaultTimePickerSettings
     , Preset(..), PresetDateConfig, PresetRangeConfig
-    , Theme, defaultTheme
     , generatePickerDay, getTimePickerSettings
     , isPresetDateActive, isPresetRangeActive
+    , isTimePickerVisible
     )
 
 {-| All settings and configuration utilities for both pickers.
@@ -15,7 +15,6 @@ module DatePicker.Settings exposing
 @docs Settings, defaultSettings
 @docs TimePickerVisibility, TimePickerSettings, defaultTimePickerSettings
 @docs Preset, PresetDateConfig, PresetRangeConfig
-@docs Theme, defaultTheme
 
 
 # Query
@@ -25,8 +24,8 @@ module DatePicker.Settings exposing
 
 -}
 
-import Css
 import DatePicker.DateInput as DateInput
+import DatePicker.Theme as Theme
 import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
@@ -61,7 +60,7 @@ type alias Settings =
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
     , presets : List Preset
-    , theme : Theme
+    , theme : Theme.Theme
     , dateInputSettings : DateInput.Settings
     }
 
@@ -146,109 +145,6 @@ type alias PresetRangeConfig =
     }
 
 
-{-| The type facilitating the Theme with the most important design tokens
--}
-type alias Theme =
-    { fontSize :
-        { base : Css.Px
-        , sm : Css.Px
-        , xs : Css.Px
-        , xxs : Css.Px
-        }
-    , color :
-        { text :
-            { primary : Css.Color
-            , secondary : Css.Color
-            , disabled : Css.Color
-            }
-        , primary :
-            { main : Css.Color
-            , contrastText : Css.Color
-            , light : Css.Color
-            }
-        , background :
-            { container : Css.Color
-            , footer : Css.Color
-            , presets : Css.Color
-            }
-        , action : { hover : Css.Color }
-        , border : Css.Color
-        }
-    , size :
-        { presetsContainer : Css.Px
-        , day : Css.Px
-        , iconButton : Css.Px
-        }
-    , borderWidth : Css.Px
-    , borderRadius :
-        { base : Css.Px
-        , lg : Css.Px
-        }
-    , boxShadow :
-        { offsetX : Css.Px
-        , offsetY : Css.Px
-        , blurRadius : Css.Px
-        , spreadRadius : Css.Px
-        , color : Css.Color
-        }
-    , zIndex : Int
-    , transition : { duration : Float }
-    , classNamePrefix : String
-    }
-
-
-{-| The default theme that is included in the defaultSettings
--}
-defaultTheme : Theme
-defaultTheme =
-    { fontSize =
-        { base = Css.px 16
-        , sm = Css.px 14
-        , xs = Css.px 12
-        , xxs = Css.px 10
-        }
-    , color =
-        { text =
-            { primary = Css.hex "22292f"
-            , secondary = Css.rgba 0 0 0 0.5
-            , disabled = Css.rgba 0 0 0 0.25
-            }
-        , primary =
-            { main = Css.hex "3490dc"
-            , contrastText = Css.hex "ffffff"
-            , light = Css.rgba 52 144 220 0.1
-            }
-        , background =
-            { container = Css.hex "ffffff"
-            , footer = Css.hex "ffffff"
-            , presets = Css.hex "ffffff"
-            }
-        , action = { hover = Css.rgba 0 0 0 0.08 }
-        , border = Css.rgba 0 0 0 0.1
-        }
-    , size =
-        { presetsContainer = Css.px 150
-        , day = Css.px 36
-        , iconButton = Css.px 32
-        }
-    , borderWidth = Css.px 1
-    , borderRadius =
-        { base = Css.px 3
-        , lg = Css.px 6
-        }
-    , boxShadow =
-        { offsetX = Css.px 0
-        , offsetY = Css.px 0
-        , blurRadius = Css.px 5
-        , spreadRadius = Css.px 0
-        , color = Css.rgba 0 0 0 0.25
-        }
-    , zIndex = 100
-    , transition = { duration = 300 }
-    , classNamePrefix = "elm-datetimepicker"
-    }
-
-
 {-| A record of default settings for the date picker. Extend this if
 you want to further customize the date picker.
 
@@ -272,7 +168,7 @@ defaultSettings zone =
     , timePickerVisibility = AlwaysVisible defaultTimePickerSettings
     , showCalendarWeekNumbers = False
     , presets = []
-    , theme = defaultTheme
+    , theme = Theme.defaultTheme
     , dateInputSettings = DateInput.defaultSettings
     }
 
@@ -310,6 +206,19 @@ getTimePickerSettings settings =
 
         AlwaysVisible timePickerSettings ->
             Just timePickerSettings
+
+
+isTimePickerVisible : TimePickerVisibility -> Bool
+isTimePickerVisible timePickerVisibility =
+    case timePickerVisibility of
+        NeverVisible ->
+            False
+
+        Toggleable _ ->
+            False
+
+        AlwaysVisible _ ->
+            True
 
 
 {-| Determines if a selected date matches a given preset

@@ -1,10 +1,11 @@
 module DatePicker.DateInput exposing (..)
 
-import Array exposing (get)
 import Css
 import Date exposing (format, numberToMonth)
 import DatePicker.Icons as Icons
+import DatePicker.Theme as Theme
 import DatePicker.Utilities as Utilities
+import DatePicker.ViewComponents as ViewComponents
 import Html exposing (Html, time)
 import Html.Styled exposing (div, input, span, text)
 import Html.Styled.Attributes as Attrs
@@ -76,6 +77,8 @@ type alias Config =
     { dateInputSettings : Settings
     , isDayDisabled : Zone -> Posix -> Bool
     , zone : Zone
+    , theme : Theme.Theme
+    , id : String
     }
 
 
@@ -95,6 +98,8 @@ defaultConfig zone =
     { dateInputSettings = defaultSettings
     , isDayDisabled = \_ _ -> False
     , zone = zone
+    , theme = Theme.defaultTheme
+    , id = "date-picker-component--date-input"
     }
 
 
@@ -489,7 +494,7 @@ view attrs config (DateInput model) =
 
 
 viewStyled : List (Html.Styled.Attribute msg) -> Config -> DateInput msg -> Html.Styled.Html msg
-viewStyled attrs ({ dateInputSettings } as config) (DateInput model) =
+viewStyled attrs { dateInputSettings, theme, id } (DateInput model) =
     let
         placeholder =
             buildPlaceholderFromFormat dateInputSettings.format
@@ -497,48 +502,131 @@ viewStyled attrs ({ dateInputSettings } as config) (DateInput model) =
         hasError_ =
             hasError model.isTouched model.error
 
-        errorStyles =
+        ( textColor, iconColor ) =
             if hasError_ then
-                [ Css.color (Css.hex "#c00") ]
+                ( theme.color.text.error, theme.color.text.error )
 
             else
-                []
+                ( theme.color.text.primary, theme.color.text.secondary )
     in
     div
         (Attrs.css
-            [ Css.backgroundColor (Css.hex "#fff")
-            , Css.display Css.inlineFlex
+            [ Css.displayFlex
+            , Css.width (Css.pct 100)
             , Css.alignItems Css.center
-            , Css.border3 (Css.px 1) Css.solid (Css.hex "#ccc")
-            , Css.borderRadius (Css.px 3)
-            , Css.batch errorStyles
+            , Css.borderRadius (Css.px theme.borderRadius.base)
+            , Css.cursor Css.text_
             , Css.position Css.relative
+            , Css.backgroundColor theme.color.background.input
+            , Css.border3 (Css.px theme.borderWidth) Css.solid theme.color.border
+            , ViewComponents.colorsTransition theme
+            , Css.hover [ Css.backgroundColor theme.color.action.hover ]
+            , Css.pseudoClass "focus-within"
+                [ Css.borderColor theme.color.primary.main
+                , Css.backgroundColor theme.color.background.input
+                ]
+            , Css.color textColor
             ]
             :: attrs
         )
-        [ input
-            [ Attrs.css [ Css.border (Css.px 0), Css.color Css.currentColor ]
-            , Attrs.type_ "text"
-            , Attrs.value model.inputValue
+        [ viewInput theme
+            [ Attrs.value model.inputValue
             , Attrs.placeholder placeholder
+            , Attrs.id id
             , onInput (model.internalMsg << UpdateValue)
             , onBlur (model.internalMsg OnBlur)
             ]
-            []
-        , span []
+        , span
+            [ Attrs.css
+                [ Css.position Css.absolute
+                , Css.right (Css.rem 0.5)
+                , Css.pointerEvents Css.none
+                , Css.color iconColor
+                ]
+            ]
             [ Icons.calendar
                 |> Icons.withSize 16
                 |> Icons.toHtml []
                 |> Html.Styled.fromUnstyled
             ]
-        , case model.error of
-            Just err ->
-                span [ Attrs.css [ Css.position Css.absolute, Css.top (Css.pct 100) ] ]
-                    [ text <| getDefaultErrorMessage err ]
-
-            Nothing ->
-                text ""
+        , viewError theme hasError_ model.error
         ]
+
+
+viewInput : Theme.Theme -> List (Html.Styled.Attribute msg) -> Html.Styled.Html msg
+viewInput theme attrs =
+    input
+        (Attrs.css
+            [ Css.flexGrow (Css.num 1)
+            , Css.outline Css.none
+            , Css.padding (Css.rem 0.5)
+            , Css.borderWidth (Css.px 0)
+            , Css.borderRadius (Css.px 0)
+            , Css.backgroundColor Css.transparent
+            , Css.width (Css.px 0)
+            , Css.minWidth (Css.px 40)
+            , Css.minHeight (Css.px theme.size.inputElement)
+            , Css.color Css.currentColor
+            , Css.pseudoClass ":placeholder"
+                [ Css.textOverflow Css.ellipsis
+                , Css.color theme.color.text.disabled
+                ]
+            , Css.pseudoClass "placeholder-shown"
+                [ Css.textOverflow Css.ellipsis
+                , Css.color theme.color.text.disabled
+                ]
+            ]
+            :: Attrs.autocomplete False
+            :: Attrs.type_ "text"
+            :: attrs
+        )
+        []
+
+
+viewError : Theme.Theme -> Bool -> Maybe InputError -> Html.Styled.Html msg
+viewError theme isVisible error =
+    case ( error, isVisible ) of
+        ( Just err, True ) ->
+            span
+                [ Attrs.css
+                    [ Css.position Css.absolute
+                    , Css.top (Css.pct 100)
+                    , Css.fontSize (Css.px theme.fontSize.xs)
+                    , Css.paddingTop (Css.px 3)
+                    ]
+                ]
+                [ text <| getDefaultErrorMessage err ]
+
+        ( _, _ ) ->
+            text ""
+
+
+viewPlaceholder : Config -> Html.Styled.Html msg
+viewPlaceholder { theme } =
+    div
+        [ Attrs.css [ Css.displayFlex, Css.width (Css.pct 100), Css.height (Css.px theme.size.inputElement) ]
+        , Attrs.attribute "aria-hidden" "true"
+        ]
+        []
+
+
+containerId : Config -> String
+containerId { id } =
+    id ++ "--container"
+
+
+viewContainer : Theme.Theme -> List (Html.Styled.Attribute msg) -> List (Html.Styled.Html msg) -> Html.Styled.Html msg
+viewContainer theme attrs children =
+    div
+        (Attrs.css
+            [ Css.position Css.relative
+            , Css.display Css.inlineFlex
+            , Css.width (Css.pct 100)
+            , Css.height (Css.px theme.size.inputElement)
+            ]
+            :: attrs
+        )
+        children
 
 
 buildPlaceholderFromFormat : Format -> String
