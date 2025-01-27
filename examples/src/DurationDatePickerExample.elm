@@ -12,7 +12,7 @@ import Utilities exposing (adjustAllowedTimesOfDayToClientZone, isDateBeforeToda
 
 
 type Msg
-    = OpenPicker
+    = OpenPicker String
     | UpdatePicker DurationDatePicker.Msg
     | AdjustTimeZone Zone
     | Tick Posix
@@ -30,18 +30,22 @@ type alias Model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        OpenPicker ->
-            ( { model | picker = DurationDatePicker.openPicker (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.pickedStartTime model.pickedEndTime model.picker }, Cmd.none )
+        OpenPicker elementId ->
+            let
+                ( newPicker, cmd ) =
+                    DurationDatePicker.openPicker elementId (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.pickedStartTime model.pickedEndTime model.picker
+            in
+            ( { model | picker = newPicker }, cmd )
 
         UpdatePicker subMsg ->
             let
-                ( newPicker, maybeRuntime ) =
+                ( ( newPicker, maybeRuntime ), cmd ) =
                     DurationDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.picker
 
                 ( startTime, endTime ) =
                     Maybe.map (\( start, end ) -> ( Just start, Just end )) maybeRuntime |> Maybe.withDefault ( model.pickedStartTime, model.pickedEndTime )
             in
-            ( { model | picker = newPicker, pickedStartTime = startTime, pickedEndTime = endTime }, Cmd.none )
+            ( { model | picker = newPicker, pickedStartTime = startTime, pickedEndTime = endTime }, cmd )
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }, Cmd.none )
@@ -125,8 +129,8 @@ view model =
             [ div [ style "margin-bottom" "1rem" ]
                 [ text "This is a duration picker" ]
             , div [ style "margin-bottom" "1rem", style "position" "relative" ]
-                [ button [ id "my-button", onClick <| OpenPicker ]
-                    [ text "Picker" ]
+                [ button [ id "my-button", onClick <| OpenPicker "my-button" ]
+                    [ text "Open Picker" ]
                 , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
                 ]
             , Maybe.map2
