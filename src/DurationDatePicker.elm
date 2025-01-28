@@ -2,6 +2,7 @@ module DurationDatePicker exposing
     ( DatePicker, Msg, init, view, update, subscriptions
     , openPicker, closePicker, updatePickerPosition
     , isOpen
+    , viewDurationInput
     )
 
 {-| A date picker component for picking a datetime range.
@@ -27,6 +28,7 @@ import Browser.Dom as Dom
 import Browser.Events
 import Css
 import DatePicker.Alignment as Alignment exposing (Alignment)
+import DatePicker.DateInput as DateInput
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (..)
@@ -36,6 +38,7 @@ import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Html.Styled exposing (div, fromUnstyled, text, toUnstyled)
 import Html.Styled.Attributes exposing (class, id, start)
+import Html.Styled.Events exposing (onClick)
 import Json.Decode as Decode
 import List.Extra as List
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
@@ -56,6 +59,8 @@ type alias Model msg =
     , startSelectionTuple : Maybe ( PickerDay, Posix )
     , endSelectionTuple : Maybe ( PickerDay, Posix )
     , domLocation : DomLocation
+    , startDateInput : DateInput.DateInput msg
+    , endDateInput : DateInput.DateInput msg
     , alignment : Maybe Alignment
     }
 
@@ -77,6 +82,10 @@ init internalMsg =
         , startSelectionTuple = Nothing
         , endSelectionTuple = Nothing
         , domLocation = InsideHierarchy
+        , startDateInput =
+            DateInput.init (internalMsg << HandleStartDateInputUpdate)
+        , endDateInput =
+            DateInput.init (internalMsg << HandleEndDateInputUpdate)
         , alignment = Nothing
         }
 
@@ -87,7 +96,7 @@ subscriptions : Settings -> DatePicker msg -> Sub msg
 subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id ] (model.internalMsg Close))
+            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, startDateInputConfig settings |> .id ] (model.internalMsg Close))
 
         Closed ->
             Sub.none
@@ -130,19 +139,18 @@ isOpen (DatePicker { status }) =
 Is used internally but can also be used externally in case of a changing viewport
 (e.g. onScroll or onResize).
 -}
-updatePickerPosition : DatePicker msg -> Cmd msg
+updatePickerPosition : DatePicker msg -> ( DatePicker msg, Cmd msg )
 updatePickerPosition (DatePicker model) =
-    case model.domLocation of
-        OutsideHierarchy { triggerDomElement, pickerDomElement } ->
-            Utilities.updateDomElements
-                { triggerElementId = triggerDomElement.id
-                , pickerElementId = pickerDomElement.id
-                , onSuccess = \result -> model.internalMsg (SetDomElements result)
-                , onError = model.internalMsg NoOp
-                }
+    let
+        cmd =
+            case ( model.status, model.alignment ) of
+                ( Open _ _, Just alignment ) ->
+                    Alignment.update (model.internalMsg << GotAlignment) alignment
 
-        InsideHierarchy ->
-            Cmd.none
+                ( _, _ ) ->
+                    Cmd.none
+    in
+    ( DatePicker model, cmd )
 
 
 type StartOrEnd
@@ -165,10 +173,10 @@ type Msg
     | SetHour StartOrEnd Int
     | SetMinute StartOrEnd Int
     | Close
-    | SetDomElements { triggerDomElement : Dom.Element, pickerDomElement : Dom.Element }
     | SetPresetRange PresetRangeConfig
+    | HandleStartDateInputUpdate DateInput.Msg
+    | HandleEndDateInputUpdate DateInput.Msg
     | OpenPicker Posix (Maybe Posix) (Maybe Posix) String
-    | NoOp
 
 
 {-| Update the DurationDatePicker according to the given internal msg.
@@ -186,29 +194,29 @@ update settings msg (DatePicker model) =
         Open timePickerVisible baseDay ->
             case msg of
                 NextMonth ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset + 1 }, Nothing ), Cmd.none )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset + 1 }, pickedDuration ), Cmd.none )
 
                 PrevMonth ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset - 1 }, Nothing ), Cmd.none )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset - 1 }, pickedDuration ), Cmd.none )
 
                 NextYear ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset + 12 }, Nothing ), Cmd.none )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset + 12 }, pickedDuration ), Cmd.none )
 
                 PrevYear ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset - 12 }, Nothing ), Cmd.none )
+                    ( ( DatePicker { model | viewOffset = model.viewOffset - 12 }, pickedDuration ), Cmd.none )
 
                 SetHoveredDay pickerDay ->
-                    ( ( DatePicker { model | hovered = Just pickerDay }, Nothing ), Cmd.none )
+                    ( ( DatePicker { model | hovered = Just pickerDay }, pickedDuration ), Cmd.none )
 
                 ClearHoveredDay ->
-                    ( ( DatePicker { model | hovered = Nothing }, Nothing ), Cmd.none )
+                    ( ( DatePicker { model | hovered = Nothing }, pickedDuration ), Cmd.none )
 
                 SetRange pickerDay ->
                     let
                         newSelection =
                             DurationUtilities.selectDay settings.zone model.startSelectionTuple model.endSelectionTuple pickerDay
                     in
-                    ( updateSelection newSelection ( DatePicker model, pickedDuration )
+                    ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
                     , Cmd.none
                     )
 
@@ -227,7 +235,7 @@ update settings msg (DatePicker model) =
                                 newSelection =
                                     DurationUtilities.selectStartHour settings.zone baseDay model.startSelectionTuple model.endSelectionTuple hour
                             in
-                            ( updateSelection newSelection ( DatePicker model, pickedDuration )
+                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
                             , Cmd.none
                             )
 
@@ -236,7 +244,7 @@ update settings msg (DatePicker model) =
                                 newSelection =
                                     DurationUtilities.selectEndHour settings.zone baseDay model.startSelectionTuple model.endSelectionTuple hour
                             in
-                            ( updateSelection newSelection ( DatePicker model, pickedDuration )
+                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
                             , Cmd.none
                             )
 
@@ -247,7 +255,7 @@ update settings msg (DatePicker model) =
                                 newSelection =
                                     DurationUtilities.selectStartMinute settings.zone baseDay model.startSelectionTuple model.endSelectionTuple minute
                             in
-                            ( updateSelection newSelection ( DatePicker model, pickedDuration )
+                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
                             , Cmd.none
                             )
 
@@ -256,36 +264,20 @@ update settings msg (DatePicker model) =
                                 newSelection =
                                     DurationUtilities.selectEndMinute settings.zone baseDay model.startSelectionTuple model.endSelectionTuple minute
                             in
-                            ( updateSelection newSelection ( DatePicker model, pickedDuration )
+                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
                             , Cmd.none
                             )
 
                 Close ->
-                    ( ( DatePicker { model | status = Closed }, Nothing ), Cmd.none )
+                    ( ( DatePicker { model | status = Closed }, pickedDuration ), Cmd.none )
 
                 GotAlignment result ->
                     case result of
                         Ok alignment ->
-                            ( ( DatePicker { model | alignment = Just alignment }, Nothing ), Cmd.none )
+                            ( ( DatePicker { model | alignment = Just alignment }, pickedDuration ), Cmd.none )
 
                         Err _ ->
-                            ( ( DatePicker model, Nothing ), Cmd.none )
-
-                SetDomElements newDomElements ->
-                    let
-                        updatedDomLocation =
-                            case model.domLocation of
-                                OutsideHierarchy ({ triggerDomElement, pickerDomElement } as domElements) ->
-                                    OutsideHierarchy
-                                        { domElements
-                                            | triggerDomElement = { triggerDomElement | element = Just newDomElements.triggerDomElement }
-                                            , pickerDomElement = { pickerDomElement | element = Just newDomElements.pickerDomElement }
-                                        }
-
-                                InsideHierarchy ->
-                                    InsideHierarchy
-                    in
-                    ( ( DatePicker { model | domLocation = updatedDomLocation }, Nothing ), Cmd.none )
+                            ( ( DatePicker model, pickedDuration ), Cmd.none )
 
                 SetPresetRange { range } ->
                     let
@@ -300,18 +292,46 @@ update settings msg (DatePicker model) =
 
                         updatedPickerAndDuration =
                             ( DatePicker model, pickedDuration )
-                                |> updateSelection newSelection
+                                |> updateSelection settings newSelection
                                 |> updateViewOffset settings baseDay
                     in
                     ( updatedPickerAndDuration
                     , Cmd.none
                     )
 
+                HandleStartDateInputUpdate subMsg ->
+                    let
+                        ( updatedDateInput, dateInputCmd ) =
+                            DateInput.update (startDateInputConfig settings) subMsg model.startDateInput
+                    in
+                    ( updateSelectionFromDateInput settings baseDay Start updatedDateInput ( DatePicker model, pickedDuration ), dateInputCmd )
+
+                HandleEndDateInputUpdate subMsg ->
+                    let
+                        ( updatedDateInput, dateInputCmd ) =
+                            DateInput.update (endDateInputConfig settings) subMsg model.endDateInput
+                    in
+                    ( updateSelectionFromDateInput settings baseDay End updatedDateInput ( DatePicker model, pickedDuration ), dateInputCmd )
+
                 _ ->
-                    ( ( DatePicker model, Nothing ), Cmd.none )
+                    ( ( DatePicker model, pickedDuration ), Cmd.none )
 
         Closed ->
             case msg of
+                HandleStartDateInputUpdate subMsg ->
+                    let
+                        ( updatedDateInput, dateInputCmd ) =
+                            DateInput.update (startDateInputConfig settings) subMsg model.startDateInput
+                    in
+                    ( ( DatePicker { model | startDateInput = updatedDateInput }, pickedDuration ), dateInputCmd )
+
+                HandleEndDateInputUpdate subMsg ->
+                    let
+                        ( updatedDateInput, dateInputCmd ) =
+                            DateInput.update (endDateInputConfig settings) subMsg model.endDateInput
+                    in
+                    ( ( DatePicker { model | endDateInput = updatedDateInput }, pickedDuration ), dateInputCmd )
+
                 OpenPicker baseTime pickedStartTime pickedEndTime triggerElementId ->
                     let
                         baseDay =
@@ -331,36 +351,98 @@ update settings msg (DatePicker model) =
 
                         ( DatePicker updatedModel, updatedPickedDuration ) =
                             ( DatePicker model, pickedDuration )
-                                |> updateSelection ( newStartSelectionTuple, newEndSelectionTuple )
+                                |> updateSelection settings ( newStartSelectionTuple, newEndSelectionTuple )
+                                -- in case there was no pickedStartTime but the start input still has a valid value
+                                |> updateSelectionFromDateInput settings baseDay Start model.startDateInput
+                                -- in case there was no pickedEndTime but the end input still has a valid value
+                                |> updateSelectionFromDateInput settings baseDay End model.endDateInput
                                 |> updateViewOffset settings baseDay
                     in
                     ( ( DatePicker { updatedModel | status = status }
                       , updatedPickedDuration
                       )
                     , Alignment.init
-                        { triggerId = triggerElementId
-                        , pickerId = settings.id
-                        }
+                        { triggerId = triggerElementId, pickerId = settings.id }
                         (model.internalMsg << GotAlignment)
                     )
 
                 _ ->
-                    ( ( DatePicker model, Nothing ), Cmd.none )
+                    ( ( DatePicker model, pickedDuration ), Cmd.none )
 
 
-updateSelection : ( Maybe ( PickerDay, Posix ), Maybe ( PickerDay, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) )
-updateSelection ( newStartSelectionTuple, newEndSelectionTuple ) ( DatePicker model, pickedDuration ) =
+updateSelection : Settings -> ( Maybe ( PickerDay, Posix ), Maybe ( PickerDay, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) )
+updateSelection settings ( newStartSelectionTuple, newEndSelectionTuple ) ( DatePicker model, pickedDuration ) =
     let
-        newDuration =
-            Maybe.map2 (\( _, startSelection ) ( _, endSelection ) -> ( startSelection, endSelection )) newStartSelectionTuple newEndSelectionTuple
+        ( updatedDuration, updatedStartDateInput, updatedEndDateInput ) =
+            case ( newStartSelectionTuple, newEndSelectionTuple ) of
+                ( Just ( _, startSelection ), Just ( _, endSelection ) ) ->
+                    ( Just ( startSelection, endSelection )
+                    , DateInput.updateFromPosix (startDateInputConfig settings) settings.zone startSelection model.startDateInput
+                    , DateInput.updateFromPosix (endDateInputConfig settings) settings.zone endSelection model.endDateInput
+                    )
+
+                ( Just ( _, startSelection ), Nothing ) ->
+                    ( Nothing
+                    , DateInput.updateFromPosix (startDateInputConfig settings) settings.zone startSelection model.startDateInput
+                    , DateInput.clear model.endDateInput
+                    )
+
+                ( Nothing, Just ( _, endSelection ) ) ->
+                    ( Nothing
+                    , DateInput.clear model.startDateInput
+                    , DateInput.updateFromPosix (endDateInputConfig settings) settings.zone endSelection model.endDateInput
+                    )
+
+                ( Nothing, Nothing ) ->
+                    ( Nothing
+                    , model.startDateInput
+                    , model.endDateInput
+                    )
     in
     ( DatePicker
         { model
             | startSelectionTuple = newStartSelectionTuple
             , endSelectionTuple = newEndSelectionTuple
+            , startDateInput = updatedStartDateInput
+            , endDateInput = updatedEndDateInput
         }
-    , newDuration
+    , updatedDuration
     )
+
+
+updateSelectionFromDateInput : Settings -> PickerDay -> StartOrEnd -> DateInput.DateInput msg -> ( DatePicker msg, Maybe ( Posix, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) )
+updateSelectionFromDateInput settings baseDay startOrEnd updatedDateInput ( DatePicker model, pickedDuration ) =
+    case DateInput.toPosix settings.zone updatedDateInput of
+        Just posix ->
+            let
+                pickerDay =
+                    generatePickerDay settings posix
+
+                newSelectionTuple =
+                    ( pickerDay, posix )
+
+                ( newSelection, updatedStartDateInput, updatedEndDateInput ) =
+                    case startOrEnd of
+                        Start ->
+                            ( ( Just newSelectionTuple, model.endSelectionTuple ), updatedDateInput, model.endDateInput )
+
+                        End ->
+                            ( ( model.startSelectionTuple, Just newSelectionTuple ), model.startDateInput, updatedDateInput )
+
+                ( DatePicker updatedModel, updatedSelection ) =
+                    ( DatePicker model, pickedDuration )
+                        |> updateSelection settings newSelection
+                        |> updateViewOffset settings baseDay
+            in
+            ( DatePicker { updatedModel | startDateInput = updatedStartDateInput, endDateInput = updatedEndDateInput }, updatedSelection )
+
+        Nothing ->
+            case startOrEnd of
+                Start ->
+                    ( DatePicker { model | startDateInput = updatedDateInput, startSelectionTuple = Nothing }, Nothing )
+
+                End ->
+                    ( DatePicker { model | endDateInput = updatedDateInput, endSelectionTuple = Nothing }, Nothing )
 
 
 updateViewOffset : Settings -> PickerDay -> ( DatePicker msg, Maybe ( Posix, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) )
@@ -423,6 +505,68 @@ viewStyled settings (DatePicker model) =
 
         _ ->
             text ""
+
+
+startDateInputConfig : Settings -> DateInput.Config
+startDateInputConfig settings =
+    let
+        defaultConfig =
+            DateInput.defaultConfig settings.zone
+    in
+    { defaultConfig
+        | dateInputSettings = settings.dateInputSettings
+        , isDayDisabled = settings.isDayDisabled
+        , theme = settings.theme
+        , id = settings.id ++ "--start-date-input"
+    }
+
+
+endDateInputConfig : Settings -> DateInput.Config
+endDateInputConfig settings =
+    let
+        defaultConfig =
+            DateInput.defaultConfig settings.zone
+    in
+    { defaultConfig
+        | dateInputSettings = settings.dateInputSettings
+        , isDayDisabled = settings.isDayDisabled
+        , theme = settings.theme
+        , id = settings.id ++ "--end-date-input"
+    }
+
+
+viewDurationInput : List (Html.Attribute msg) -> Settings -> Posix -> Maybe Posix -> Maybe Posix -> DatePicker msg -> Html msg
+viewDurationInput attrs settings baseTime maybePickedStart maybePickedEnd (DatePicker model) =
+    viewDurationInputStyled (Utilities.toStyledAttrs attrs) settings baseTime maybePickedStart maybePickedEnd (DatePicker model)
+        |> toUnstyled
+
+
+viewDurationInputStyled : List (Html.Styled.Attribute msg) -> Settings -> Posix -> Maybe Posix -> Maybe Posix -> DatePicker msg -> Html.Styled.Html msg
+viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd (DatePicker model) =
+    let
+        onClickMsg =
+            model.internalMsg <|
+                OpenPicker baseTime maybePickedStart maybePickedEnd (DateInput.containerId <| startDateInputConfig settings)
+    in
+    DateInput.viewContainer settings.theme
+        (id (DateInput.containerId <| startDateInputConfig settings) :: attrs)
+        [ DateInput.viewStyled [ onClick onClickMsg ] (startDateInputConfig settings) model.startDateInput
+        , DateInput.viewStyled [ onClick onClickMsg ] (endDateInputConfig settings) model.endDateInput
+        , case model.status of
+            Open timePickerVisible baseDay ->
+                let
+                    styles =
+                        Alignment.pickerStylesFromAlignment settings.theme model.alignment
+                in
+                viewPicker [ Html.Styled.Attributes.css styles ]
+                    settings
+                    timePickerVisible
+                    baseDay
+                    model
+
+            _ ->
+                text ""
+        ]
 
 
 viewPicker : List (Html.Styled.Attribute msg) -> Settings -> Bool -> PickerDay -> Model msg -> Html.Styled.Html msg

@@ -12,8 +12,9 @@ import Utilities exposing (adjustAllowedTimesOfDayToClientZone, isDateBeforeToda
 
 
 type Msg
-    = OpenPicker String
-    | UpdatePicker DurationDatePicker.Msg
+    = OpenDetachedPicker String
+    | UpdateDetachedPicker DurationDatePicker.Msg
+    | UpdateDateInputPicker DurationDatePicker.Msg
     | AdjustTimeZone Zone
     | Tick Posix
 
@@ -21,31 +22,44 @@ type Msg
 type alias Model =
     { currentTime : Posix
     , zone : Zone
-    , pickedStartTime : Maybe Posix
-    , pickedEndTime : Maybe Posix
-    , picker : DurationDatePicker.DatePicker Msg
+    , detachedPickerStart : Maybe Posix
+    , detachedPickerEnd : Maybe Posix
+    , detachedPicker : DurationDatePicker.DatePicker Msg
+    , dateInputPickerStart : Maybe Posix
+    , dateInputPickerEnd : Maybe Posix
+    , dateInputPicker : DurationDatePicker.DatePicker Msg
     }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        OpenPicker elementId ->
+        OpenDetachedPicker elementId ->
             let
                 ( newPicker, cmd ) =
-                    DurationDatePicker.openPicker elementId (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.pickedStartTime model.pickedEndTime model.picker
+                    DurationDatePicker.openPicker elementId (userDefinedDatePickerSettings model.zone model.currentTime) model.currentTime model.detachedPickerStart model.detachedPickerEnd model.detachedPicker
             in
-            ( { model | picker = newPicker }, cmd )
+            ( { model | detachedPicker = newPicker }, cmd )
 
-        UpdatePicker subMsg ->
+        UpdateDetachedPicker subMsg ->
             let
                 ( ( newPicker, maybeRuntime ), cmd ) =
-                    DurationDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.picker
+                    DurationDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.detachedPicker
 
                 ( startTime, endTime ) =
-                    Maybe.map (\( start, end ) -> ( Just start, Just end )) maybeRuntime |> Maybe.withDefault ( model.pickedStartTime, model.pickedEndTime )
+                    Maybe.map (\( start, end ) -> ( Just start, Just end )) maybeRuntime |> Maybe.withDefault ( Nothing, Nothing )
             in
-            ( { model | picker = newPicker, pickedStartTime = startTime, pickedEndTime = endTime }, cmd )
+            ( { model | detachedPicker = newPicker, detachedPickerStart = startTime, detachedPickerEnd = endTime }, cmd )
+
+        UpdateDateInputPicker subMsg ->
+            let
+                ( ( newPicker, maybeRuntime ), cmd ) =
+                    DurationDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.dateInputPicker
+
+                ( startTime, endTime ) =
+                    Maybe.map (\( start, end ) -> ( Just start, Just end )) maybeRuntime |> Maybe.withDefault ( Nothing, Nothing )
+            in
+            ( { model | dateInputPicker = newPicker, dateInputPickerStart = startTime, dateInputPickerEnd = endTime }, cmd )
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }, Cmd.none )
@@ -126,18 +140,30 @@ view model =
         ]
         [ h1 [ style "margin-bottom" "1rem" ] [ text "DurationDatePicker Example" ]
         , div [ style "margin-bottom" "1rem" ]
-            [ div [ style "margin-bottom" "1rem" ]
-                [ text "This is a duration picker" ]
-            , div [ style "margin-bottom" "1rem", style "position" "relative" ]
-                [ button [ id "my-button", onClick <| OpenPicker "my-button" ]
-                    [ text "Open Picker" ]
-                , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
+            [ div [ style "margin-bottom" "1rem", style "position" "relative" ]
+                [ div [ style "margin-bottom" "1rem" ]
+                    [ text "This is a duration input picker" ]
+                , DurationDatePicker.viewDurationInput []
+                    (userDefinedDatePickerSettings model.zone model.currentTime)
+                    model.currentTime
+                    model.dateInputPickerStart
+                    model.dateInputPickerEnd
+                    model.dateInputPicker
                 ]
-            , Maybe.map2
-                (\start end -> text (posixToDateString model.zone start ++ " " ++ posixToTimeString model.zone start ++ " - " ++ posixToDateString model.zone end ++ " " ++ posixToTimeString model.zone end))
-                model.pickedStartTime
-                model.pickedEndTime
-                |> Maybe.withDefault (text "No date selected yet!")
+            , div [ style "margin-bottom" "1rem" ]
+                [ text "This is a duration picker" ]
+            , div [ style "display" "flex", style "gap" "1rem", style "align-items" "center" ]
+                [ div [ style "position" "relative" ]
+                    [ button [ id "my-button", onClick <| OpenDetachedPicker "my-button" ]
+                        [ text "Open Picker" ]
+                    , DurationDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.detachedPicker
+                    ]
+                , Maybe.map2
+                    (\start end -> text (posixToDateString model.zone start ++ " " ++ posixToTimeString model.zone start ++ " - " ++ posixToDateString model.zone end ++ " " ++ posixToTimeString model.zone end))
+                    model.detachedPickerStart
+                    model.detachedPickerEnd
+                    |> Maybe.withDefault (text "No date selected yet!")
+                ]
             ]
         ]
 
@@ -146,9 +172,12 @@ init : ( Model, Cmd Msg )
 init =
     ( { currentTime = Time.millisToPosix 0
       , zone = Time.utc
-      , pickedStartTime = Nothing
-      , pickedEndTime = Nothing
-      , picker = DurationDatePicker.init UpdatePicker
+      , detachedPickerStart = Nothing
+      , detachedPickerEnd = Nothing
+      , detachedPicker = DurationDatePicker.init UpdateDetachedPicker
+      , dateInputPickerStart = Nothing
+      , dateInputPickerEnd = Nothing
+      , dateInputPicker = DurationDatePicker.init UpdateDateInputPicker
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -157,6 +186,7 @@ init =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ DurationDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
+        [ DurationDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) model.detachedPicker
+        , DurationDatePicker.subscriptions (userDefinedDatePickerSettings model.zone model.currentTime) model.dateInputPicker
         , Time.every 1000 Tick
         ]

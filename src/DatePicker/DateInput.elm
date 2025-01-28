@@ -153,6 +153,11 @@ init internalMsg =
         }
 
 
+clear : DateInput msg -> DateInput msg
+clear (DateInput model) =
+    init model.internalMsg
+
+
 update : Config -> Msg -> DateInput msg -> ( DateInput msg, Cmd msg )
 update ({ dateInputSettings } as config) msg (DateInput model) =
     case msg of

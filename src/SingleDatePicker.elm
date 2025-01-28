@@ -89,8 +89,7 @@ subscriptions : Settings -> DatePicker msg -> Sub msg
 subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Sub.batch
-                [ Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, dateInputConfig settings |> .id ] (model.internalMsg Close)) ]
+            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, dateInputConfig settings |> .id ] (model.internalMsg Close))
 
         Closed ->
             Sub.none
@@ -165,7 +164,6 @@ type Msg
     | SetPresetDate PresetDateConfig
     | HandleDateInputUpdate DateInput.Msg
     | OpenPicker Posix (Maybe Posix) String
-    | NoOp
 
 
 {-| Update the SingleDatePicker according to the given internal msg.
