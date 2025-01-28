@@ -37,7 +37,7 @@ import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Html.Styled exposing (div, fromUnstyled, text, toUnstyled)
-import Html.Styled.Attributes exposing (class, id, start)
+import Html.Styled.Attributes exposing (class, css, id, start)
 import Html.Styled.Events exposing (onClick)
 import Json.Decode as Decode
 import List.Extra as List
@@ -96,7 +96,7 @@ subscriptions : Settings -> DatePicker msg -> Sub msg
 subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, startDateInputConfig settings |> .id ] (model.internalMsg Close))
+            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, DateInput.containerId (dateInputConfig settings) ] (model.internalMsg Close))
 
         Closed ->
             Sub.none
@@ -302,14 +302,14 @@ update settings msg (DatePicker model) =
                 HandleStartDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update (startDateInputConfig settings) subMsg model.startDateInput
+                            DateInput.update (dateInputConfig settings) subMsg model.startDateInput
                     in
                     ( updateSelectionFromDateInput settings baseDay Start updatedDateInput ( DatePicker model, pickedDuration ), dateInputCmd )
 
                 HandleEndDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update (endDateInputConfig settings) subMsg model.endDateInput
+                            DateInput.update (dateInputConfig settings) subMsg model.endDateInput
                     in
                     ( updateSelectionFromDateInput settings baseDay End updatedDateInput ( DatePicker model, pickedDuration ), dateInputCmd )
 
@@ -321,14 +321,14 @@ update settings msg (DatePicker model) =
                 HandleStartDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update (startDateInputConfig settings) subMsg model.startDateInput
+                            DateInput.update (dateInputConfig settings) subMsg model.startDateInput
                     in
                     ( ( DatePicker { model | startDateInput = updatedDateInput }, pickedDuration ), dateInputCmd )
 
                 HandleEndDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
-                            DateInput.update (endDateInputConfig settings) subMsg model.endDateInput
+                            DateInput.update (dateInputConfig settings) subMsg model.endDateInput
                     in
                     ( ( DatePicker { model | endDateInput = updatedDateInput }, pickedDuration ), dateInputCmd )
 
@@ -377,20 +377,20 @@ updateSelection settings ( newStartSelectionTuple, newEndSelectionTuple ) ( Date
             case ( newStartSelectionTuple, newEndSelectionTuple ) of
                 ( Just ( _, startSelection ), Just ( _, endSelection ) ) ->
                     ( Just ( startSelection, endSelection )
-                    , DateInput.updateFromPosix (startDateInputConfig settings) settings.zone startSelection model.startDateInput
-                    , DateInput.updateFromPosix (endDateInputConfig settings) settings.zone endSelection model.endDateInput
+                    , DateInput.updateFromPosix (dateInputConfig settings) settings.zone startSelection model.startDateInput
+                    , DateInput.updateFromPosix (dateInputConfig settings) settings.zone endSelection model.endDateInput
                     )
 
                 ( Just ( _, startSelection ), Nothing ) ->
                     ( Nothing
-                    , DateInput.updateFromPosix (startDateInputConfig settings) settings.zone startSelection model.startDateInput
+                    , DateInput.updateFromPosix (dateInputConfig settings) settings.zone startSelection model.startDateInput
                     , DateInput.clear model.endDateInput
                     )
 
                 ( Nothing, Just ( _, endSelection ) ) ->
                     ( Nothing
                     , DateInput.clear model.startDateInput
-                    , DateInput.updateFromPosix (endDateInputConfig settings) settings.zone endSelection model.endDateInput
+                    , DateInput.updateFromPosix (dateInputConfig settings) settings.zone endSelection model.endDateInput
                     )
 
                 ( Nothing, Nothing ) ->
@@ -497,18 +497,25 @@ viewStyled settings (DatePicker model) =
                 styles =
                     Alignment.pickerStylesFromAlignment settings.theme model.alignment
             in
-            viewPicker [ Html.Styled.Attributes.css styles ]
-                settings
-                timePickerVisible
-                baseDay
-                model
+            viewContainer settings.theme
+                [ id settings.id
+                , class (classPrefix settings.theme.classNamePrefix "duration")
+                , css styles
+                ]
+                [ viewPresets [] settings model
+                , viewPicker []
+                    settings
+                    timePickerVisible
+                    baseDay
+                    model
+                ]
 
         _ ->
             text ""
 
 
-startDateInputConfig : Settings -> DateInput.Config
-startDateInputConfig settings =
+dateInputConfig : Settings -> DateInput.Config
+dateInputConfig settings =
     let
         defaultConfig =
             DateInput.defaultConfig settings.zone
@@ -517,21 +524,7 @@ startDateInputConfig settings =
         | dateInputSettings = settings.dateInputSettings
         , isDayDisabled = settings.isDayDisabled
         , theme = settings.theme
-        , id = settings.id ++ "--start-date-input"
-    }
-
-
-endDateInputConfig : Settings -> DateInput.Config
-endDateInputConfig settings =
-    let
-        defaultConfig =
-            DateInput.defaultConfig settings.zone
-    in
-    { defaultConfig
-        | dateInputSettings = settings.dateInputSettings
-        , isDayDisabled = settings.isDayDisabled
-        , theme = settings.theme
-        , id = settings.id ++ "--end-date-input"
+        , id = settings.id ++ "--date-input"
     }
 
 
@@ -546,25 +539,57 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
     let
         onClickMsg =
             model.internalMsg <|
-                OpenPicker baseTime maybePickedStart maybePickedEnd (DateInput.containerId <| startDateInputConfig settings)
+                OpenPicker baseTime maybePickedStart maybePickedEnd (DateInput.containerId <| dateInputConfig settings)
+
+        isPickerOpen =
+            isOpen (DatePicker model)
     in
     DateInput.viewContainer settings.theme
-        (id (DateInput.containerId <| startDateInputConfig settings) :: attrs)
-        [ DateInput.viewStyled [ onClick onClickMsg ] (startDateInputConfig settings) model.startDateInput
-        , DateInput.viewStyled [ onClick onClickMsg ] (endDateInputConfig settings) model.endDateInput
+        (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
+        [ DateInput.viewDurationInput
+            [ onClick onClickMsg
+            , css
+                (Alignment.dateInputStylesFromAlignment
+                    settings.theme
+                    isPickerOpen
+                    (Alignment.calcDurationDateInputWidth settings.theme settings.showCalendarWeekNumbers)
+                    model.alignment
+                )
+            ]
+            (dateInputConfig settings)
+            ( model.startDateInput, model.endDateInput )
         , case model.status of
             Open timePickerVisible baseDay ->
-                let
-                    styles =
-                        Alignment.pickerStylesFromAlignment settings.theme model.alignment
-                in
-                viewPicker [ Html.Styled.Attributes.css styles ]
-                    settings
-                    timePickerVisible
-                    baseDay
-                    model
+                viewContainer settings.theme
+                    [ id settings.id
+                    , class (classPrefix settings.theme.classNamePrefix "duration")
+                    , css
+                        (Alignment.applyPickerStyles
+                            (\alignment ->
+                                [ Alignment.pickerGridLayoutFromAlignment alignment
+                                , Alignment.pickerPositionFromAlignment settings.theme alignment
+                                , Alignment.pickerTranslationFromAlignment settings.theme alignment
+                                ]
+                            )
+                            model.alignment
+                        )
+                    ]
+                    [ viewPresets
+                        [ css [ Css.property "grid-area" Alignment.gridAreaPresets ] ]
+                        settings
+                        model
+                    , div
+                        [ css [ Css.property "grid-area" Alignment.gridAreaDateInput, Css.padding (Css.px settings.theme.spacing.base) ] ]
+                        [ DateInput.viewPlaceholder (dateInputConfig settings) ]
+                    , viewPicker
+                        [ css [ Css.property "grid-area" Alignment.gridAreaCalendar ] ]
+                        settings
+                        timePickerVisible
+                        baseDay
+                        model
+                    ]
 
-            _ ->
+            Closed ->
                 text ""
         ]
 
@@ -578,25 +603,21 @@ viewPicker attributes settings timePickerVisible baseDay model =
         rightViewTime =
             Time.add Month (model.viewOffset + 1) settings.zone baseDay.start
     in
-    viewContainer settings.theme
-        ([ id settings.id, class (classPrefix settings.theme.classNamePrefix "duration") ] ++ attributes)
-        [ viewPresets settings model
-        , viewPickerContainer settings.theme
-            []
-            [ div [ Html.Styled.Attributes.css [ Css.displayFlex ] ]
-                [ viewCalendar [ class (classPrefix settings.theme.classNamePrefix "left-calendar") ] settings model leftViewTime Left
-                , viewCalendar [ class (classPrefix settings.theme.classNamePrefix "right-calendar") ] settings model rightViewTime Right
-                ]
-            , viewFooter settings timePickerVisible baseDay model
+    viewPickerContainer settings.theme
+        attributes
+        [ div [ css [ Css.displayFlex ] ]
+            [ viewCalendar [ class (classPrefix settings.theme.classNamePrefix "left-calendar") ] settings model leftViewTime Left
+            , viewCalendar [ class (classPrefix settings.theme.classNamePrefix "right-calendar") ] settings model rightViewTime Right
             ]
+        , viewFooter settings timePickerVisible baseDay model
         ]
 
 
-viewPresets : Settings -> Model msg -> Html.Styled.Html msg
-viewPresets settings model =
+viewPresets : List (Html.Styled.Attribute msg) -> Settings -> Model msg -> Html.Styled.Html msg
+viewPresets attrs settings model =
     if List.length settings.presets > 0 then
         viewPresetsContainer settings.theme
-            []
+            attrs
             (List.map
                 (\preset ->
                     case preset of

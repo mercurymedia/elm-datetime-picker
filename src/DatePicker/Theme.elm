@@ -39,6 +39,7 @@ type alias Theme =
         , iconButton : Float
         , inputElement : Float
         }
+    , spacing : { base : Float }
     , borderWidth : Float
     , borderRadius :
         { base : Float
@@ -94,6 +95,7 @@ defaultTheme =
         , iconButton = 32
         , inputElement = 32
         }
+    , spacing = { base = 16 }
     , borderWidth = 1
     , borderRadius =
         { base = 3

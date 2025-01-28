@@ -286,7 +286,7 @@ viewPresetsContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html m
 viewPresetsContainer theme attributes children =
     div
         ([ css
-            [ Css.padding (Css.rem 0.75)
+            [ Css.padding (Css.px (theme.spacing.base * 0.75))
             , Css.borderRight3 (Css.px theme.borderWidth) Css.solid theme.color.border
             , Css.borderLeft3 (Css.px theme.borderWidth) Css.solid theme.color.border
             , Css.marginLeft (Css.px -1)
@@ -309,7 +309,7 @@ viewPresetTab : Theme -> List (Html.Styled.Attribute msg) -> { title : String, a
 viewPresetTab theme attributes { title, active, onClickMsg } =
     let
         defaultStyles =
-            [ Css.padding2 (Css.rem 0.65) (Css.rem 0.75)
+            [ Css.padding2 (Css.px (theme.spacing.base * 0.65)) (Css.px (theme.spacing.base * 0.75))
             , Css.lineHeight (Css.num 1.25)
             , Css.cursor Css.pointer
             , Css.borderRadius (Css.px theme.borderRadius.base)
@@ -366,7 +366,7 @@ viewPickerContainer theme attributes children =
 viewCalendarContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewCalendarContainer theme attributes children =
     div
-        ([ css [ Css.padding (Css.rem 1) ]
+        ([ css [ Css.padding (Css.px theme.spacing.base) ]
          , class (classPrefix theme.classNamePrefix "calendar-container")
          ]
             ++ attributes
@@ -732,7 +732,7 @@ viewFooterContainer theme attributes children =
             , Css.alignItems Css.center
             , Css.fontSize (Css.px theme.fontSize.sm)
             , Css.borderTop3 (Css.px theme.borderWidth) Css.solid theme.color.border
-            , Css.padding (Css.rem 1)
+            , Css.padding (Css.px theme.spacing.base)
             ]
          , class (classPrefix theme.classNamePrefix "footer-container")
          ]
@@ -893,7 +893,7 @@ viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChange
                 [ css
                     [ Css.display Css.inlineFlex
                     , Css.alignItems Css.center
-                    , Css.padding2 (Css.px 0) (Css.rem 0.25)
+                    , Css.padding2 (Css.px 0) (Css.px (theme.spacing.base * 0.25))
                     , Css.property "user-select" "none"
                     ]
                 ]
@@ -923,7 +923,7 @@ viewSelect theme attributes content =
                 , Css.fontWeight Css.normal
                 , Css.border3 (Css.px theme.borderWidth) Css.solid theme.color.border
                 , Css.property "appearance" "none"
-                , Css.padding4 (Css.px 0) (Css.px 24) (Css.px 0) (Css.px 4)
+                , Css.padding4 (Css.px 0) (Css.px (theme.spacing.base * 1.5)) (Css.px 0) (Css.px (theme.spacing.base * 0.25))
                 ]
                 :: attributes
             )

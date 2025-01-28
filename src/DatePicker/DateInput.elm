@@ -6,7 +6,6 @@ import DatePicker.Icons as Icons
 import DatePicker.Theme as Theme
 import DatePicker.Utilities as Utilities
 import DatePicker.ViewComponents as ViewComponents
-import Html exposing (Html, time)
 import Html.Styled exposing (div, input, span, text)
 import Html.Styled.Attributes as Attrs
 import Html.Styled.Events exposing (onBlur, onInput)
@@ -492,14 +491,8 @@ catchError { dateInputSettings, isDayDisabled, zone } inputValue dateParts timeP
             Nothing
 
 
-view : List (Html.Attribute msg) -> Config -> DateInput msg -> Html msg
-view attrs config (DateInput model) =
-    viewStyled (Utilities.toStyledAttrs attrs) config (DateInput model)
-        |> Html.Styled.toUnstyled
-
-
-viewStyled : List (Html.Styled.Attribute msg) -> Config -> DateInput msg -> Html.Styled.Html msg
-viewStyled attrs { dateInputSettings, theme, id } (DateInput model) =
+view : List (Html.Styled.Attribute msg) -> Config -> DateInput msg -> Html.Styled.Html msg
+view attrs { dateInputSettings, theme, id } (DateInput model) =
     let
         placeholder =
             buildPlaceholderFromFormat dateInputSettings.format
@@ -514,6 +507,82 @@ viewStyled attrs { dateInputSettings, theme, id } (DateInput model) =
             else
                 ( theme.color.text.primary, theme.color.text.secondary )
     in
+    viewTextField theme
+        (Attrs.css [ Css.color textColor ] :: attrs)
+        [ viewInput theme
+            [ Attrs.value model.inputValue
+            , Attrs.placeholder placeholder
+            , Attrs.id id
+            , onInput (model.internalMsg << UpdateValue)
+            , onBlur (model.internalMsg OnBlur)
+            ]
+        , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
+        , viewError theme hasError_ model.error
+        ]
+
+
+viewDurationInput : List (Html.Styled.Attribute msg) -> Config -> ( DateInput msg, DateInput msg ) -> Html.Styled.Html msg
+viewDurationInput attrs { dateInputSettings, theme, id } ( DateInput startModel, DateInput endModel ) =
+    let
+        placeholder =
+            buildPlaceholderFromFormat dateInputSettings.format
+
+        hasError_ =
+            hasError startModel.isTouched startModel.error || hasError endModel.isTouched endModel.error
+
+        ( textColor, iconColor ) =
+            if hasError_ then
+                ( theme.color.text.error, theme.color.text.error )
+
+            else
+                ( theme.color.text.primary, theme.color.text.secondary )
+    in
+    div
+        (Attrs.css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.width (Css.pct 100)
+            , Css.color textColor
+            ]
+            :: attrs
+        )
+        [ viewTextField theme
+            []
+            [ viewInput theme
+                [ Attrs.value startModel.inputValue
+                , Attrs.placeholder placeholder
+                , Attrs.id (durationStartId id)
+                , onInput (startModel.internalMsg << UpdateValue)
+                , onBlur (startModel.internalMsg OnBlur)
+                ]
+            , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
+            ]
+        , span
+            [ Attrs.css
+                [ Css.width (Css.rem 2)
+                , Css.display Css.inlineFlex
+                , Css.justifyContent Css.center
+                , Css.flexShrink (Css.int 0)
+                ]
+            ]
+            [ text "–" ]
+        , viewTextField theme
+            []
+            [ viewInput theme
+                [ Attrs.value endModel.inputValue
+                , Attrs.placeholder placeholder
+                , Attrs.id (durationEndId id)
+                , onInput (endModel.internalMsg << UpdateValue)
+                , onBlur (endModel.internalMsg OnBlur)
+                ]
+            , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
+            ]
+        , viewError theme hasError_ startModel.error
+        ]
+
+
+viewTextField : Theme.Theme -> List (Html.Styled.Attribute msg) -> List (Html.Styled.Html msg) -> Html.Styled.Html msg
+viewTextField theme attrs children =
     div
         (Attrs.css
             [ Css.displayFlex
@@ -530,32 +599,10 @@ viewStyled attrs { dateInputSettings, theme, id } (DateInput model) =
                 [ Css.borderColor theme.color.primary.main
                 , Css.backgroundColor theme.color.background.input
                 ]
-            , Css.color textColor
             ]
             :: attrs
         )
-        [ viewInput theme
-            [ Attrs.value model.inputValue
-            , Attrs.placeholder placeholder
-            , Attrs.id id
-            , onInput (model.internalMsg << UpdateValue)
-            , onBlur (model.internalMsg OnBlur)
-            ]
-        , span
-            [ Attrs.css
-                [ Css.position Css.absolute
-                , Css.right (Css.rem 0.5)
-                , Css.pointerEvents Css.none
-                , Css.color iconColor
-                ]
-            ]
-            [ Icons.calendar
-                |> Icons.withSize 16
-                |> Icons.toHtml []
-                |> Html.Styled.fromUnstyled
-            ]
-        , viewError theme hasError_ model.error
-        ]
+        children
 
 
 viewInput : Theme.Theme -> List (Html.Styled.Attribute msg) -> Html.Styled.Html msg
@@ -563,13 +610,13 @@ viewInput theme attrs =
     input
         (Attrs.css
             [ Css.flexGrow (Css.num 1)
+            , Css.width (Css.px 0)
+            , Css.minWidth (Css.px 40)
             , Css.outline Css.none
             , Css.padding (Css.rem 0.5)
             , Css.borderWidth (Css.px 0)
             , Css.borderRadius (Css.px 0)
             , Css.backgroundColor Css.transparent
-            , Css.width (Css.px 0)
-            , Css.minWidth (Css.px 40)
             , Css.minHeight (Css.px theme.size.inputElement)
             , Css.color Css.currentColor
             , Css.pseudoClass ":placeholder"
@@ -586,6 +633,23 @@ viewInput theme attrs =
             :: attrs
         )
         []
+
+
+viewCalendarIcon : List (Html.Styled.Attribute msg) -> Html.Styled.Html msg
+viewCalendarIcon attrs =
+    span
+        (Attrs.css
+            [ Css.position Css.absolute
+            , Css.right (Css.rem 0.5)
+            , Css.pointerEvents Css.none
+            ]
+            :: attrs
+        )
+        [ Icons.calendar
+            |> Icons.withSize 16
+            |> Icons.toHtml []
+            |> Html.Styled.fromUnstyled
+        ]
 
 
 viewError : Theme.Theme -> Bool -> Maybe InputError -> Html.Styled.Html msg
@@ -618,6 +682,16 @@ viewPlaceholder { theme } =
 containerId : Config -> String
 containerId { id } =
     id ++ "--container"
+
+
+durationStartId : String -> String
+durationStartId id =
+    id ++ "--start"
+
+
+durationEndId : String -> String
+durationEndId id =
+    id ++ "--end"
 
 
 viewContainer : Theme.Theme -> List (Html.Styled.Attribute msg) -> List (Html.Styled.Html msg) -> Html.Styled.Html msg

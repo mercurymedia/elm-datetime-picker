@@ -89,7 +89,7 @@ subscriptions : Settings -> DatePicker msg -> Sub msg
 subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, dateInputConfig settings |> .id ] (model.internalMsg Close))
+            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, DateInput.containerId (dateInputConfig settings) ] (model.internalMsg Close))
 
         Closed ->
             Sub.none
@@ -409,9 +409,14 @@ viewDateInputStyled attrs settings baseTime maybePickedTime (DatePicker model) =
     in
     DateInput.viewContainer settings.theme
         (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
-        [ DateInput.viewStyled
+        [ DateInput.view
             [ onClick onClickMsg
-            , css (Alignment.dateInputStylesFromAlignment settings.theme isPickerOpen settings.showCalendarWeekNumbers model.alignment)
+            , css
+                (Alignment.dateInputStylesFromAlignment settings.theme
+                    isPickerOpen
+                    (Alignment.calcDateInputWidth settings.theme settings.showCalendarWeekNumbers)
+                    model.alignment
+                )
             ]
             (dateInputConfig settings)
             model.dateInput
@@ -436,7 +441,7 @@ viewDateInputStyled attrs settings baseTime maybePickedTime (DatePicker model) =
                         settings
                         model
                     , div
-                        [ css [ Css.property "grid-area" Alignment.gridAreaDateInput, Css.padding (Css.rem 1) ] ]
+                        [ css [ Css.property "grid-area" Alignment.gridAreaDateInput, Css.padding (Css.px settings.theme.spacing.base) ] ]
                         [ DateInput.viewPlaceholder (dateInputConfig settings) ]
                     , viewPicker
                         [ css [ Css.property "grid-area" Alignment.gridAreaCalendar ] ]

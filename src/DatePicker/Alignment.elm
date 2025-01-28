@@ -142,12 +142,9 @@ getElements pickerId triggerId =
         |> TaskExtra.andMap Dom.getViewport
 
 
-dateInputStylesFromAlignment : Theme.Theme -> Bool -> Bool -> Maybe Alignment -> List Css.Style
-dateInputStylesFromAlignment theme isPickerOpen showCalendarWeekNumbers maybeAlignment =
+dateInputStylesFromAlignment : Theme.Theme -> Bool -> Float -> Maybe Alignment -> List Css.Style
+dateInputStylesFromAlignment theme isPickerOpen width maybeAlignment =
     let
-        dateInputWidth =
-            calendarWidth theme showCalendarWeekNumbers
-
         closedStyles =
             [ Css.position Css.absolute
             , Css.top (Css.px 0)
@@ -160,17 +157,27 @@ dateInputStylesFromAlignment theme isPickerOpen showCalendarWeekNumbers maybeAli
         ( Just alignment, True ) ->
             let
                 { x, y } =
-                    fixedDateInputCoorinatesFromAlignment dateInputWidth alignment
+                    fixedDateInputCoorinatesFromAlignment width alignment
             in
             [ Css.position Css.fixed
             , Css.zIndex (Css.int (theme.zIndex + 10))
             , Css.left (Css.px x)
             , Css.top (Css.px y)
-            , Css.width (Css.px (calendarWidth theme showCalendarWeekNumbers))
+            , Css.width (Css.px width)
             ]
 
         ( _, _ ) ->
             closedStyles
+
+
+calcDateInputWidth : Theme.Theme -> Bool -> Float
+calcDateInputWidth theme showCalendarWeekNumbers =
+    calendarWidth theme showCalendarWeekNumbers
+
+
+calcDurationDateInputWidth : Theme.Theme -> Bool -> Float
+calcDurationDateInputWidth theme showCalendarWeekNumbers =
+    2 * calendarWidth theme showCalendarWeekNumbers + 2 * theme.spacing.base
 
 
 calendarWidth : Theme -> Bool -> Float

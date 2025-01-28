@@ -140,7 +140,7 @@ view model =
         ]
         [ h1 [ style "margin-bottom" "1rem" ] [ text "DurationDatePicker Example" ]
         , div [ style "margin-bottom" "1rem" ]
-            [ div [ style "margin-bottom" "1rem", style "position" "relative" ]
+            [ div [ style "margin-bottom" "1rem", style "position" "relative", style "width" "400px" ]
                 [ div [ style "margin-bottom" "1rem" ]
                     [ text "This is a duration input picker" ]
                 , DurationDatePicker.viewDurationInput []
