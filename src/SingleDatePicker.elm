@@ -2,7 +2,7 @@ module SingleDatePicker exposing
     ( DatePicker, Msg, init, view, update, subscriptions
     , openPicker, closePicker, updatePickerPosition
     , isOpen
-    , viewDateInput
+    , hasError, viewDateInput
     )
 
 {-| A date picker component for a single datetime.
@@ -126,6 +126,11 @@ isOpen (DatePicker { status }) =
 
         Closed ->
             False
+
+
+hasError : DatePicker msg -> Bool
+hasError (DatePicker { dateInput }) =
+    DateInput.hasError dateInput
 
 
 {-| Returns the command to update the trigger & picker DOM elements' instances.

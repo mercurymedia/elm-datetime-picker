@@ -19,11 +19,6 @@ type alias Position =
     { x : Float, y : Float }
 
 
-type CssPosition
-    = Absolute
-    | Fixed
-
-
 type alias Element =
     { id : String, x : Float, y : Float, width : Float, height : Float }
 
@@ -377,9 +372,14 @@ pickerGridLayoutFromAlignment (Alignment { placement }) =
                     , [ gridAreaPresets, gridAreaDateInput ]
                     ]
 
-                ( _, _ ) ->
+                ( Center, Bottom ) ->
                     [ [ gridAreaDateInput, gridAreaPresets ]
                     , [ gridAreaCalendar, gridAreaPresets ]
+                    ]
+
+                ( Center, Top ) ->
+                    [ [ gridAreaCalendar, gridAreaPresets ]
+                    , [ gridAreaDateInput, gridAreaPresets ]
                     ]
     in
     Css.batch

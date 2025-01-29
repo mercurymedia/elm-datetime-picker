@@ -117,6 +117,9 @@ getErrorMessage error =
         DateInput.ValueNotAllowed ->
             "Date not allowed."
 
+        _ ->
+            ""
+
 
 view : Model -> Html Msg
 view model =

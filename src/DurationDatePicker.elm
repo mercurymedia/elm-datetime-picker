@@ -2,7 +2,7 @@ module DurationDatePicker exposing
     ( DatePicker, Msg, init, view, update, subscriptions
     , openPicker, closePicker, updatePickerPosition
     , isOpen
-    , viewDurationInput
+    , hasError, viewDurationInput
     )
 
 {-| A date picker component for picking a datetime range.
@@ -133,6 +133,15 @@ isOpen (DatePicker { status }) =
 
         Closed ->
             False
+
+
+hasError : Settings -> DatePicker msg -> Bool
+hasError { zone } (DatePicker { startDateInput, endDateInput }) =
+    let
+        ( hasDurationError, _ ) =
+            DateInput.hasDurationError zone ( startDateInput, endDateInput )
+    in
+    hasDurationError
 
 
 {-| Returns the command to update the trigger & picker DOM elements' instances.
@@ -546,7 +555,7 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
     in
     DateInput.viewContainer settings.theme
         (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
-        [ DateInput.viewDurationInput
+        [ DateInput.viewDurationInputs
             [ onClick onClickMsg
             , css
                 (Alignment.dateInputStylesFromAlignment

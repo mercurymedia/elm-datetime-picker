@@ -90,6 +90,7 @@ type alias Settings =
 type InputError
     = ValueInvalid
     | ValueNotAllowed
+    | DurationInvalid
 
 
 defaultConfig : Zone -> Config
@@ -137,7 +138,10 @@ getDefaultErrorMessage error =
             "Invalid value. Make sure to use the correct format."
 
         ValueNotAllowed ->
-            "Date not allowed."
+            "Date input is not allowed."
+
+        DurationInvalid ->
+            "The given duration is invalid, the end date is before the start date."
 
 
 init : (Msg -> msg) -> DateInput msg
@@ -437,14 +441,51 @@ timePartsToInputValue timeFormat { hour, minute } =
             Nothing
 
 
-hasError : Bool -> Maybe InputError -> Bool
-hasError isTouched error =
+hasError : DateInput msg -> Bool
+hasError (DateInput { isTouched, error }) =
     case error of
         Just _ ->
             isTouched
 
         Nothing ->
             False
+
+
+hasDurationError : Zone -> ( DateInput msg, DateInput msg ) -> ( Bool, Maybe InputError )
+hasDurationError zone ( DateInput startModel, DateInput endModel ) =
+    let
+        hasError_ =
+            hasError (DateInput startModel) || hasError (DateInput endModel)
+
+        isDurationTouched =
+            startModel.isTouched || endModel.isTouched
+
+        invalidDuration =
+            case ( toPosix zone (DateInput startModel), toPosix zone (DateInput endModel) ) of
+                ( Just start, Just end ) ->
+                    Time.posixToMillis start > Time.posixToMillis end
+
+                ( _, _ ) ->
+                    False
+
+        error =
+            case ( startModel.error, endModel.error ) of
+                ( Just e, _ ) ->
+                    Just e
+
+                ( _, Just e ) ->
+                    Just e
+
+                _ ->
+                    if invalidDuration then
+                        Just DurationInvalid
+
+                    else
+                        Nothing
+    in
+    ( hasError_ || (isDurationTouched && invalidDuration)
+    , error
+    )
 
 
 catchError : Config -> String -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Maybe InputError
@@ -498,7 +539,7 @@ view attrs { dateInputSettings, theme, id } (DateInput model) =
             buildPlaceholderFromFormat dateInputSettings.format
 
         hasError_ =
-            hasError model.isTouched model.error
+            hasError (DateInput model)
 
         ( textColor, iconColor ) =
             if hasError_ then
@@ -517,21 +558,21 @@ view attrs { dateInputSettings, theme, id } (DateInput model) =
             , onBlur (model.internalMsg OnBlur)
             ]
         , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
-        , viewError theme hasError_ model.error
+        , viewError theme hasError_ dateInputSettings.getErrorMessage model.error
         ]
 
 
-viewDurationInput : List (Html.Styled.Attribute msg) -> Config -> ( DateInput msg, DateInput msg ) -> Html.Styled.Html msg
-viewDurationInput attrs { dateInputSettings, theme, id } ( DateInput startModel, DateInput endModel ) =
+viewDurationInputs : List (Html.Styled.Attribute msg) -> Config -> ( DateInput msg, DateInput msg ) -> Html.Styled.Html msg
+viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput startModel, DateInput endModel ) =
     let
         placeholder =
             buildPlaceholderFromFormat dateInputSettings.format
 
-        hasError_ =
-            hasError startModel.isTouched startModel.error || hasError endModel.isTouched endModel.error
+        ( hasDurationError_, durationError ) =
+            hasDurationError zone ( DateInput startModel, DateInput endModel )
 
         ( textColor, iconColor ) =
-            if hasError_ then
+            if hasDurationError_ then
                 ( theme.color.text.error, theme.color.text.error )
 
             else
@@ -577,7 +618,7 @@ viewDurationInput attrs { dateInputSettings, theme, id } ( DateInput startModel,
                 ]
             , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
             ]
-        , viewError theme hasError_ startModel.error
+        , viewError theme hasDurationError_ dateInputSettings.getErrorMessage durationError
         ]
 
 
@@ -652,8 +693,8 @@ viewCalendarIcon attrs =
         ]
 
 
-viewError : Theme.Theme -> Bool -> Maybe InputError -> Html.Styled.Html msg
-viewError theme isVisible error =
+viewError : Theme.Theme -> Bool -> (InputError -> String) -> Maybe InputError -> Html.Styled.Html msg
+viewError theme isVisible errorMessageFn error =
     case ( error, isVisible ) of
         ( Just err, True ) ->
             span
@@ -664,7 +705,7 @@ viewError theme isVisible error =
                     , Css.paddingTop (Css.px 3)
                     ]
                 ]
-                [ text <| getDefaultErrorMessage err ]
+                [ text <| errorMessageFn err ]
 
         ( _, _ ) ->
             text ""

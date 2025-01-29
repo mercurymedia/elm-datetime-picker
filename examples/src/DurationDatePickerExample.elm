@@ -1,5 +1,6 @@
 module DurationDatePickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
+import DatePicker.DateInput as DateInput
 import DatePicker.Settings exposing (Preset(..), Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import DurationDatePicker
 import Html exposing (Html, button, div, h1, text)
@@ -73,6 +74,18 @@ userDefinedDatePickerSettings zone today =
     let
         defaults =
             defaultSettings zone
+
+        allowedTimesOfDay =
+            \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
+
+        dateFormat =
+            DateInput.defaultDateFormat
+
+        timeFormat =
+            DateInput.defaultTimeFormat
+
+        dateInputSettings =
+            { format = DateInput.DateTime dateFormat { timeFormat | allowedTimesOfDay = allowedTimesOfDay }, getErrorMessage = getErrorMessage }
     in
     { defaults
         | isDayDisabled = \clientZone datetime -> isDateBeforeToday (TimeExtra.floor Day clientZone today) datetime
@@ -82,9 +95,10 @@ userDefinedDatePickerSettings zone today =
             Toggleable
                 { defaultTimePickerSettings
                     | timeStringFn = posixToTimeString
-                    , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
+                    , allowedTimesOfDay = allowedTimesOfDay
                 }
         , showCalendarWeekNumbers = True
+        , dateInputSettings = dateInputSettings
         , presets =
             [ PresetRange
                 { title = "Today"
@@ -129,6 +143,19 @@ userDefinedDatePickerSettings zone today =
                 }
             ]
     }
+
+
+getErrorMessage : DateInput.InputError -> String
+getErrorMessage error =
+    case error of
+        DateInput.ValueInvalid ->
+            "Invalid value. Make sure to use the correct format."
+
+        DateInput.ValueNotAllowed ->
+            "Date not allowed."
+
+        _ ->
+            "End date is before start date."
 
 
 view : Model -> Html Msg
