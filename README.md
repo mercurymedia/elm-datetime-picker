@@ -18,9 +18,11 @@ Single and duration datetime picker components written in Elm 0.19
 
 ## Usage
 
-This package exposes two core modules, `SingleDatePicker` and `DurationDatePicker`, and a third one for configuration `DatePicker.Settings`. As their names imply, `SingleDatePicker` can be used to pick a singular datetime while `DurationDatePicker` is used to select a datetime range. To keep things simple, the documentation here focuses on the `SingleDatePicker` but both types have an example app for additional reference.
+This package exposes two core modules, `SingleDatePicker` and `DurationDatePicker`. Three more modules are required / available for the configuration: `DatePicker.Settings`, `DatePicker.Theme` and `DatePicker.DateInput`. As their names imply, `SingleDatePicker` can be used to pick a singular datetime while `DurationDatePicker` is used to select a datetime range. To keep things simple, the documentation here focuses on the `SingleDatePicker` but both types have an example app for additional reference.
 
-There are four steps to configure the `DatePicker`:
+You can use both picker variants with an integrated date input element – or without. 
+
+### Configure the Date Input Picker
 
 1. Add the picker to the model and initialize it in the model init. One message needs to be defined that expects an internal `DatePicker` message. This is used to update the selection and view of the picker.
 
@@ -46,7 +48,7 @@ init =
     )
 ```
 
-2. We call the `DatePicker.view` function, passing it the picker `Settings` and the `DatePicker` instance to be operated on. The minimal picker `Settings` only require a `Time.Zone`
+2. We call the `DatePicker.viewDateInput` function, passing it a  `List (Html.Attribute msg)` to add custom attributes to the date input's container element, the picker `Settings`, the current time, the picked time and the `DatePicker` instance to be operated on. The minimal picker `Settings` only require a `Time.Zone`
 
 ```elm
 userDefinedDatePickerSettings : Zone -> Settings
@@ -57,12 +59,13 @@ view : Model -> Html Msg
 view model =
     ...
     div []
-        [ button [ onClick OpenPicker ] [ text "Open Me!" ]
-        , DatePicker.view userDefinedDatePickerSettings model.picker
+        [ DatePicker.viewDateInput []
+            (userDefinedDatePickerSettings model.zone)
+            model.today
+            model.dateInputPickerTime
+            model.dateInputPicker
         ]
 ```
-
-While we are on the topic of the `DatePicker.view`, it is worth noting that this date picker does _not_ include an input or button to trigger the view to open, this is up to the user to define and allows the picker to be flexible across different use cases.
 
 3. Now it is time for the meat and potatoes: handling the `DatePicker` updates, including `saving` the time selected in the picker to the calling module's model.
 
@@ -77,7 +80,58 @@ type alias Model =
 
 type Msg
     = ...
-    | OpenPicker
+    | UpdatePicker DatePicker.Msg
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        ...
+        UpdatePicker subMsg ->
+            let
+                ( ( updatedPicker, maybeUpdatedTime ), pickerCmd ) =
+                    SingleDatePicker.update (userDefinedDatePickerSettings model.zone) subMsg model.picker
+            in
+            ( { model | picker = updatedPicker, pickedTime = maybeUpdatedTime }, pickerCmd )
+```
+
+Remember that message we passed into the `DatePicker` settings? Here is where it comes into play. `UpdatePicker` let's us know that an update of the `DatePicker` instance's internal state needs to happen. To process the `DatePicker.Msg` you can pass it to the respective `DatePicker.update` function along with the `Settings` and the current `DatePicker` instance. That will then return us the updated `DatePicker` instance, to save in the model of the calling module. Additionally, we get a `Maybe Posix`. In the case of `Just` a time, we set that on the model as the new `pickedTime` otherwise we default to the current `pickedTime`.
+
+### Configure the Picker without Date Input
+
+To use the picker without a date input in order to use is accross other use cases, you need to manually take care of the opening mechanism.
+
+1. (Add initialization and `Update` method like in the previous date input variant)
+
+2. We call the `DatePicker.view` function, passing it the picker `Settings` and the `DatePicker` instance to be operated on. The `Settings` are the same – but now you can add your own trigger element (e.g. a button). Make sure to give your trigger element an `id`, it needs to be passed to the picker later on.
+
+```elm
+userDefinedDatePickerSettings : Zone -> Settings
+userDefinedDatePickerSettings timeZone =
+    defaultSettings timeZone
+
+view : Model -> Html Msg
+view model =
+    ...
+    div []
+        [ button [ id "my-button", onClick (OpenPicker "my-button") ] [ text "Open Me!" ]
+        , DatePicker.view userDefinedDatePickerSettings model.picker
+        ]
+```
+
+3. Handling the `DatePicker` updates works the same as in the date input variant – but as mentioned before, you now need to manually handle the opening:
+
+```elm
+type alias Model =
+    { ...
+    , today : Posix
+    , zone : Zone
+    , pickedTime : Maybe Posix
+    , picker : DatePicker.DatePicker
+    }
+
+type Msg
+    = ...
+    | OpenPicker String
     | UpdatePicker DatePicker.Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -85,20 +139,26 @@ update msg model =
     case msg of
         ...
 
-        OpenPicker ->
-            ( { model | picker = DatePicker.openPicker model.zone model.today model.pickedTime model.picker }, Cmd.none )
+        OpenPicker triggerElementId ->
+            let
+                ( newPicker, pickerCmd ) =
+                    SingleDatePicker.openPicker triggerElementId
+                        (userDefinedDatePickerSettings model.zone model.today)
+                        model.today
+                        model.pickedTime
+                        model.picker
+            in
+            ( { model | picker = newPicker }, pickerCmd )
 
         UpdatePicker subMsg ->
             let
-                ( newPicker, maybeNewTime ) =
-                    SingleDatePicker.update (userDefinedDatePickerSettings model.zone model.currentTime) subMsg model.picker
+                (( updatedPicker, maybeNewTime ), pickerCmd) =
+                    SingleDatePicker.update (userDefinedDatePickerSettings model.zone model.today) subMsg model.picker
             in
-            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+            ( { model | picker = updatedPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, pickerCmd )
 ```
 
 The user is responsible for defining his or her own `Open` picker message and placing the relevant event listener where he or she pleases. When handling this message in the `update` as seen above, we call `DatePicker.openPicker` which simply returns an updated picker instance to be stored on the model (`DatePicker.closePicker` is also provided and returns an updated picker instance like `openPicker` does). `DatePicker.openPicker` takes a `Zone` (the time zone in which to display the picker), `Posix` (the base time), a `Maybe Posix` (the picked time), and the `DatePicker` instance we wish to open. The base time is used to inform the picker what day it should center on in the event no datetime has been selected yet. This could be the current date or another date of the implementer's choosing.
-
-Remember that message we passed into the `DatePicker` settings? Here is where it comes into play. `UpdatePicker` let's us know that an update of the `DatePicker` instance's internal state needs to happen. To process the `DatePicker.Msg` you can pass it to the respective `DatePicker.update` function along with the `Settings` and the current `DatePicker` instance. That will then return us the updated `DatePicker` instance, to save in the model of the calling module. Additionally, we get a `Maybe Posix`. In the case of `Just` a time, we set that on the model as the new `pickedTime` otherwise we default to the current `pickedTime`.
 
 ## Automatically close the picker
 
@@ -110,59 +170,10 @@ subscriptions model =
     SingleDatePicker.subscriptions model.picker
 ```
 
-## Open the picker outside the DOM hierarchy
+## Picker positions
 
-By default, the picker is positioned relative to the nearest positioned ancestor by utilizing the CSS rule `position: absolute` so you need to place the `Datepicker.view` as a child of the trigger element within the DOM hierarchy. But sometimes, when rendering the picker somewhere deeply nested in the DOM hierarchy, the popup might interfere with its container elements' CSS rules – resulting in z-index or overflow problems. 
+The picker's popover is positioned `fixed`. That is why you need need to pass an `id` of the trigger element when calling `DatePicker.openPicker`: the picker looks for the id's element and automatically aligns itself with that element's position. Based on the available space in each direction from the trigger element, the picker will try to find an alignment that prevents the element from being cut off by the viewport.
 
-*A typical example would be to have the trigger element that opens the picker (e.g. a button) nested into a scroll container with a limited width and hiding its horizontal overflow. When rendering the picker as part of that same container sticking to the trigger element, it might exceed the container's width and gets cut off by the overflow rule. Have a look at the `BasicModal` example to learn more.*
-
-Since the `Datepicker.view` is independant from any trigger element you can render it anywhere you want in the DOM already – you just need to manually deal with the picker's position if you still want it to be attached to the trigger element.
-
-Instead of using the default `Datepicker.openPicker` function, you can use the `Datepicker.openPickerOutsideDomHierarchy` and `Datepicker.updatePickerPosition` functions to handle the positioning. You simply need to make sure to pass your trigger element's id and handle updates in case of any events that might change the trigger element's position (e.g. onScroll, onResize, etc.). The trigger's and picker's positions are being calculated based on the viewport. By default it will align to the bottom right of the trigger element (as usual) but it will automatically adjust to the trigger element's top/bottom/left/right based on available space to each side.
-
-Here's an example (also have a look at the `BasicModal` example):
-
-```elm
-type Msg
-    = ...
-    | OpenPicker
-    | UpdatePicker DatePicker.Msg
-    | OnViewPortChange
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        ...
-
-        OpenPicker ->
-            let
-                ( newPicker, cmd ) =
-                    DatePicker.openPickerOutsideHierarchy 
-                        "my-button" 
-                        (userDefinedDatePickerSettings model.zone model.currentTime) 
-                        model.currentTime 
-                        model.pickedTime 
-                        model.picker
-            in
-            ( { model | picker = newPicker }, cmd )
-
-        UpdatePicker subMsg ->
-            ...
-
-        OnViewportChange ->
-            ( model, DatePicker.updatePickerPosition model.picker )
-
-
-
-        
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.batch
-        [ ...
-        , Browser.Events.onResize (\_ _ -> OnViewportChange)
-        ]
-        
-```
 
 ## Presets
 
@@ -220,12 +231,13 @@ userDefinedDatePickerSettings zone today =
 
 ## Additional Configuration
 
-This is the settings type to be used when configuring the `datepicker`. More configuration will be available in future releases.
+This is the settings type to be used when configuring the `DatePicker`. More configuration will be available in future releases.
 
 ```elm
 type alias Settings =
     { zone : Zone
     , id : String
+    , firstWeekDay : Weekday
     , formattedDay : Weekday -> String
     , formattedMonth : Month -> String
     , isDayDisabled : Zone -> Posix -> Bool
@@ -234,13 +246,112 @@ type alias Settings =
     , timePickerVisibility : TimePickerVisibility
     , showCalendarWeekNumbers : Bool
     , presets : List Preset
-    , theme : Theme
+    , theme : Theme.Theme
+    , dateInputSettings : DateInput.Settings
     }
 ```
 
-## Examples
 
-Examples can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples) folder. To view the examples in the browser run `npm install` and `npm start` from the root of the repository.
+## Date Input & Configuration
+
+The `DateInput` module formats and validates a user's text input for dates and times. The following type is the `DateInput.Settings` type to be used when configuring the `DatePicker.Settings`.
+
+```elm
+type alias Settings =
+    { format : Format
+    , getErrorMessage : InputError -> String
+    }
+```
+
+To configure the `Format` there are a few options:
+
+```elm
+{-| Either allow a date only or a date and a time.
+-}
+type Format
+    = Date DateFormat
+    | DateTime DateFormat TimeFormat
+
+
+{-| Configuration for date formats.
+-}
+type alias DateFormat =
+    { pattern : DatePattern
+    , separator : Char
+    , placeholders : DateParts Char
+    }
+
+
+{-| Configuration for time formats.
+-}
+type alias TimeFormat =
+    { separator : Char
+    , placeholders : TimeParts Char
+    , allowedTimesOfDay : Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }
+    }
+
+
+{-| Available date format patterns (defines the order of day, month and year).
+-}
+type DatePattern
+    = DDMMYYYY
+    | MMDDYYYY
+    | YYYYMMDD
+    | YYYYDDMM
+
+```
+
+So to configure your custom date format you can add the following properties to your picker's `Settings`:
+
+```elm
+import DatePicker.Settings exposing (Settings, defaultSettings)
+import DatePicker.DateInput as DateInput
+
+-- [...]
+
+getErrorMessage : DateInput.InputError -> String
+getErrorMessage error =
+    case error of
+        DateInput.ValueInvalid ->
+            "Invalid value. Make sure to use the correct format."
+
+        DateInput.ValueNotAllowed ->
+            "Date not allowed."
+
+        DateInput.DurationInvalid ->
+            "End date is before start date."
+
+
+userDefinedDatePickerSettings : Zone -> Posix -> Settings
+userDefinedDatePickerSettings zone today =
+    let
+        defaults =
+            defaultSettings zone
+
+        dateFormat =
+            { pattern = DDMMYYYY
+            , separator = '.'
+            , placeholders = { day = 'd', month = 'm', year = 'y' }
+            }
+
+        timeFormat =
+            { separator = ':'
+            , placeholders = { hour = 'h', minute = 'm' }
+            , allowedTimesOfDay = \_ _ -> { startHour = 0, startMinute = 0, endHour = 23, endMinute = 59 }
+            }
+    in
+    { defaults
+        | -- [...]
+        , dateInputSettings = 
+            { format = DateInput.DateTime dateFormat timeFormat
+            , getErrorMessage = getErrorMessage
+            }
+    }
+
+```
+
+As you can see in the code snippet above, the date input's validation can trigger three types of errors. You can define your own messages for each type.
+
 
 ## CSS & Theming
 
@@ -248,21 +359,22 @@ The CSS for the date picker is now defined in a built-in way using [elm-css](htt
 There are some design tokens that can be configured individually in a theme.
 In case you need to add additional styling, you can use the CSS-classes that are attached to all the components. You'll find a list of all classes under `/css/DateTimePicker.css`.
 
-In case you'd like to use the Theme, you can pass your custom theme to the `Settings`. sThe `Theme` record currently looks like this:
+In case you'd like to use the Theme, you can pass your custom theme to the `Settings`. The `Theme` record currently looks like this:
 
 ```elm
 type alias Theme =
     { fontSize :
-        { base : Css.Px
-        , sm : Css.Px
-        , xs : Css.Px
-        , xxs : Css.Px
+        { base : Float
+        , sm : Float
+        , xs : Float
+        , xxs : Float
         }
     , color :
         { text :
             { primary : Css.Color
             , secondary : Css.Color
             , disabled : Css.Color
+            , error : Css.Color
             }
         , primary :
             { main : Css.Color
@@ -273,29 +385,33 @@ type alias Theme =
             { container : Css.Color
             , footer : Css.Color
             , presets : Css.Color
+            , input : Css.Color
             }
         , action : { hover : Css.Color }
         , border : Css.Color
         }
     , size :
-        { presetsContainer : Css.Px
-        , day : Css.Px
-        , iconButton : Css.Px
+        { presetsContainer : Float
+        , day : Float
+        , iconButton : Float
+        , inputElement : Float
         }
-    , borderWidth : Css.Px
+    , spacing : { base : Float }
+    , borderWidth : Float
     , borderRadius :
-        { base : Css.Px
-        , lg : Css.Px
+        { base : Float
+        , lg : Float
         }
     , boxShadow :
-        { offsetX : Css.Px
-        , offsetY : Css.Px
-        , blurRadius : Css.Px
-        , spreadRadius : Css.Px
+        { offsetX : Float
+        , offsetY : Float
+        , blurRadius : Float
+        , spreadRadius : Float
         , color : Css.Color
         }
     , zIndex : Int
     , transition : { duration : Float }
+    , classNamePrefix : String
     }
 ```
 
@@ -303,13 +419,8 @@ Passing a customized theme to the settings works like this:
 
 ```elm
 import Css -- from elm-css
-import DatePicker.Settings
-    exposing
-        ( Settings
-        , Theme
-        , defaultSettings
-        , defaultTheme
-        )
+import DatePicker.Settings exposing (Settings, defaultSettings)
+import DatePicker.Theme exposing (Theme, defaultTheme)
 
 -- [...]
 
@@ -350,3 +461,7 @@ userDefinedDatePickerSettings zone today =
     }
 
 ```
+
+## Examples
+
+Examples can be found in the [examples](https://github.com/mercurymedia/elm-datetime-picker/tree/master/examples) folder. To view the examples in the browser run `npm install` and `npm start` from the root of the repository.
