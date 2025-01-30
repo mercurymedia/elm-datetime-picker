@@ -1,4 +1,51 @@
-module DatePicker.DateInput exposing (..)
+module DatePicker.DateInput exposing
+    ( DateInput, InputError(..), Msg
+    , Config, Format(..), Settings
+    , defaultConfig, defaultDateFormat, defaultFormat, defaultSettings, defaultTimeFormat
+    , clear, init, toPosix, update, updateFromPosix
+    , hasDurationError, hasError
+    , containerId, durationEndId, durationStartId
+    , view, viewContainer, viewDurationInputs, viewPlaceholder
+    )
+
+{-| A configurable DateInput component, formatting and validating text input for dates and times
+
+
+# Model & Msg
+
+@docs DateInput, InputError, Msg
+
+
+# Configuration & Settings
+
+@docs Config, Format, Settings
+
+
+# Defaults
+
+@docs defaultConfig, defaultDateFormat, defaultFormat, defaultSettings, defaultTimeFormat
+
+
+# Init & Updates
+
+@docs clear, init, toPosix, update, updateFromPosix
+
+
+# Query
+
+@docs hasDurationError, hasError
+
+
+# IDs
+
+@docs containerId, durationEndId, durationStartId
+
+
+# View
+
+@docs view, viewContainer, viewDurationInputs, viewPlaceholder
+
+-}
 
 import Css
 import Date exposing (format, numberToMonth)
@@ -13,10 +60,18 @@ import Time exposing (Month(..), Posix, Zone)
 import Time.Extra
 
 
+
+-- MODEL & MSG
+
+
+{-| The opaque type representing a particular DateInput instance.
+-}
 type DateInput msg
     = DateInput (Model msg)
 
 
+{-| The internal model for the DateInput.
+-}
 type alias Model msg =
     { inputValue : String
     , error : Maybe InputError
@@ -27,6 +82,8 @@ type alias Model msg =
     }
 
 
+{-| Represents date parts (day, month, year)
+-}
 type alias DateParts a =
     { day : a
     , month : a
@@ -34,44 +91,36 @@ type alias DateParts a =
     }
 
 
+{-| Represents time parts (hour, minute)
+-}
 type alias TimeParts a =
     { hour : a
     , minute : a
     }
 
 
-type Format
-    = Date DateFormat
-    | DateTime DateFormat TimeFormat
-
-
-type alias DateFormat =
-    { pattern : DatePattern
-    , separator : Char
-    , placeholders : DateParts Char
-    }
-
-
-type alias TimeFormat =
-    { separator : Char
-    , placeholders : TimeParts Char
-    , allowedTimesOfDay : Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }
-    }
-
-
-type DatePattern
-    = DDMMYYYY
-    | MMDDYYYY
-    | YYYYMMDD
-    | YYYYDDMM
-
-
+{-| Messages that can be sent through user interaction to update the DateInput model.
+-}
 type Msg
     = NoOp
     | UpdateValue String
     | OnBlur
 
 
+{-| Possible errors in the DateInput field.
+-}
+type InputError
+    = ValueInvalid
+    | ValueNotAllowed
+    | DurationInvalid
+
+
+
+-- CONFIGURATION & SETTINGS
+
+
+{-| Configuration settings for DateInput.
+-}
 type alias Config =
     { dateInputSettings : Settings
     , isDayDisabled : Zone -> Posix -> Bool
@@ -81,18 +130,54 @@ type alias Config =
     }
 
 
+{-| Settings for the DateInput component.
+-}
 type alias Settings =
     { format : Format
     , getErrorMessage : InputError -> String
     }
 
 
-type InputError
-    = ValueInvalid
-    | ValueNotAllowed
-    | DurationInvalid
+{-| Supported date and time formats.
+-}
+type Format
+    = Date DateFormat
+    | DateTime DateFormat TimeFormat
 
 
+{-| Configuration for date formats.
+-}
+type alias DateFormat =
+    { pattern : DatePattern
+    , separator : Char
+    , placeholders : DateParts Char
+    }
+
+
+{-| Configuration for time formats.
+-}
+type alias TimeFormat =
+    { separator : Char
+    , placeholders : TimeParts Char
+    , allowedTimesOfDay : Zone -> Posix -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int }
+    }
+
+
+{-| Available date format patterns.
+-}
+type DatePattern
+    = DDMMYYYY
+    | MMDDYYYY
+    | YYYYMMDD
+    | YYYYDDMM
+
+
+
+-- DEFAULTS
+
+
+{-| Default configuration for DateInput.
+-}
 defaultConfig : Zone -> Config
 defaultConfig zone =
     { dateInputSettings = defaultSettings
@@ -103,6 +188,8 @@ defaultConfig zone =
     }
 
 
+{-| Default settings for DateInput.
+-}
 defaultSettings : Settings
 defaultSettings =
     { format = Date defaultDateFormat
@@ -110,11 +197,15 @@ defaultSettings =
     }
 
 
+{-| Default format used for DateInput.
+-}
 defaultFormat : Format
 defaultFormat =
     Date defaultDateFormat
 
 
+{-| Default date format pattern.
+-}
 defaultDateFormat : DateFormat
 defaultDateFormat =
     { pattern = DDMMYYYY
@@ -123,6 +214,8 @@ defaultDateFormat =
     }
 
 
+{-| Default time format settings.
+-}
 defaultTimeFormat : TimeFormat
 defaultTimeFormat =
     { separator = ':'
@@ -131,6 +224,8 @@ defaultTimeFormat =
     }
 
 
+{-| Default error messages for input validation.
+-}
 getDefaultErrorMessage : InputError -> String
 getDefaultErrorMessage error =
     case error of
@@ -144,6 +239,12 @@ getDefaultErrorMessage error =
             "The given duration is invalid, the end date is before the start date."
 
 
+
+-- INIT & UPDATES
+
+
+{-| Returns a DateInput instance initialized with default values.
+-}
 init : (Msg -> msg) -> DateInput msg
 init internalMsg =
     DateInput
@@ -156,11 +257,18 @@ init internalMsg =
         }
 
 
+{-| Clears the DateInput field.
+-}
 clear : DateInput msg -> DateInput msg
 clear (DateInput model) =
     init model.internalMsg
 
 
+{-| Update the DateInput based on user interaction according to the given internal msg.
+
+Returns the updated DateInput and a Cmd msg.
+
+-}
 update : Config -> Msg -> DateInput msg -> ( DateInput msg, Cmd msg )
 update ({ dateInputSettings } as config) msg (DateInput model) =
     case msg of
@@ -212,6 +320,11 @@ update ({ dateInputSettings } as config) msg (DateInput model) =
             )
 
 
+{-| Updates the DateInput model from a given Posix time.
+
+Converts the time into date and time parts and updates the model accordingly.
+
+-}
 updateFromPosix : Config -> Zone -> Posix -> DateInput msg -> DateInput msg
 updateFromPosix ({ dateInputSettings } as config) zone time (DateInput model) =
     let
@@ -245,11 +358,22 @@ updateFromPosix ({ dateInputSettings } as config) zone time (DateInput model) =
         }
 
 
+
+-- CONVERTING TEXT INPUT VALUE TO DATE/TIME PARTS
+
+
+{-| Converts a DateInput model into a Posix time, if possible.
+-}
 toPosix : Zone -> DateInput msg -> Maybe Posix
 toPosix zone (DateInput model) =
     partsToPosix zone model.dateParts model.timeParts
 
 
+{-| Converts date and time parts into a Posix time.
+
+Returns Nothing if the parts do not form a valid date/time.
+
+-}
 partsToPosix : Zone -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Maybe Posix
 partsToPosix zone dateParts timeParts =
     let
@@ -280,6 +404,8 @@ partsToPosix zone dateParts timeParts =
             Nothing
 
 
+{-| Cleans and truncates the input value based on the given format.
+-}
 sanitizeInputValue : Format -> String -> String
 sanitizeInputValue format value =
     let
@@ -304,6 +430,8 @@ sanitizeInputValue format value =
     trimmedValue
 
 
+{-| Converts an input string into date and time parts.
+-}
 inputValueToParts : Format -> String -> ( DateParts (Maybe Int), TimeParts (Maybe Int) )
 inputValueToParts format value =
     case format of
@@ -326,6 +454,8 @@ inputValueToParts format value =
                     ( { day = Nothing, month = Nothing, year = Nothing }, { hour = Nothing, minute = Nothing } )
 
 
+{-| Converts a date string into a DateParts record.
+-}
 toDateParts : DateFormat -> String -> DateParts (Maybe Int)
 toDateParts dateFormat value =
     let
@@ -352,6 +482,8 @@ toDateParts dateFormat value =
     segmentsInParts
 
 
+{-| Converts a time string into a TimeParts record.
+-}
 toTimeParts : TimeFormat -> String -> TimeParts (Maybe Int)
 toTimeParts timeFormat value =
     let
@@ -369,6 +501,12 @@ toTimeParts timeFormat value =
     segmentsInParts
 
 
+
+-- CONVERTING DATE/TIME PARTS TO INPUT VALUE
+
+
+{-| Converts date and time parts into an input string value.
+-}
 partsToInputValue : Format -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Maybe String
 partsToInputValue format dateParts timeParts =
     case format of
@@ -441,6 +579,12 @@ timePartsToInputValue timeFormat { hour, minute } =
             Nothing
 
 
+
+-- DETERMINE VALIDATION ERRORS
+
+
+{-| Checks if the DateInput has an error.
+-}
 hasError : DateInput msg -> Bool
 hasError (DateInput { isTouched, error }) =
     case error of
@@ -451,6 +595,8 @@ hasError (DateInput { isTouched, error }) =
             False
 
 
+{-| Checks if one of the two DateInputs of a duration input has an error, returning a boolean and an optional error.
+-}
 hasDurationError : Zone -> ( DateInput msg, DateInput msg ) -> ( Bool, Maybe InputError )
 hasDurationError zone ( DateInput startModel, DateInput endModel ) =
     let
@@ -488,6 +634,9 @@ hasDurationError zone ( DateInput startModel, DateInput endModel ) =
     )
 
 
+{-| Checks if the input value, date parts, and time parts are valid
+and allowed based on the provided configuration, returning an optional error.
+-}
 catchError : Config -> String -> DateParts (Maybe Int) -> TimeParts (Maybe Int) -> Maybe InputError
 catchError { dateInputSettings, isDayDisabled, zone } inputValue dateParts timeParts =
     let
@@ -532,6 +681,37 @@ catchError { dateInputSettings, isDayDisabled, zone } inputValue dateParts timeP
             Nothing
 
 
+
+-- VIEW IDs
+
+
+{-| Generates the ID for the container element based on the provided configuration.
+-}
+containerId : Config -> String
+containerId { id } =
+    id ++ "--container"
+
+
+{-| Generates the ID for a duration's start input element based on the provided configuration.
+-}
+durationStartId : String -> String
+durationStartId id =
+    id ++ "--start"
+
+
+{-| Generates the ID for a duration's end input element based on the provided configuration.
+-}
+durationEndId : String -> String
+durationEndId id =
+    id ++ "--end"
+
+
+
+-- VIEWS
+
+
+{-| Renders a single date input element view with error handling and theme styling.
+-}
 view : List (Html.Styled.Attribute msg) -> Config -> DateInput msg -> Html.Styled.Html msg
 view attrs { dateInputSettings, theme, id } (DateInput model) =
     let
@@ -562,6 +742,8 @@ view attrs { dateInputSettings, theme, id } (DateInput model) =
         ]
 
 
+{-| Renders two date input fields (start and end) for duration picking with error handling and theme styling.
+-}
 viewDurationInputs : List (Html.Styled.Attribute msg) -> Config -> ( DateInput msg, DateInput msg ) -> Html.Styled.Html msg
 viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput startModel, DateInput endModel ) =
     let
@@ -622,6 +804,8 @@ viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput star
         ]
 
 
+{-| Renders a styled text field container to pass in the input and error elements.
+-}
 viewTextField : Theme.Theme -> List (Html.Styled.Attribute msg) -> List (Html.Styled.Html msg) -> Html.Styled.Html msg
 viewTextField theme attrs children =
     div
@@ -646,6 +830,8 @@ viewTextField theme attrs children =
         children
 
 
+{-| Renders an input field with theme-based styling.
+-}
 viewInput : Theme.Theme -> List (Html.Styled.Attribute msg) -> Html.Styled.Html msg
 viewInput theme attrs =
     input
@@ -676,6 +862,8 @@ viewInput theme attrs =
         []
 
 
+{-| Renders a calendar icon to be used in the textField.
+-}
 viewCalendarIcon : List (Html.Styled.Attribute msg) -> Html.Styled.Html msg
 viewCalendarIcon attrs =
     span
@@ -693,6 +881,8 @@ viewCalendarIcon attrs =
         ]
 
 
+{-| Displays an error message if the error is visible.
+-}
 viewError : Theme.Theme -> Bool -> (InputError -> String) -> Maybe InputError -> Html.Styled.Html msg
 viewError theme isVisible errorMessageFn error =
     case ( error, isVisible ) of
@@ -711,30 +901,9 @@ viewError theme isVisible errorMessageFn error =
             text ""
 
 
-viewPlaceholder : Config -> Html.Styled.Html msg
-viewPlaceholder { theme } =
-    div
-        [ Attrs.css [ Css.displayFlex, Css.width (Css.pct 100), Css.height (Css.px theme.size.inputElement) ]
-        , Attrs.attribute "aria-hidden" "true"
-        ]
-        []
-
-
-containerId : Config -> String
-containerId { id } =
-    id ++ "--container"
-
-
-durationStartId : String -> String
-durationStartId id =
-    id ++ "--start"
-
-
-durationEndId : String -> String
-durationEndId id =
-    id ++ "--end"
-
-
+{-| Renders a container element for the date input element.
+This element is scaled to the date input element's size and is used to position the picker popover.
+-}
 viewContainer : Theme.Theme -> List (Html.Styled.Attribute msg) -> List (Html.Styled.Html msg) -> Html.Styled.Html msg
 viewContainer theme attrs children =
     div
@@ -749,6 +918,26 @@ viewContainer theme attrs children =
         children
 
 
+{-| Renders a placeholder view based on the configuration.
+This element is empty and scaled to the date input element's size. It is used in combination with
+the picker popover working as a placeholder to arrange the picker popover's layout. The real date
+input element will be positioned fixed above this element when the picker popover is opened.
+-}
+viewPlaceholder : Config -> Html.Styled.Html msg
+viewPlaceholder { theme } =
+    div
+        [ Attrs.css [ Css.displayFlex, Css.width (Css.pct 100), Css.height (Css.px theme.size.inputElement) ]
+        , Attrs.attribute "aria-hidden" "true"
+        ]
+        []
+
+
+
+-- UTILS
+
+
+{-| Builds a placeholder string based on the given date/time format.
+-}
 buildPlaceholderFromFormat : Format -> String
 buildPlaceholderFromFormat format =
     case format of
@@ -759,6 +948,8 @@ buildPlaceholderFromFormat format =
             buildDatePlaceholder dateFormat ++ " " ++ buildTimePlaceholder timeFormat
 
 
+{-| Builds a date placeholder string based on the given date format.
+-}
 buildDatePlaceholder : DateFormat -> String
 buildDatePlaceholder dateFormat =
     let
@@ -788,6 +979,8 @@ buildDatePlaceholder dateFormat =
             [ yyyy, s, dd, s, mm ] |> String.concat
 
 
+{-| Builds a time placeholder string based on the given time format.
+-}
 buildTimePlaceholder : TimeFormat -> String
 buildTimePlaceholder timeFormat =
     let
@@ -805,6 +998,8 @@ buildTimePlaceholder timeFormat =
     [ hh, s, mm ] |> String.concat
 
 
+{-| Checks if the given date parts are valid (i.e. within the correct range for days, months and years).
+-}
 isValidDate : DateParts (Maybe Int) -> Bool
 isValidDate { day, month, year } =
     case ( day, month, year ) of
@@ -824,6 +1019,8 @@ isValidDate { day, month, year } =
             False
 
 
+{-| Checks if a given time is valid (i.e., within the correct range for hours and minutes).
+-}
 isValidTime : TimeParts (Maybe Int) -> Bool
 isValidTime { hour, minute } =
     case ( hour, minute ) of
@@ -834,6 +1031,8 @@ isValidTime { hour, minute } =
             False
 
 
+{-| Repeats a character `count` times and returns the resulting string.
+-}
 repeatCharToString : Char -> Int -> String
 repeatCharToString char count =
     if count <= 0 then
@@ -843,6 +1042,8 @@ repeatCharToString char count =
         String.fromChar char ++ repeatCharToString char (count - 1)
 
 
+{-| Adds leading zeros to a string value to match a specified size.
+-}
 addLeadingZeros : Int -> String -> String
 addLeadingZeros size value =
     let
@@ -862,11 +1063,15 @@ addLeadingZeros size value =
         value
 
 
+{-| Determines if a given year is a leap year.
+-}
 isLeapYear : Int -> Bool
 isLeapYear year =
     modBy 400 year == 0 || modBy 100 year /= 0 && modBy 4 year == 0
 
 
+{-| Returns the number of days in a given month of a specific year.
+-}
 daysInMonth : Int -> Month -> Int
 daysInMonth year month =
     case month of
@@ -911,6 +1116,8 @@ daysInMonth year month =
             31
 
 
+{-| Converts a month number to its corresponding Month type, if valid.
+-}
 numberToMonth : Int -> Maybe Month
 numberToMonth month =
     case month of

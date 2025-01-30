@@ -1,8 +1,8 @@
 module SingleDatePicker exposing
     ( DatePicker, Msg, init, view, update, subscriptions
     , openPicker, closePicker, updatePickerPosition
-    , isOpen
-    , hasError, viewDateInput
+    , isOpen, hasError
+    , viewDateInput
     )
 
 {-| A date picker component for a single datetime.
@@ -15,12 +15,12 @@ module SingleDatePicker exposing
 
 # Externally Triggered Actions
 
-@docs openPicker, closePicker, openPickerOutsideHierarchy, updatePickerPosition
+@docs openPicker, closePicker, updatePickerPosition
 
 
 # Query
 
-@docs isOpen
+@docs isOpen, hasError
 
 -}
 
@@ -128,6 +128,8 @@ isOpen (DatePicker { status }) =
             False
 
 
+{-| Indicates whether the DatePicker's date inputs have a validation error
+-}
 hasError : DatePicker msg -> Bool
 hasError (DatePicker { dateInput }) =
     DateInput.hasError dateInput
@@ -396,6 +398,10 @@ dateInputConfig settings =
     }
 
 
+{-| The date input view with the date picker opening on click.
+Pass it the configured settings, the base time, the picked time
+and the date picker instance you wish to view.
+-}
 viewDateInput : List (Html.Attribute msg) -> Settings -> Posix -> Maybe Posix -> DatePicker msg -> Html msg
 viewDateInput attrs settings baseTime maybePickedTime (DatePicker model) =
     viewDateInputStyled (Utilities.toStyledAttrs attrs) settings baseTime maybePickedTime (DatePicker model)

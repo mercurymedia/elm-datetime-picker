@@ -1,8 +1,7 @@
 module DurationDatePicker exposing
-    ( DatePicker, Msg, init, view, update, subscriptions
+    ( DatePicker, Msg, init, view, viewDurationInput, update, subscriptions
     , openPicker, closePicker, updatePickerPosition
-    , isOpen
-    , hasError, viewDurationInput
+    , isOpen, hasError
     )
 
 {-| A date picker component for picking a datetime range.
@@ -10,7 +9,7 @@ module DurationDatePicker exposing
 
 # Architecture
 
-@docs DatePicker, Msg, init, view, update, subscriptions
+@docs DatePicker, Msg, init, view, viewDurationInput, update, subscriptions
 
 
 # Externally Triggered Actions
@@ -20,7 +19,7 @@ module DurationDatePicker exposing
 
 # Query
 
-@docs isOpen
+@docs isOpen, hasError
 
 -}
 
@@ -135,6 +134,8 @@ isOpen (DatePicker { status }) =
             False
 
 
+{-| Indicates whether the DatePicker's date inputs have a validation error
+-}
 hasError : Settings -> DatePicker msg -> Bool
 hasError { zone } (DatePicker { startDateInput, endDateInput }) =
     let
@@ -537,6 +538,10 @@ dateInputConfig settings =
     }
 
 
+{-| The duration date inputs view with the date picker opening on click.
+Pass it the configured settings, the base time, the picked start and end times
+and the date picker instance you wish to view.
+-}
 viewDurationInput : List (Html.Attribute msg) -> Settings -> Posix -> Maybe Posix -> Maybe Posix -> DatePicker msg -> Html msg
 viewDurationInput attrs settings baseTime maybePickedStart maybePickedEnd (DatePicker model) =
     viewDurationInputStyled (Utilities.toStyledAttrs attrs) settings baseTime maybePickedStart maybePickedEnd (DatePicker model)
