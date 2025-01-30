@@ -31,12 +31,12 @@ import DatePicker.Alignment as Alignment exposing (Alignment)
 import DatePicker.DateInput as DateInput
 import DatePicker.Settings exposing (..)
 import DatePicker.SingleUtilities as SingleUtilities
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay, classPrefix)
+import DatePicker.Utilities as Utilities exposing (PickerDay, classPrefix)
 import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
 import Html.Styled exposing (div, text, toUnstyled)
-import Html.Styled.Attributes exposing (align, class, css, id)
+import Html.Styled.Attributes exposing (class, css, id)
 import Html.Styled.Events exposing (onClick)
 import Json.Decode as Decode
 import List.Extra as List

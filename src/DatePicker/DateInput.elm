@@ -1,11 +1,12 @@
 module DatePicker.DateInput exposing
     ( DateInput, InputError(..), Msg
-    , Config, Format(..), Settings
+    , Config, Format(..), DatePattern(..), Settings
     , defaultConfig, defaultDateFormat, defaultFormat, defaultSettings, defaultTimeFormat
     , clear, init, toPosix, update, updateFromPosix
     , hasDurationError, hasError
     , containerId, durationEndId, durationStartId
     , view, viewContainer, viewDurationInputs, viewPlaceholder
+    , partsToPosix, sanitizeInputValue, inputValueToParts, partsToInputValue, catchError
     )
 
 {-| A configurable DateInput component, formatting and validating text input for dates and times
@@ -18,7 +19,7 @@ module DatePicker.DateInput exposing
 
 # Configuration & Settings
 
-@docs Config, Format, Settings
+@docs Config, Format, DatePattern, Settings
 
 
 # Defaults
@@ -44,6 +45,11 @@ module DatePicker.DateInput exposing
 # View
 
 @docs view, viewContainer, viewDurationInputs, viewPlaceholder
+
+
+# Test
+
+@docs partsToPosix, sanitizeInputValue, inputValueToParts, partsToInputValue, catchError
 
 -}
 
@@ -404,7 +410,7 @@ partsToPosix zone dateParts timeParts =
             Nothing
 
 
-{-| Cleans and truncates the input value based on the given format.
+{-| Cleans and truncates the user input value based on the given format.
 -}
 sanitizeInputValue : Format -> String -> String
 sanitizeInputValue format value =

@@ -31,7 +31,7 @@ import DatePicker.DateInput as DateInput
 import DatePicker.DurationUtilities as DurationUtilities
 import DatePicker.Icons as Icons
 import DatePicker.Settings exposing (..)
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay, classPrefix)
+import DatePicker.Utilities as Utilities exposing (PickerDay, classPrefix)
 import DatePicker.ViewComponents exposing (..)
 import Html exposing (Html)
 import Html.Events.Extra exposing (targetValueIntParse)
@@ -57,7 +57,6 @@ type alias Model msg =
     , viewOffset : Int
     , startSelectionTuple : Maybe ( PickerDay, Posix )
     , endSelectionTuple : Maybe ( PickerDay, Posix )
-    , domLocation : DomLocation
     , startDateInput : DateInput.DateInput msg
     , endDateInput : DateInput.DateInput msg
     , alignment : Maybe Alignment
@@ -80,7 +79,6 @@ init internalMsg =
         , viewOffset = 0
         , startSelectionTuple = Nothing
         , endSelectionTuple = Nothing
-        , domLocation = InsideHierarchy
         , startDateInput =
             DateInput.init (internalMsg << HandleStartDateInputUpdate)
         , endDateInput =

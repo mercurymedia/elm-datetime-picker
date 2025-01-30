@@ -1,9 +1,9 @@
 module DatePicker.Utilities exposing
-    ( PickerDay, DomLocation(..), monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
+    ( PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
     , pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
     , calculateViewOffset, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
-    , Alignment, classPrefix, clickedOutsidePicker, eventIsOutsideComponents, monthToNumber, posixWithinTimeBoundaries, showHoveredIfEnabled, toStyledAttrs, updateDomElements
+    , classPrefix, clickedOutsidePicker, eventIsOutsideComponents, monthToNumber, posixWithinTimeBoundaries, showHoveredIfEnabled, toStyledAttrs, updateDomElements
     )
 
 {-| Utility functions for both Pickers.
@@ -11,7 +11,7 @@ module DatePicker.Utilities exposing
 
 # View Types & Functions
 
-@docs PickerDay, DomLocation, DomElement, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay, calculatePositionStyles
+@docs PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
 
 
 # Conversions
@@ -28,15 +28,9 @@ module DatePicker.Utilities exposing
 
 @docs calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
 
-
-# Test
-
-@docs calculateCoordinates
-
 -}
 
 import Browser.Dom as Dom
-import DatePicker.Theme exposing (Theme)
 import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes as Attrs exposing (selected, value)
@@ -62,41 +56,6 @@ type alias PickerDay =
     , end : Posix
     , disabled : Bool
     }
-
-
-{-| The type representing the picker's location in the DOM. (if the picker
-is being rendered inside the DOM hierarchy and positioned automatically or
-outside the DOM hierarchy positioned manually based on the trigger and picker
-DOM elment.
--}
-type DomLocation
-    = InsideHierarchy
-    | OutsideHierarchy
-        { triggerDomElement : DomElement
-        , pickerDomElement : DomElement
-        }
-
-
-{-| The type facilitating the needed informations to find a DOM element and
-read its absolute positions.
--}
-type alias DomElement =
-    { id : String, element : Maybe Dom.Element }
-
-
-type AlignX
-    = Left
-    | Right
-    | Center
-
-
-type AlignY
-    = Top
-    | Bottom
-
-
-type alias Alignment =
-    ( AlignX, AlignY )
 
 
 classPrefix : String -> String -> String

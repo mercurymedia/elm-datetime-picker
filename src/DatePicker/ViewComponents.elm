@@ -26,7 +26,7 @@ import Css.Transitions
 import Date
 import DatePicker.Icons as Icons
 import DatePicker.Theme exposing (Theme)
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay, classPrefix)
+import DatePicker.Utilities as Utilities exposing (PickerDay, classPrefix)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class, css, disabled, id, type_)
 import Html.Styled.Events exposing (on, onClick, onMouseOut, onMouseOver)

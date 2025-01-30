@@ -5,6 +5,7 @@ module DatePicker.Alignment exposing
     , pickerStylesFromAlignment, applyPickerStyles, pickerPositionFromAlignment, pickerTranslationFromAlignment
     , gridAreaPresets, gridAreaDateInput, gridAreaCalendar
     , pickerGridLayoutFromAlignment
+    , PlacementX(..), PlacementY(..), calculatePlacement
     )
 
 {-| This module provides utilities for determining the alignment and layout
@@ -17,6 +18,11 @@ its trigger element and viewport constraints.
 @docs pickerStylesFromAlignment, applyPickerStyles, pickerPositionFromAlignment, pickerTranslationFromAlignment
 @docs gridAreaPresets, gridAreaDateInput, gridAreaCalendar
 @docs pickerGridLayoutFromAlignment
+
+
+# Test
+
+@docs PlacementX, PlacementY, calculatePlacement
 
 -}
 
@@ -59,7 +65,7 @@ type PlacementY
     | Bottom
 
 
-{-| Determines the alignment of a date picker popover based on the position of the trigger element,
+{-| Creates the Alignment instance of a date picker popover based on the position of the trigger element,
 the picker itself, and the viewport constraints.
 -}
 fromElements :
@@ -70,34 +76,61 @@ fromElements :
     -> Alignment
 fromElements { trigger, picker, viewport } =
     let
+        placement =
+            calculatePlacement
+                { triggerX = trigger.x
+                , triggerY = trigger.y
+                , triggerWidth = trigger.width
+                , triggerHeight = trigger.height
+                , pickerWidth = picker.width
+                , pickerHeight = picker.height
+                , viewPortWidth = viewport.width
+                , viewPortHeight = viewport.height
+                }
+    in
+    Alignment
+        { placement = placement
+        , trigger = trigger
+        , picker = picker
+        }
+
+
+{-| Type facilitating the parameters for the `calculatePlacement` function.
+-}
+type alias CalculatePlacementParams =
+    { triggerX : Float
+    , triggerY : Float
+    , triggerWidth : Float
+    , triggerHeight : Float
+    , pickerWidth : Float
+    , pickerHeight : Float
+    , viewPortWidth : Float
+    , viewPortHeight : Float
+    }
+
+
+{-| Calculates the horizontal and vertical placements for the picker popover relative to the trigger element.
+This is based on the position of the trigger element, the size of the picker, and the viewport constraints.
+-}
+calculatePlacement : CalculatePlacementParams -> ( PlacementX, PlacementY )
+calculatePlacement { triggerX, triggerY, triggerWidth, triggerHeight, pickerWidth, pickerHeight, viewPortWidth, viewPortHeight } =
+    let
         minOffset =
             10
 
         triggerLeft =
-            trigger.x
+            triggerX
 
         triggerRight =
-            trigger.x + trigger.width
+            triggerX + triggerWidth
 
         triggerCenter =
-            trigger.x + trigger.width / 2
+            triggerX + triggerWidth / 2
 
         triggerBottom =
-            trigger.y + trigger.height
+            triggerY + triggerHeight
 
-        pickerWidth =
-            picker.width
-
-        pickerHeight =
-            picker.height
-
-        viewPortWidth =
-            viewport.width
-
-        viewPortHeight =
-            viewport.height
-
-        alignX =
+        placementX =
             if (triggerLeft + pickerWidth) <= (viewPortWidth - minOffset) then
                 Left
 
@@ -115,18 +148,14 @@ fromElements { trigger, picker, viewport } =
             else
                 Left
 
-        alignY =
+        placementY =
             if (triggerBottom + pickerHeight) > viewPortHeight then
                 Top
 
             else
                 Bottom
     in
-    Alignment
-        { placement = ( alignX, alignY )
-        , trigger = trigger
-        , picker = picker
-        }
+    ( placementX, placementY )
 
 
 {-| Initializes the alignment by fetching the positions of the trigger and picker elements
@@ -328,32 +357,35 @@ pickerTranslationFromAlignment theme (Alignment { placement }) =
         ( placementX, placementY ) =
             placement
 
-        inputHeight =
-            String.fromFloat theme.size.inputElement ++ "px"
+        framePadding =
+            theme.spacing.base
 
-        translate : { x : String, y : String } -> Css.Style
+        inputHeight =
+            theme.size.inputElement
+
+        translate : { x : Float, y : Float } -> Css.Style
         translate { x, y } =
-            Css.property "transform" ("translateX(" ++ x ++ ") translateY(" ++ y ++ ")")
+            Css.property "transform" ("translateX(" ++ String.fromFloat x ++ "px) translateY(" ++ String.fromFloat y ++ "px)")
     in
     -- container translation to frame date input
     case ( placementX, placementY ) of
         ( Left, Bottom ) ->
-            translate { x = "-1rem", y = "calc(-1rem - " ++ inputHeight ++ ")" }
+            translate { x = -framePadding, y = -framePadding - inputHeight }
 
         ( Left, Top ) ->
-            translate { x = "-1rem", y = "calc(1rem + " ++ inputHeight ++ ")" }
+            translate { x = -framePadding, y = framePadding + inputHeight }
 
         ( Right, Bottom ) ->
-            translate { x = "1rem", y = "calc(-1rem - " ++ inputHeight ++ ")" }
+            translate { x = framePadding, y = -framePadding - inputHeight }
 
         ( Right, Top ) ->
-            translate { x = "1rem", y = "calc(2rem + " ++ inputHeight ++ ")" }
+            translate { x = framePadding, y = 2 * framePadding + inputHeight }
 
         ( Center, Bottom ) ->
-            translate { x = "-1rem", y = "calc(-1rem - " ++ inputHeight ++ ")" }
+            translate { x = -framePadding, y = -framePadding - inputHeight }
 
         ( Center, Top ) ->
-            translate { x = "-1rem", y = "calc(2rem + " ++ inputHeight ++ ")" }
+            translate { x = -framePadding, y = 2 * framePadding + inputHeight }
 
 
 {-| Computes the fixed coordinates for the picker based on its alignment

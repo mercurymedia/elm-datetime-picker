@@ -26,7 +26,7 @@ module DatePicker.Settings exposing
 
 import DatePicker.DateInput as DateInput
 import DatePicker.Theme as Theme
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
+import DatePicker.Utilities as Utilities exposing (PickerDay)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 import Time.Extra as Time exposing (Interval(..))
 
