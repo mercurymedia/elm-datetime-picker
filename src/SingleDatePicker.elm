@@ -1,8 +1,7 @@
 module SingleDatePicker exposing
-    ( DatePicker, Msg, init, view, update, subscriptions
+    ( DatePicker, Msg, init, view, viewDateInput, update, subscriptions
     , openPicker, closePicker, updatePickerPosition
     , isOpen, hasError
-    , viewDateInput
     )
 
 {-| A date picker component for a single datetime.
@@ -10,7 +9,7 @@ module SingleDatePicker exposing
 
 # Architecture
 
-@docs DatePicker, Msg, init, view, update, subscriptions
+@docs DatePicker, Msg, init, view, viewDateInput, update, subscriptions
 
 
 # Externally Triggered Actions

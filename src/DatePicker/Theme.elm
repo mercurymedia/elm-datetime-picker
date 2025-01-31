@@ -1,5 +1,11 @@
 module DatePicker.Theme exposing (Theme, defaultTheme)
 
+{-| This module defines the `Theme` type and a `defaultTheme` for a date picker component.
+
+@docs Theme, defaultTheme
+
+-}
+
 import Css
 
 

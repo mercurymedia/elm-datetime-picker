@@ -2,6 +2,67 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [11.0.0]
+
+### **MAJOR/BREAKING CHANGES**
+- `openPicker` and `update` methods now return a `Cmd msg`
+- Updates to the`Theme` 
+  - The `Theme` has been extracted into a separate module. Use it like this now:
+    ```elm
+    import SingleDatePicker
+    import DatePicker.Settings exposing (Settings, defaultSettings)
+    import DatePicker.Theme exposing (Theme, defaultTheme)
+    ``` 
+  - New properties have been added to the `Theme` (Check the Readme for more informations).
+  - For technical reasons, all `Css.px` properties have been replaced with `Float` in order to make calculations with the provided values.
+- Removed `DomLocation` and `openPickerOutsideHierarchy` functions. The pickers are now always positioned `fixed` by default. The `openPicker` method requires a `triggerElementId`. The picker will be positioned automatically aligned to the passed id's element.
+    
+    ```elm
+    update : Msg -> Model -> ( Model, Cmd Msg )
+    update msg model =
+        case msg of
+            ...
+
+            OpenPicker triggerElementId ->
+                let
+                    ( newPicker, pickerCmd ) =
+                        SingleDatePicker.openPicker triggerElementId
+                            (userDefinedDatePickerSettings model.zone model.today)
+                            model.today
+                            model.pickedTime
+                            model.picker
+                in
+                ( { model | picker = newPicker }, pickerCmd )
+
+    view : Model -> Html Msg
+    view model =
+        ...
+        div []
+            [ button [ id "my-button", onClick (OpenPicker "my-button") ] [ text "Open Me!" ]
+            , DatePicker.view userDefinedDatePickerSettings model.picker
+            ]
+    ```
+- Added an `Alignment` module, providing utilities for determining the alignment and layout of a date picker component, ensuring proper positioning relative to its trigger element and viewport constraints. This replaces the `DomLocation` and `outsideHierarchy` utilities.
+- Added a `DateInput` module and connect it with both pickers. Use it like this:
+  ```elm
+    SingleDatePicker.viewDateInput []
+        (userDefinedDatePickerSettings model.zone)
+        model.today
+        model.dateInputPickerTime
+        model.dateInputPicker
+  ```
+  or 
+  ```elm
+    DurationDatePicker.viewDurationInput []
+        (userDefinedDatePickerSettings model.zone)
+        model.today
+        model.dateInputPickerTime
+        model.dateInputPicker
+  ```  
+    - No `OpenPicker` Msg is required with that variant. 
+    - See Readme and module documentation for all usage and configuration options. 
+
+
 ## [10.0.2]
 
 ### **CHANGED**

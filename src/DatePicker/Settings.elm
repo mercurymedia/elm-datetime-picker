@@ -2,9 +2,8 @@ module DatePicker.Settings exposing
     ( Settings, defaultSettings
     , TimePickerVisibility(..), TimePickerSettings, defaultTimePickerSettings
     , Preset(..), PresetDateConfig, PresetRangeConfig
-    , generatePickerDay, getTimePickerSettings
+    , generatePickerDay, getTimePickerSettings, isTimePickerVisible
     , isPresetDateActive, isPresetRangeActive
-    , isTimePickerVisible
     )
 
 {-| All settings and configuration utilities for both pickers.
@@ -19,7 +18,7 @@ module DatePicker.Settings exposing
 
 # Query
 
-@docs generatePickerDay, getTimePickerSettings
+@docs generatePickerDay, getTimePickerSettings, isTimePickerVisible
 @docs isPresetDateActive, isPresetRangeActive
 
 -}
@@ -208,6 +207,8 @@ getTimePickerSettings settings =
             Just timePickerSettings
 
 
+{-| Determines whether the time picker is visible based on the `TimePickerVisibility`.
+-}
 isTimePickerVisible : TimePickerVisibility -> Bool
 isTimePickerVisible timePickerVisibility =
     case timePickerVisibility of
