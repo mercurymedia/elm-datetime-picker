@@ -162,9 +162,9 @@ calculatePlacement { triggerX, triggerY, triggerWidth, triggerHeight, pickerWidt
 from the DOM. Calls `handleResponse` with the result.
 -}
 init : { triggerId : String, pickerId : String } -> (Result Dom.Error Alignment -> msg) -> Cmd msg
-init { triggerId, pickerId } handleResponse =
+init elementIds handleResponse =
     Task.attempt handleResponse
-        (getElements triggerId pickerId)
+        (getElements elementIds)
 
 
 {-| Updates the alignment by re-fetching the positions of the elements and recalculating alignment.
@@ -176,8 +176,8 @@ update handleResponse (Alignment { trigger, picker }) =
 
 {-| Retrieves the DOM elements by their IDs and constructs an `Alignment` instance.
 -}
-getElements : String -> String -> Task Dom.Error Alignment
-getElements pickerId triggerId =
+getElements : { triggerId : String, pickerId : String } -> Task Dom.Error Alignment
+getElements { triggerId, pickerId } =
     let
         elementFromDomElement : String -> { x : Float, y : Float, width : Float, height : Float } -> Element
         elementFromDomElement id domElement =
@@ -189,7 +189,7 @@ getElements pickerId triggerId =
             }
     in
     Task.succeed
-        (\trigger picker viewport ->
+        (\picker trigger viewport ->
             fromElements
                 { trigger = elementFromDomElement triggerId trigger.element
                 , picker = elementFromDomElement pickerId picker.element
