@@ -1,7 +1,7 @@
 module ModalPickerExample exposing (Model, Msg, init, subscriptions, update, view)
 
 import Browser.Events
-import DatePicker.Settings exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
+import DatePicker.Settings as Settings exposing (Settings, TimePickerVisibility(..), defaultSettings, defaultTimePickerSettings)
 import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class, id, style)
 import Html.Events exposing (onClick)
@@ -10,7 +10,7 @@ import SingleDatePicker
 import Task
 import Time exposing (Month(..), Posix, Zone)
 import Time.Extra as TimeExtra exposing (Interval(..))
-import Utilities exposing (posixToDateString, posixToTimeString, isDateBeforeToday, adjustAllowedTimesOfDayToClientZone)
+import Utilities exposing (adjustAllowedTimesOfDayToClientZone, isDateBeforeToday, posixToDateString, posixToTimeString)
 
 
 type Msg
@@ -42,16 +42,16 @@ update msg model =
         OpenPicker ->
             let
                 ( newPicker, cmd ) =
-                    SingleDatePicker.openPickerOutsideHierarchy "my-button" pickerSettings model.currentTime model.pickedTime model.picker
+                    SingleDatePicker.openPicker "my-button" pickerSettings model.currentTime model.pickedTime model.picker
             in
             ( { model | picker = newPicker }, cmd )
 
         UpdatePicker subMsg ->
             let
-                ( newPicker, maybeNewTime ) =
+                ( ( newPicker, maybeNewTime ), cmd ) =
                     SingleDatePicker.update pickerSettings subMsg model.picker
             in
-            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, Cmd.none )
+            ( { model | picker = newPicker, pickedTime = Maybe.map (\t -> Just t) maybeNewTime |> Maybe.withDefault model.pickedTime }, cmd )
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }, Cmd.none )
@@ -60,10 +60,14 @@ update msg model =
             ( { model | currentTime = newTime }, Cmd.none )
 
         OnViewportChange ->
-            ( model, SingleDatePicker.updatePickerPosition model.picker )
+            let
+                ( newPicker, cmd ) =
+                    SingleDatePicker.updatePickerPosition model.picker
+            in
+            ( { model | picker = newPicker }, cmd )
 
         ToggleModal ->
-            ( { model | modalOpen = not model.modalOpen }, SingleDatePicker.updatePickerPosition model.picker )
+            ( { model | modalOpen = not model.modalOpen }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -86,6 +90,7 @@ userDefinedDatePickerSettings zone today =
                     , allowedTimesOfDay = \clientZone datetime -> adjustAllowedTimesOfDayToClientZone Time.utc clientZone today datetime
                 }
         , showCalendarWeekNumbers = True
+        , presets = [ Settings.PresetDate { title = "Preset", date = today } ]
     }
 
 
@@ -137,7 +142,7 @@ viewModal model =
             ]
             []
         , div
-            [ style "width" "600px"
+            [ style "width" "300px"
             , style "height" "auto"
             , style "max-height" "300px"
             , style "background-color" "white"
@@ -147,8 +152,11 @@ viewModal model =
             , Html.Events.on "scroll" (Decode.succeed OnViewportChange)
             ]
             [ div [ style "padding" "3rem" ]
-                [ button [ id "my-button", style "margin-bottom" "1rem", onClick <| OpenPicker ]
-                    [ text "Open Picker" ]
+                [ SingleDatePicker.viewDateInput []
+                    (userDefinedDatePickerSettings model.zone model.currentTime)
+                    model.currentTime
+                    model.pickedTime
+                    model.picker
                 , div [ style "margin-bottom" "1rem" ]
                     [ case model.pickedTime of
                         Just date ->
@@ -163,7 +171,6 @@ viewModal model =
                     ]
                 ]
             ]
-        , SingleDatePicker.view (userDefinedDatePickerSettings model.zone model.currentTime) model.picker
         ]
 
 

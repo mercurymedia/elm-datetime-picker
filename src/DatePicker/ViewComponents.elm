@@ -1,11 +1,13 @@
 module DatePicker.ViewComponents exposing
-    ( classPrefix
+    ( calendarWidth
+    , colorsTransition
     , durationDayClasses
     , durationDayStyles
     , durationStartOrEndClasses
     , durationStartOrEndStyles
     , singleDayClasses
     , singleDayStyles
+    , viewAlwaysVisibleTimePicker
     , viewCalendarContainer
     , viewCalendarHeader
     , viewCalendarMonth
@@ -16,14 +18,15 @@ module DatePicker.ViewComponents exposing
     , viewPickerContainer
     , viewPresetTab
     , viewPresetsContainer
+    , viewToggleableTimePicker
     )
 
 import Css
 import Css.Transitions
 import Date
 import DatePicker.Icons as Icons
-import DatePicker.Settings exposing (Theme, TimePickerVisibility(..))
-import DatePicker.Utilities as Utilities exposing (DomLocation(..), PickerDay)
+import DatePicker.Theme exposing (Theme)
+import DatePicker.Utilities as Utilities exposing (PickerDay, classPrefix)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class, css, disabled, id, type_)
 import Html.Styled.Events exposing (on, onClick, onMouseOut, onMouseOver)
@@ -42,11 +45,6 @@ import Time.Extra as Time exposing (Interval(..))
 @docs durationDayStyles, durationStartOrEndStyles, singleDayStyles, viewCalendarContainer, viewCalendarHeader, viewCalendarMonth, viewContainer, viewEmpty, viewFooterBody, viewFooterContainer, viewPickerContainer, viewPresetTab, viewPresetsContainer
 
 -}
-classPrefix : String -> String -> String
-classPrefix prefix className =
-    prefix ++ "--" ++ className
-
-
 styleList : List ( List Css.Style, Bool ) -> Css.Style
 styleList list =
     list
@@ -82,10 +80,10 @@ dayStyles :
         }
 dayStyles theme =
     { common =
-        [ Css.height theme.size.day
-        , Css.width theme.size.day
+        [ Css.height (Css.px theme.size.day)
+        , Css.width (Css.px theme.size.day)
         , Css.position Css.relative
-        , Css.fontSize theme.fontSize.xs
+        , Css.fontSize (Css.px theme.fontSize.xs)
         , Css.display Css.inlineFlex
         , Css.justifyContent Css.center
         , Css.alignItems Css.center
@@ -93,9 +91,9 @@ dayStyles theme =
         , Css.outline Css.none
         , Css.padding (Css.px 0)
         , colorsTransition theme
-        , Css.border3 theme.borderWidth Css.solid Css.transparent
+        , Css.border3 (Css.px theme.borderWidth) Css.solid Css.transparent
         , Css.hover [ Css.backgroundColor theme.color.action.hover ]
-        , Css.borderRadius theme.borderRadius.lg
+        , Css.borderRadius (Css.px theme.borderRadius.lg)
         , Css.backgroundColor theme.color.background.container
         ]
     , hidden = [ Css.visibility Css.hidden ]
@@ -105,7 +103,7 @@ dayStyles theme =
         , Css.color theme.color.text.disabled
         , Css.after
             [ Css.position Css.absolute
-            , Css.width theme.fontSize.xs
+            , Css.width (Css.px theme.fontSize.xs)
             , Css.height (Css.px 1)
             , Css.backgroundColor Css.currentColor
             , Css.property "content" "''"
@@ -115,13 +113,13 @@ dayStyles theme =
     , picked =
         [ Css.backgroundColor theme.color.primary.main
         , Css.color theme.color.primary.contrastText
-        , Css.borderRadius theme.borderRadius.lg
+        , Css.borderRadius (Css.px theme.borderRadius.lg)
         , Css.hover
             [ Css.backgroundColor theme.color.primary.main
             , Css.color theme.color.primary.contrastText
             ]
         ]
-    , today = [ Css.border3 theme.borderWidth Css.solid theme.color.text.disabled ]
+    , today = [ Css.border3 (Css.px theme.borderWidth) Css.solid theme.color.text.disabled ]
     }
 
 
@@ -262,14 +260,14 @@ viewContainer theme attributes children =
             [ Css.backgroundColor theme.color.background.container
             , Css.zIndex (Css.int theme.zIndex)
             , Css.color theme.color.text.primary
-            , Css.fontSize theme.fontSize.base
+            , Css.fontSize (Css.px theme.fontSize.base)
             , Css.boxShadow5
-                theme.boxShadow.offsetX
-                theme.boxShadow.offsetY
-                theme.boxShadow.blurRadius
-                theme.boxShadow.spreadRadius
+                (Css.px theme.boxShadow.offsetX)
+                (Css.px theme.boxShadow.offsetY)
+                (Css.px theme.boxShadow.blurRadius)
+                (Css.px theme.boxShadow.spreadRadius)
                 theme.boxShadow.color
-            , Css.borderRadius theme.borderRadius.lg
+            , Css.borderRadius (Css.px theme.borderRadius.lg)
             , Css.overflow Css.hidden
             , Css.displayFlex
             , Css.position Css.absolute
@@ -288,13 +286,17 @@ viewPresetsContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html m
 viewPresetsContainer theme attributes children =
     div
         ([ css
-            [ Css.padding (Css.rem 0.75)
-            , Css.borderRight3 theme.borderWidth Css.solid theme.color.border
+            [ Css.padding (Css.px (theme.spacing.base * 0.75))
+            , Css.borderRight3 (Css.px theme.borderWidth) Css.solid theme.color.border
+            , Css.borderLeft3 (Css.px theme.borderWidth) Css.solid theme.color.border
+            , Css.marginLeft (Css.px -1)
+            , Css.marginRight (Css.px -1)
             , Css.backgroundColor theme.color.background.presets
-            , Css.width theme.size.presetsContainer
+            , Css.width (Css.px theme.size.presetsContainer)
             , Css.displayFlex
             , Css.flexDirection Css.column
             , Css.flexShrink (Css.int 0)
+            , Css.zIndex (Css.int 1)
             ]
          , class (classPrefix theme.classNamePrefix "presets-container")
          ]
@@ -307,11 +309,11 @@ viewPresetTab : Theme -> List (Html.Styled.Attribute msg) -> { title : String, a
 viewPresetTab theme attributes { title, active, onClickMsg } =
     let
         defaultStyles =
-            [ Css.padding2 (Css.rem 0.65) (Css.rem 0.75)
+            [ Css.padding2 (Css.px (theme.spacing.base * 0.65)) (Css.px (theme.spacing.base * 0.75))
             , Css.lineHeight (Css.num 1.25)
             , Css.cursor Css.pointer
-            , Css.borderRadius theme.borderRadius.base
-            , Css.fontSize theme.fontSize.sm
+            , Css.borderRadius (Css.px theme.borderRadius.base)
+            , Css.fontSize (Css.px theme.fontSize.sm)
             , colorsTransition theme
             , Css.hover [ Css.backgroundColor theme.color.action.hover ]
             ]
@@ -364,7 +366,7 @@ viewPickerContainer theme attributes children =
 viewCalendarContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
 viewCalendarContainer theme attributes children =
     div
-        ([ css [ Css.padding (Css.rem 1) ]
+        ([ css [ Css.padding (Css.px theme.spacing.base) ]
          , class (classPrefix theme.classNamePrefix "calendar-container")
          ]
             ++ attributes
@@ -409,8 +411,8 @@ viewIconButton theme attributes { icon, variant } =
             [ Css.display Css.inlineFlex
             , Css.alignItems Css.center
             , Css.justifyContent Css.center
-            , Css.width theme.size.iconButton
-            , Css.height theme.size.iconButton
+            , Css.width (Css.px theme.size.iconButton)
+            , Css.height (Css.px theme.size.iconButton)
             , Css.borderRadius (Css.pct 50)
             , Css.cursor Css.pointer
             , colorsTransition theme
@@ -549,7 +551,7 @@ viewWeekHeader theme { formattedDay, firstWeekDay, showCalendarWeekNumbers } =
         [ css
             [ Css.displayFlex
             , Css.color theme.color.text.secondary
-            , Css.fontSize theme.fontSize.xxs
+            , Css.fontSize (Css.px theme.fontSize.xxs)
             , Css.fontWeight Css.normal
             ]
         , class (classPrefix theme.classNamePrefix "calendar-header-week")
@@ -577,8 +579,8 @@ viewHeaderDay theme attributes children =
             [ Css.display Css.inlineFlex
             , Css.alignItems Css.center
             , Css.justifyContent Css.center
-            , Css.width theme.size.day
-            , Css.height theme.size.day
+            , Css.width (Css.px theme.size.day)
+            , Css.height (Css.px theme.size.day)
             ]
          , class "calendar-header-day"
          ]
@@ -661,12 +663,12 @@ viewCalendarWeek theme { week, zone, showCalendarWeekNumbers, dayProps } =
         ((if showCalendarWeekNumbers then
             div
                 [ css
-                    [ Css.width theme.size.day
-                    , Css.height theme.size.day
+                    [ Css.width (Css.px theme.size.day)
+                    , Css.height (Css.px theme.size.day)
                     , Css.displayFlex
                     , Css.alignItems Css.center
                     , Css.justifyContent Css.center
-                    , Css.fontSize theme.fontSize.xs
+                    , Css.fontSize (Css.px theme.fontSize.xs)
                     , Css.color theme.color.text.secondary
                     , Css.opacity (Css.num 0.5)
                     ]
@@ -705,6 +707,19 @@ viewDay theme { zone, dayProps, day } =
         [ text (String.fromInt dayParts.day) ]
 
 
+calendarWidth : Theme -> Bool -> Float
+calendarWidth theme showCalendarWeekNumbers =
+    let
+        factor =
+            if showCalendarWeekNumbers then
+                8
+
+            else
+                7
+    in
+    factor * theme.size.day
+
+
 {-| Footer Components
 -}
 viewFooterContainer : Theme -> List (Html.Styled.Attribute msg) -> List (Html msg) -> Html msg
@@ -715,9 +730,9 @@ viewFooterContainer theme attributes children =
             , Css.backgroundColor theme.color.background.footer
             , Css.displayFlex
             , Css.alignItems Css.center
-            , Css.fontSize theme.fontSize.sm
-            , Css.borderTop3 theme.borderWidth Css.solid theme.color.border
-            , Css.padding (Css.rem 1)
+            , Css.fontSize (Css.px theme.fontSize.sm)
+            , Css.borderTop3 (Css.px theme.borderWidth) Css.solid theme.color.border
+            , Css.padding (Css.px theme.spacing.base)
             ]
          , class (classPrefix theme.classNamePrefix "footer-container")
          ]
@@ -737,7 +752,7 @@ viewEmpty theme =
             , Css.color theme.color.text.disabled
             , Css.flexGrow (Css.num 1)
             , Css.flexBasis (Css.px 0)
-            , Css.minHeight theme.size.iconButton
+            , Css.minHeight (Css.px theme.size.iconButton)
             ]
         , class (classPrefix theme.classNamePrefix "footer-empty")
         ]
@@ -751,7 +766,7 @@ viewDate theme dateTimeString =
             [ Css.displayFlex
             , Css.alignItems Css.center
             , Css.property "gap" "0.5rem"
-            , Css.minHeight theme.size.iconButton
+            , Css.minHeight (Css.px theme.size.iconButton)
             ]
         , class (classPrefix theme.classNamePrefix "footer-selected-date")
         ]
@@ -764,17 +779,13 @@ viewDate theme dateTimeString =
 
 
 type alias FooterBodyProps msg =
-    { timePickerProps : TimePickerProps msg
-    , isTimePickerVisible : Bool
-    , timePickerVisibility : TimePickerVisibility
-    , selection : Posix
-    , onTimePickerToggleMsg : msg
-    , dateTimeString : String
+    { dateTimeString : String
+    , timePickerView : Html msg
     }
 
 
 viewFooterBody : Theme -> FooterBodyProps msg -> Html msg
-viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibility, selection, onTimePickerToggleMsg, dateTimeString } =
+viewFooterBody theme { dateTimeString, timePickerView } =
     div
         [ css
             [ Css.displayFlex
@@ -787,56 +798,70 @@ viewFooterBody theme { timePickerProps, isTimePickerVisible, timePickerVisibilit
         , class (classPrefix theme.classNamePrefix "footer-body")
         ]
         [ viewDate theme dateTimeString
-        , case timePickerVisibility of
-            NeverVisible ->
-                text ""
+        , timePickerView
+        ]
 
-            Toggleable timePickerSettings ->
-                let
-                    ( viewToggleView, toggleIcon ) =
-                        if isTimePickerVisible then
-                            ( viewTimePicker theme timePickerProps
-                            , Icons.check
-                            )
 
-                        else
-                            ( text (timePickerSettings.timeStringFn timePickerProps.zone selection), Icons.edit )
-                in
-                div
-                    [ css
-                        [ Css.displayFlex
-                        , Css.alignItems Css.center
-                        , Css.property "gap" "0.5rem"
-                        ]
-                    , class (classPrefix theme.classNamePrefix "footer-time")
-                    ]
-                    [ Icons.clock
-                        |> Icons.withSize 16
-                        |> Icons.toHtml []
-                        |> fromUnstyled
-                    , viewToggleView
-                    , viewIconButton theme
-                        [ onClick onTimePickerToggleMsg
-                        , class (classPrefix theme.classNamePrefix "footer-time-picker-toggle")
-                        ]
-                        { icon = toggleIcon, variant = PrimaryIconButton }
-                    ]
+type alias ToggleableTimePickerProps msg =
+    { timePickerProps : TimePickerProps msg
+    , timeString : String
+    , isTimePickerVisible : Bool
+    , onTimePickerToggleMsg : msg
+    }
 
-            AlwaysVisible _ ->
-                div
-                    [ css
-                        [ Css.displayFlex
-                        , Css.alignItems Css.center
-                        , Css.property "gap" "0.5rem"
-                        ]
-                    , class (classPrefix theme.classNamePrefix "footer-selected-time")
-                    ]
-                    [ Icons.clock
-                        |> Icons.withSize 16
-                        |> Icons.toHtml []
-                        |> fromUnstyled
-                    , viewTimePicker theme timePickerProps
-                    ]
+
+viewToggleableTimePicker : Theme -> ToggleableTimePickerProps msg -> Html msg
+viewToggleableTimePicker theme { timePickerProps, timeString, isTimePickerVisible, onTimePickerToggleMsg } =
+    let
+        ( viewToggleView, toggleIcon ) =
+            if isTimePickerVisible then
+                ( viewTimePicker theme timePickerProps
+                , Icons.check
+                )
+
+            else
+                ( text timeString, Icons.edit )
+    in
+    div
+        [ css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.property "gap" "0.5rem"
+            ]
+        , class (classPrefix theme.classNamePrefix "footer-time")
+        ]
+        [ Icons.clock
+            |> Icons.withSize 16
+            |> Icons.toHtml []
+            |> fromUnstyled
+        , viewToggleView
+        , viewIconButton theme
+            [ onClick onTimePickerToggleMsg
+            , class (classPrefix theme.classNamePrefix "footer-time-picker-toggle")
+            ]
+            { icon = toggleIcon, variant = PrimaryIconButton }
+        ]
+
+
+type alias AlwaysVisibleTimePickerProps msg =
+    { timePickerProps : TimePickerProps msg }
+
+
+viewAlwaysVisibleTimePicker : Theme -> AlwaysVisibleTimePickerProps msg -> Html msg
+viewAlwaysVisibleTimePicker theme { timePickerProps } =
+    div
+        [ css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.property "gap" "0.5rem"
+            ]
+        , class (classPrefix theme.classNamePrefix "footer-selected-time")
+        ]
+        [ Icons.clock
+            |> Icons.withSize 16
+            |> Icons.toHtml []
+            |> fromUnstyled
+        , viewTimePicker theme timePickerProps
         ]
 
 
@@ -868,7 +893,7 @@ viewTimePicker theme { zone, selectionTuple, onHourChangeDecoder, onMinuteChange
                 [ css
                     [ Css.display Css.inlineFlex
                     , Css.alignItems Css.center
-                    , Css.padding2 (Css.px 0) (Css.rem 0.25)
+                    , Css.padding2 (Css.px 0) (Css.px (theme.spacing.base * 0.25))
                     , Css.property "user-select" "none"
                     ]
                 ]
@@ -892,13 +917,13 @@ viewSelect theme attributes content =
         ]
         [ select
             (css
-                [ Css.borderRadius theme.borderRadius.base
-                , Css.height theme.size.iconButton
+                [ Css.borderRadius (Css.px theme.borderRadius.base)
+                , Css.height (Css.px theme.size.iconButton)
                 , Css.outline Css.zero
                 , Css.fontWeight Css.normal
-                , Css.border3 theme.borderWidth Css.solid theme.color.border
+                , Css.border3 (Css.px theme.borderWidth) Css.solid theme.color.border
                 , Css.property "appearance" "none"
-                , Css.padding4 (Css.px 0) (Css.px 24) (Css.px 0) (Css.px 4)
+                , Css.padding4 (Css.px 0) (Css.px (theme.spacing.base * 1.5)) (Css.px 0) (Css.px (theme.spacing.base * 0.25))
                 ]
                 :: attributes
             )

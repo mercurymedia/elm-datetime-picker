@@ -1,10 +1,9 @@
 module DatePicker.Utilities exposing
-    ( PickerDay, DomLocation(..), monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay, calculatePositionStyles
+    ( PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
     , pickerDayFromPosix, timeOfDayFromPosix, monthToNameString, dayToNameString
     , setTimeOfDay, setHourNotDay, setMinuteNotDay
-    , calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
-    , calculateCoordinates
-    , clickedOutsidePicker, outsideHierarchyStyles, showHoveredIfEnabled, updateDomElements
+    , calculateViewOffset, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
+    , classPrefix, clickedOutsidePicker, eventIsOutsideComponents, monthToNumber, posixWithinTimeBoundaries, showHoveredIfEnabled, toStyledAttrs, updateDomElements
     )
 
 {-| Utility functions for both Pickers.
@@ -12,7 +11,7 @@ module DatePicker.Utilities exposing
 
 # View Types & Functions
 
-@docs PickerDay, DomLocation, DomElement, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay, calculatePositionStyles
+@docs PickerDay, monthData, generateHourOptions, generateMinuteOptions, generateListOfWeekDay
 
 
 # Conversions
@@ -29,16 +28,12 @@ module DatePicker.Utilities exposing
 
 @docs calculateViewOffset, eventIsOutsideComponent, hourBoundsForSelectedMinute, minuteBoundsForSelectedHour, posixWithinPickerDayBoundaries, validSelectionOrDefault
 
-
-# Test
-
-@docs calculateCoordinates
-
 -}
 
 import Browser.Dom as Dom
+import Html
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (selected, style, value)
+import Html.Styled.Attributes as Attrs exposing (selected, value)
 import Json.Decode as Decode
 import List.Extra as List
 import Task
@@ -63,24 +58,9 @@ type alias PickerDay =
     }
 
 
-{-| The type representing the picker's location in the DOM. (if the picker
-is being rendered inside the DOM hierarchy and positioned automatically or
-outside the DOM hierarchy positioned manually based on the trigger and picker
-DOM elment.
--}
-type DomLocation
-    = InsideHierarchy
-    | OutsideHierarchy
-        { triggerDomElement : DomElement
-        , pickerDomElement : DomElement
-        }
-
-
-{-| The type facilitating the needed informations to find a DOM element and
-read its absolute positions.
--}
-type alias DomElement =
-    { id : String, element : Maybe Dom.Element }
+classPrefix : String -> String -> String
+classPrefix prefix className =
+    prefix ++ "--" ++ className
 
 
 {-| Generate a month to be rendered by the picker
@@ -207,104 +187,9 @@ updateDomElements { triggerElementId, pickerElementId, onSuccess, onError } =
         (Task.sequence [ Dom.getElement triggerElementId, Dom.getElement pickerElementId ])
 
 
-calculatePositionStyles : { triggerEl : Dom.Element, pickerEl : Dom.Element } -> List (Html.Styled.Attribute msg)
-calculatePositionStyles { triggerEl, pickerEl } =
-    let
-        ( viewPortWidth, viewPortHeight ) =
-            ( triggerEl.viewport.width, triggerEl.viewport.height )
-
-        ( triggerX, triggerY ) =
-            ( triggerEl.element.x, triggerEl.element.y )
-
-        ( triggerWidth, triggerHeight ) =
-            ( triggerEl.element.width, triggerEl.element.height )
-
-        ( pickerWidth, pickerHeight ) =
-            ( pickerEl.element.width, pickerEl.element.height )
-
-        coords =
-            calculateCoordinates
-                { viewPortWidth = viewPortWidth
-                , viewPortHeight = viewPortHeight
-                , triggerX = triggerX
-                , triggerY = triggerY
-                , triggerWidth = triggerWidth
-                , triggerHeight = triggerHeight
-                , pickerWidth = pickerWidth
-                , pickerHeight = pickerHeight
-                }
-    in
-    [ style "position" "fixed"
-    , style "left" (String.fromFloat coords.x ++ "px")
-    , style "top" (String.fromFloat coords.y ++ "px")
-    ]
-
-
-type alias CalculateCoordinates =
-    { viewPortWidth : Float
-    , viewPortHeight : Float
-    , triggerX : Float
-    , triggerY : Float
-    , triggerWidth : Float
-    , triggerHeight : Float
-    , pickerWidth : Float
-    , pickerHeight : Float
-    }
-
-
-calculateCoordinates : CalculateCoordinates -> { x : Float, y : Float }
-calculateCoordinates { viewPortWidth, viewPortHeight, triggerX, triggerY, triggerWidth, triggerHeight, pickerWidth, pickerHeight } =
-    let
-        minOffset =
-            10
-
-        alignRightOfTrigger =
-            triggerX + triggerWidth - pickerWidth
-
-        alignLeftOfTrigger =
-            triggerX
-
-        alignCenterOfTrigger =
-            triggerX + triggerWidth / 2 - pickerWidth / 2
-
-        posX =
-            if (triggerX + pickerWidth) <= (viewPortWidth - minOffset) then
-                -- 1. align left
-                alignLeftOfTrigger
-
-            else if alignRightOfTrigger >= minOffset then
-                -- 2. align right
-                alignRightOfTrigger
-
-            else if alignCenterOfTrigger >= minOffset then
-                -- 3. align center
-                alignCenterOfTrigger
-
-            else
-                -- 4. align to viewport
-                minOffset
-
-        posY =
-            if (triggerY + triggerHeight + pickerHeight) > viewPortHeight then
-                -- align top
-                triggerY - pickerHeight
-
-            else
-                -- align bottom
-                triggerY + triggerHeight
-    in
-    { x = posX, y = posY }
-
-
-outsideHierarchyStyles : { triggerDomElement : DomElement, pickerDomElement : DomElement } -> List (Html.Styled.Attribute msg)
-outsideHierarchyStyles { triggerDomElement, pickerDomElement } =
-    case ( triggerDomElement.element, pickerDomElement.element ) of
-        ( Just triggerElement, Just pickerElement ) ->
-            calculatePositionStyles { triggerEl = triggerElement, pickerEl = pickerElement }
-
-        _ ->
-            -- hide picker element until the DOM elements have been found and the positions have been calculated correctly
-            [ style "visibility" "hidden" ]
+toStyledAttrs : List (Html.Attribute msg) -> List (Html.Styled.Attribute msg)
+toStyledAttrs attrs =
+    List.map (\attr -> Attrs.fromUnstyled attr) attrs
 
 
 {-| Generate a list of Html `option`s representing
@@ -435,6 +320,46 @@ monthToNameString month =
             "Dec"
 
 
+monthToNumber : Month -> Int
+monthToNumber month =
+    case month of
+        Jan ->
+            1
+
+        Feb ->
+            2
+
+        Mar ->
+            3
+
+        Apr ->
+            4
+
+        May ->
+            5
+
+        Jun ->
+            6
+
+        Jul ->
+            7
+
+        Aug ->
+            8
+
+        Sep ->
+            9
+
+        Oct ->
+            10
+
+        Nov ->
+            11
+
+        Dec ->
+            12
+
+
 {-| Convert the provided `Weekday` type into a string
 representing the `Weekday`'s name.
 -}
@@ -538,9 +463,9 @@ calculateViewOffset zone referenceTime subjectTime =
                 0 - Time.diff Month zone flooredSubject flooredReference
 
 
-clickedOutsidePicker : String -> msg -> Decode.Decoder msg
-clickedOutsidePicker componentId msg =
-    Decode.field "target" (eventIsOutsideComponent componentId)
+clickedOutsidePicker : List String -> msg -> Decode.Decoder msg
+clickedOutsidePicker componentIds msg =
+    Decode.field "target" (eventIsOutsideComponents componentIds)
         |> Decode.andThen
             (\isOutside ->
                 if isOutside then
@@ -553,13 +478,13 @@ clickedOutsidePicker componentId msg =
 
 {-| Determine if the user has clicked outside of the datepicker component.
 -}
-eventIsOutsideComponent : String -> Decode.Decoder Bool
-eventIsOutsideComponent componentId =
+eventIsOutsideComponents : List String -> Decode.Decoder Bool
+eventIsOutsideComponents componentIds =
     Decode.oneOf
         [ Decode.field "id" Decode.string
             |> Decode.andThen
                 (\id ->
-                    if componentId == id then
+                    if List.member id componentIds then
                         -- found match by id
                         Decode.succeed False
 
@@ -567,7 +492,7 @@ eventIsOutsideComponent componentId =
                         -- try next decoder
                         Decode.fail "check parent node"
                 )
-        , Decode.lazy (\_ -> eventIsOutsideComponent componentId |> Decode.field "parentNode")
+        , Decode.lazy (\_ -> eventIsOutsideComponents componentIds |> Decode.field "parentNode")
 
         -- fallback if all previous decoders failed
         , Decode.succeed True
@@ -661,7 +586,19 @@ posixWithinPickerDayBoundaries zone pickerDay selection =
 
         ( endHour, endMinute ) =
             timeOfDayFromPosix zone pickerDay.end
+    in
+    posixWithinTimeBoundaries zone
+        { startHour = startHour
+        , startMinute = startMinute
+        , endHour = endHour
+        , endMinute = endMinute
+        }
+        selection
 
+
+posixWithinTimeBoundaries : Zone -> { startHour : Int, startMinute : Int, endHour : Int, endMinute : Int } -> Posix -> Bool
+posixWithinTimeBoundaries zone { startHour, startMinute, endHour, endMinute } selection =
+    let
         ( selectionHour, selectionMinute ) =
             timeOfDayFromPosix zone selection
     in

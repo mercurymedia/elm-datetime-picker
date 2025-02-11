@@ -1,6 +1,7 @@
 module DatePicker.SingleUtilities exposing
     ( selectDay, selectHour, selectMinute
     , filterSelectableTimes
+    , SelectionValue(..), selectTime
     )
 
 {-| Utility functions specific to the SingleDatePicker.
@@ -17,9 +18,33 @@ module DatePicker.SingleUtilities exposing
 
 -}
 
-import DatePicker.DurationUtilities exposing (previewSelection)
 import DatePicker.Utilities as Utilities exposing (PickerDay)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
+
+
+type SelectionValue
+    = Day PickerDay
+    | Hour Int
+    | Minute Int
+
+
+{-| Select a time.
+
+Wrapper function to determine which selection function to call
+based on the `SelectionValue` provided.
+
+-}
+selectTime : Zone -> PickerDay -> SelectionValue -> Maybe ( PickerDay, Posix ) -> Maybe ( PickerDay, Posix )
+selectTime zone baseDay selectionValue currentSelectionTuple =
+    case selectionValue of
+        Day pickerDay ->
+            selectDay zone currentSelectionTuple pickerDay
+
+        Hour hour ->
+            selectHour zone baseDay currentSelectionTuple hour
+
+        Minute minute ->
+            selectMinute zone baseDay currentSelectionTuple minute
 
 
 {-| Select a day.

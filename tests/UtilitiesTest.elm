@@ -1,12 +1,12 @@
 module UtilitiesTest exposing (suite)
 
-import DatePicker.Utilities as Utilities exposing (calculateCoordinates, timeOfDayFromPosix)
+import DatePicker.Utilities as Utilities exposing (timeOfDayFromPosix)
 import Expect
 import Html.Styled exposing (option, text)
 import Html.Styled.Attributes exposing (selected, value)
 import Test exposing (..)
-import Time exposing (Month(..), Posix, Weekday(..))
-import Time.Extra as Time exposing (Parts, partsToPosix)
+import Time exposing (Month(..), Weekday(..))
+import Time.Extra as Time exposing (Parts)
 
 
 suite : Test
@@ -473,82 +473,5 @@ suite =
                     Expect.equal
                         (Utilities.validSelectionOrDefault timeZone Nothing validSelection)
                         (Just validSelection)
-            ]
-        , describe "calculateCoordinates"
-            [ test "should align to the left of the trigger element if there is enought space" <|
-                \_ ->
-                    let
-                        params =
-                            { viewPortWidth = 100
-                            , viewPortHeight = 100
-                            , triggerX = 10
-                            , triggerY = 10
-                            , triggerWidth = 10
-                            , triggerHeight = 10
-                            , pickerWidth = 30
-                            , pickerHeight = 30
-                            }
-                    in
-                    Expect.equal (Utilities.calculateCoordinates params) { x = 10, y = 20 }
-            , test "should align to the right of the trigger element if there is not enought space" <|
-                \_ ->
-                    let
-                        params =
-                            { viewPortWidth = 100
-                            , viewPortHeight = 100
-                            , triggerX = 80
-                            , triggerY = 10
-                            , triggerWidth = 10
-                            , triggerHeight = 10
-                            , pickerWidth = 30
-                            , pickerHeight = 30
-                            }
-                    in
-                    Expect.equal (Utilities.calculateCoordinates params) { x = 60, y = 20 }
-            , test "should align to the center of the trigger element if there is not enought space on both sides" <|
-                \_ ->
-                    let
-                        params =
-                            { viewPortWidth = 50
-                            , viewPortHeight = 50
-                            , triggerX = 20
-                            , triggerY = 10
-                            , triggerWidth = 10
-                            , triggerHeight = 10
-                            , pickerWidth = 30
-                            , pickerHeight = 30
-                            }
-                    in
-                    Expect.equal (Utilities.calculateCoordinates params) { x = 10, y = 20 }
-            , test "should align to the viewport of the trigger element if there is not enought space at all" <|
-                \_ ->
-                    let
-                        params =
-                            { viewPortWidth = 60
-                            , viewPortHeight = 60
-                            , triggerX = 25
-                            , triggerY = 10
-                            , triggerWidth = 10
-                            , triggerHeight = 10
-                            , pickerWidth = 40
-                            , pickerHeight = 40
-                            }
-                    in
-                    Expect.equal (Utilities.calculateCoordinates params) { x = 10, y = 20 }
-            , test "should align to the left top of the trigger element if there is enought space to the bottom" <|
-                \_ ->
-                    let
-                        params =
-                            { viewPortWidth = 100
-                            , viewPortHeight = 100
-                            , triggerX = 10
-                            , triggerY = 80
-                            , triggerWidth = 10
-                            , triggerHeight = 10
-                            , pickerWidth = 30
-                            , pickerHeight = 30
-                            }
-                    in
-                    Expect.equal (Utilities.calculateCoordinates params) { x = 10, y = 50 }
             ]
         ]
