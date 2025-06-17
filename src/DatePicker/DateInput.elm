@@ -833,6 +833,7 @@ viewTextField theme attrs children =
             , Css.border3 (Css.px theme.borderWidth) Css.solid theme.color.border
             , ViewComponents.colorsTransition theme
             , Css.hover [ Css.backgroundColor theme.color.action.hover ]
+            , Css.fontSize (Css.em 1)
             , Css.pseudoClass "focus-within"
                 [ Css.borderColor theme.color.primary.main
                 , Css.backgroundColor theme.color.background.input
@@ -859,6 +860,7 @@ viewInput theme attrs =
             , Css.backgroundColor Css.transparent
             , Css.minHeight (Css.px theme.size.inputElement)
             , Css.color Css.currentColor
+            , Css.fontSize (Css.em 1)
             , Css.pseudoClass ":placeholder"
                 [ Css.textOverflow Css.ellipsis
                 , Css.color theme.color.text.disabled
@@ -925,6 +927,7 @@ viewContainer theme attrs children =
             , Css.display Css.inlineFlex
             , Css.width (Css.pct 100)
             , Css.height (Css.px theme.size.inputElement)
+            , Css.fontSize (Css.px theme.fontSize.sm)
             ]
             :: attrs
         )
