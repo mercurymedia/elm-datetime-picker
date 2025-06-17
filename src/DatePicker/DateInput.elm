@@ -4,7 +4,7 @@ module DatePicker.DateInput exposing
     , defaultConfig, defaultDateFormat, defaultFormat, defaultSettings, defaultTimeFormat
     , clear, init, toPosix, update, updateFromPosix
     , hasDurationError, hasError
-    , containerId, durationEndId, durationStartId
+    , containerId, durationEndId, durationStartId, textFieldId
     , view, viewContainer, viewDurationInputs, viewPlaceholder
     , partsToPosix, sanitizeInputValue, inputValueToParts, partsToInputValue, catchError
     )
@@ -39,7 +39,7 @@ module DatePicker.DateInput exposing
 
 # IDs
 
-@docs containerId, durationEndId, durationStartId
+@docs containerId, durationEndId, durationStartId, textFieldId
 
 
 # View
@@ -696,6 +696,13 @@ catchError { dateInputSettings, isDayDisabled, zone } inputValue dateParts timeP
 containerId : Config -> String
 containerId { id } =
     id ++ "--container"
+
+
+{-| Generates the ID for the text field element based on the provided configuration.
+-}
+textFieldId : Config -> String
+textFieldId { id } =
+    id ++ "--text-field"
 
 
 {-| Generates the ID for a duration's start input element based on the provided configuration.

@@ -93,7 +93,7 @@ subscriptions : Settings -> DatePicker msg -> Sub msg
 subscriptions settings (DatePicker model) =
     case model.status of
         Open _ _ ->
-            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, DateInput.containerId (dateInputConfig settings) ] (model.internalMsg Close))
+            Browser.Events.onMouseDown (Utilities.clickedOutsidePicker [ settings.id, DateInput.textFieldId (dateInputConfig settings) ] (model.internalMsg Close))
 
         Closed ->
             Sub.none
@@ -502,13 +502,13 @@ viewStyled settings (DatePicker model) =
     case model.status of
         Open timePickerVisible baseDay ->
             let
-                styles =
+                alignmentStyle =
                     Alignment.pickerStylesFromAlignment settings.theme model.alignment
             in
             viewContainer settings.theme
                 [ id settings.id
                 , class (classPrefix settings.theme.classNamePrefix "duration")
-                , css styles
+                , css [ alignmentStyle ]
                 ]
                 [ viewPresets [] settings model
                 , viewPicker []
@@ -559,14 +559,15 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
     DateInput.viewContainer settings.theme
         (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
         [ DateInput.viewDurationInputs
-            [ onClick onClickMsg
+            [ id (DateInput.textFieldId <| dateInputConfig settings)
+            , onClick onClickMsg
             , css
-                (Alignment.dateInputStylesFromAlignment
+                [ Alignment.dateInputStylesFromAlignment
                     settings.theme
                     isPickerOpen
                     (Alignment.calcDurationDateInputWidth settings.theme settings.showCalendarWeekNumbers)
                     model.alignment
-                )
+                ]
             ]
             (dateInputConfig settings)
             ( model.startDateInput, model.endDateInput )
@@ -576,7 +577,7 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
                     [ id settings.id
                     , class (classPrefix settings.theme.classNamePrefix "duration")
                     , css
-                        (Alignment.applyPickerStyles
+                        [ Alignment.applyPickerStyles
                             (\alignment ->
                                 [ Alignment.pickerGridLayoutFromAlignment alignment
                                 , Alignment.pickerPositionFromAlignment settings.theme alignment
@@ -584,7 +585,7 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
                                 ]
                             )
                             model.alignment
-                        )
+                        ]
                     ]
                     [ viewPresets
                         [ css [ Css.property "grid-area" Alignment.gridAreaPresets ] ]
