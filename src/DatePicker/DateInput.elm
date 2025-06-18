@@ -1,6 +1,6 @@
 module DatePicker.DateInput exposing
     ( DateInput, InputError(..), Msg
-    , Config, Format(..), DatePattern(..), Settings
+    , Config, Format(..), DateFormat, TimeFormat, DatePattern(..), Settings
     , defaultConfig, defaultDateFormat, defaultFormat, defaultSettings, defaultTimeFormat
     , clear, init, toPosix, update, updateFromPosix
     , hasDurationError, hasError
@@ -19,7 +19,7 @@ module DatePicker.DateInput exposing
 
 # Configuration & Settings
 
-@docs Config, Format, DatePattern, Settings
+@docs Config, Format, DateFormat, TimeFormat, DatePattern, Settings
 
 
 # Defaults
