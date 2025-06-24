@@ -277,7 +277,7 @@ update settings msg (DatePicker model) =
                             )
 
                 Close ->
-                    ( ( DatePicker { model | status = Closed }, pickedDuration ), Cmd.none )
+                    ( ( DatePicker { model | status = Closed, alignment = Nothing }, pickedDuration ), Cmd.none )
 
                 GotAlignment result ->
                     case result of
