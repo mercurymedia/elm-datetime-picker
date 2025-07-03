@@ -210,32 +210,33 @@ The date input's width needs to be passed in order to scale it correctly into th
 picker is opened, the date input should be the same width as the calendar).
 
 -}
-dateInputStylesFromAlignment : Theme.Theme -> Bool -> Float -> Maybe Alignment -> List Css.Style
+dateInputStylesFromAlignment : Theme.Theme -> Bool -> Float -> Maybe Alignment -> Css.Style
 dateInputStylesFromAlignment theme isPickerOpen width maybeAlignment =
     let
-        closedStyles =
-            [ Css.position Css.absolute
-            , Css.top (Css.px 0)
-            , Css.left (Css.px 0)
-            , Css.zIndex (Css.int (theme.zIndex + 10))
-            , Css.width (Css.pct 100)
-            ]
-    in
-    case ( maybeAlignment, isPickerOpen ) of
-        ( Just alignment, True ) ->
-            let
-                { x, y } =
-                    fixedDateInputCoorinatesFromAlignment width alignment
-            in
-            [ Css.position Css.fixed
-            , Css.zIndex (Css.int (theme.zIndex + 10))
-            , Css.left (Css.px x)
-            , Css.top (Css.px y)
-            , Css.width (Css.px width)
-            ]
+        styles =
+            case ( maybeAlignment, isPickerOpen ) of
+                ( Just alignment, True ) ->
+                    let
+                        { x, y } =
+                            fixedDateInputCoorinatesFromAlignment width alignment
+                    in
+                    [ Css.position Css.fixed
+                    , Css.zIndex (Css.int (theme.zIndex + 10))
+                    , Css.left (Css.px x)
+                    , Css.top (Css.px y)
+                    , Css.width (Css.px width)
+                    ]
 
-        ( _, _ ) ->
-            closedStyles
+                ( _, _ ) ->
+                    [ Css.position Css.absolute
+                    , Css.top (Css.px 0)
+                    , Css.left (Css.px 0)
+                    , Css.width (Css.pct 100)
+                    ]
+    in
+    styles
+        |> Css.batch
+        |> Css.important
 
 
 {-| Calculates the width of a single date input view element.
@@ -297,39 +298,51 @@ fixedDateInputCoorinatesFromAlignment dateInputWidth (Alignment { placement, tri
 
 {-| Computes the styles for positioning the picker based on the given alignment.
 -}
-pickerStylesFromAlignment : Theme -> Maybe Alignment -> List Css.Style
+pickerStylesFromAlignment : Theme -> Maybe Alignment -> Css.Style
 pickerStylesFromAlignment theme maybeAlignment =
-    case maybeAlignment of
-        Just alignment ->
-            let
-                { x, y } =
-                    fixedPickerCoorinatesFromAlignment alignment
-            in
-            [ Css.position Css.fixed
-            , Css.zIndex (Css.int theme.zIndex)
-            , Css.left (Css.px x)
-            , Css.top (Css.px y)
-            ]
+    let
+        styles =
+            case maybeAlignment of
+                Just alignment ->
+                    let
+                        { x, y } =
+                            fixedPickerCoorinatesFromAlignment alignment
+                    in
+                    [ Css.position Css.fixed
+                    , Css.zIndex (Css.int theme.zIndex)
+                    , Css.left (Css.px x)
+                    , Css.top (Css.px y)
+                    ]
 
-        _ ->
-            -- hide picker element until the DOM elements have been found
-            [ Css.visibility Css.hidden ]
+                _ ->
+                    -- hide picker element until the DOM elements have been found
+                    [ Css.visibility Css.hidden ]
+    in
+    styles
+        |> Css.batch
+        |> Css.important
 
 
 {-| Applies the provided styling function to an `Alignment` if available.
 Otherwise, hides the picker until alignment is determined.
 -}
-applyPickerStyles : (Alignment -> List Css.Style) -> Maybe Alignment -> List Css.Style
+applyPickerStyles : (Alignment -> List Css.Style) -> Maybe Alignment -> Css.Style
 applyPickerStyles stylingFn maybeAlignment =
-    case maybeAlignment of
-        Just alignment ->
-            stylingFn alignment
+    let
+        styles =
+            case maybeAlignment of
+                Just alignment ->
+                    stylingFn alignment
 
-        Nothing ->
-            -- hide picker element until the DOM elements have been found
-            [ Css.visibility Css.hidden
-            , defaultGridLayout
-            ]
+                Nothing ->
+                    -- hide picker element until the DOM elements have been found
+                    [ Css.visibility Css.hidden
+                    , defaultGridLayout
+                    ]
+    in
+    styles
+        |> Css.batch
+        |> Css.important
 
 
 {-| Determines the CSS fixed position styles for the picker popover based on alignment.

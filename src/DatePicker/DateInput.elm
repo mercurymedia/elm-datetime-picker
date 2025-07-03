@@ -1,10 +1,10 @@
 module DatePicker.DateInput exposing
     ( DateInput, InputError(..), Msg
-    , Config, Format(..), DatePattern(..), Settings
+    , Config, Format(..), DateFormat, TimeFormat, DatePattern(..), Settings
     , defaultConfig, defaultDateFormat, defaultFormat, defaultSettings, defaultTimeFormat
     , clear, init, toPosix, update, updateFromPosix
     , hasDurationError, hasError
-    , containerId, durationEndId, durationStartId
+    , containerId, durationEndId, durationStartId, textFieldId
     , view, viewContainer, viewDurationInputs, viewPlaceholder
     , partsToPosix, sanitizeInputValue, inputValueToParts, partsToInputValue, catchError
     )
@@ -19,7 +19,7 @@ module DatePicker.DateInput exposing
 
 # Configuration & Settings
 
-@docs Config, Format, DatePattern, Settings
+@docs Config, Format, DateFormat, TimeFormat, DatePattern, Settings
 
 
 # Defaults
@@ -39,7 +39,7 @@ module DatePicker.DateInput exposing
 
 # IDs
 
-@docs containerId, durationEndId, durationStartId
+@docs containerId, durationEndId, durationStartId, textFieldId
 
 
 # View
@@ -698,6 +698,13 @@ containerId { id } =
     id ++ "--container"
 
 
+{-| Generates the ID for the text field element based on the provided configuration.
+-}
+textFieldId : Config -> String
+textFieldId { id } =
+    id ++ "--text-field"
+
+
 {-| Generates the ID for a duration's start input element based on the provided configuration.
 -}
 durationStartId : String -> String
@@ -826,6 +833,7 @@ viewTextField theme attrs children =
             , Css.border3 (Css.px theme.borderWidth) Css.solid theme.color.border
             , ViewComponents.colorsTransition theme
             , Css.hover [ Css.backgroundColor theme.color.action.hover ]
+            , Css.fontSize (Css.em 1)
             , Css.pseudoClass "focus-within"
                 [ Css.borderColor theme.color.primary.main
                 , Css.backgroundColor theme.color.background.input
@@ -852,6 +860,7 @@ viewInput theme attrs =
             , Css.backgroundColor Css.transparent
             , Css.minHeight (Css.px theme.size.inputElement)
             , Css.color Css.currentColor
+            , Css.fontSize (Css.em 1)
             , Css.pseudoClass ":placeholder"
                 [ Css.textOverflow Css.ellipsis
                 , Css.color theme.color.text.disabled
@@ -918,6 +927,7 @@ viewContainer theme attrs children =
             , Css.display Css.inlineFlex
             , Css.width (Css.pct 100)
             , Css.height (Css.px theme.size.inputElement)
+            , Css.fontSize (Css.px theme.fontSize.sm)
             ]
             :: attrs
         )
