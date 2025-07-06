@@ -187,16 +187,20 @@ update settings msg (DatePicker model) =
         Open timePickerVisible baseDay ->
             case msg of
                 NextMonth ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset + 1 }, pickedTime ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset + 1 }, pickedTime )
+                        |> updatePositionFromSelection
 
                 PrevMonth ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset - 1 }, pickedTime ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset - 1 }, pickedTime )
+                        |> updatePositionFromSelection
 
                 NextYear ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset + 12 }, pickedTime ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset + 12 }, pickedTime )
+                        |> updatePositionFromSelection
 
                 PrevYear ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset - 12 }, pickedTime ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset - 12 }, pickedTime )
+                        |> updatePositionFromSelection
 
                 SetHoveredDay pickerDay ->
                     ( ( DatePicker { model | hovered = Just pickerDay }, pickedTime ), Cmd.none )
@@ -209,27 +213,27 @@ update settings msg (DatePicker model) =
                         newSelectionTuple =
                             SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Day pickerDay) model.selectionTuple
                     in
-                    ( updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTime )
-                    , Cmd.none
-                    )
+                    ( DatePicker model, pickedTime )
+                        |> updateSelection settings baseDay newSelectionTuple
+                        |> updatePositionFromSelection
 
                 SetHour hour ->
                     let
                         newSelectionTuple =
                             SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Hour hour) model.selectionTuple
                     in
-                    ( updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTime )
-                    , Cmd.none
-                    )
+                    ( DatePicker model, pickedTime )
+                        |> updateSelection settings baseDay newSelectionTuple
+                        |> updatePositionFromSelection
 
                 SetMinute minute ->
                     let
                         newSelectionTuple =
                             SingleUtilities.selectTime settings.zone baseDay (SingleUtilities.Minute minute) model.selectionTuple
                     in
-                    ( updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTime )
-                    , Cmd.none
-                    )
+                    ( DatePicker model, pickedTime )
+                        |> updateSelection settings baseDay newSelectionTuple
+                        |> updatePositionFromSelection
 
                 ToggleTimePickerVisibility ->
                     case settings.timePickerVisibility of
@@ -247,9 +251,9 @@ update settings msg (DatePicker model) =
                         presetPickerDay =
                             generatePickerDay settings presetDate.date
                     in
-                    ( updateSelection settings baseDay (Just ( presetPickerDay, presetPickerDay.start )) ( DatePicker model, pickedTime )
-                    , Cmd.none
-                    )
+                    ( DatePicker model, pickedTime )
+                        |> updateSelection settings baseDay (Just ( presetPickerDay, presetPickerDay.start ))
+                        |> updatePositionFromSelection
 
                 GotAlignment result ->
                     case result of
@@ -263,23 +267,28 @@ update settings msg (DatePicker model) =
                     let
                         ( updatedDateInput, dateInputCmd ) =
                             DateInput.update (dateInputConfig settings) subMsg model.dateInput
+
+                        ( updatedSelection, cmd ) =
+                            case DateInput.toPosix settings.zone updatedDateInput of
+                                Just posix ->
+                                    let
+                                        pickerDay =
+                                            generatePickerDay settings posix
+
+                                        newSelectionTuple =
+                                            ( pickerDay, posix )
+
+                                        ( DatePicker updatedModel, updatedPickedTime ) =
+                                            updateSelection settings baseDay (Just newSelectionTuple) ( DatePicker model, pickedTime )
+                                    in
+                                    ( DatePicker { updatedModel | dateInput = updatedDateInput }, updatedPickedTime )
+                                        |> updatePositionFromSelection
+
+                                Nothing ->
+                                    ( DatePicker { model | dateInput = updatedDateInput, selectionTuple = Nothing }, Nothing )
+                                        |> updatePositionFromSelection
                     in
-                    case DateInput.toPosix settings.zone updatedDateInput of
-                        Just posix ->
-                            let
-                                pickerDay =
-                                    generatePickerDay settings posix
-
-                                newSelectionTuple =
-                                    ( pickerDay, posix )
-
-                                ( DatePicker updatedModel, updatedSelection ) =
-                                    updateSelection settings baseDay (Just newSelectionTuple) ( DatePicker model, pickedTime )
-                            in
-                            ( ( DatePicker { updatedModel | dateInput = updatedDateInput }, updatedSelection ), dateInputCmd )
-
-                        Nothing ->
-                            ( ( DatePicker { model | dateInput = updatedDateInput, selectionTuple = Nothing }, Nothing ), dateInputCmd )
+                    ( updatedSelection, Cmd.batch [ dateInputCmd, cmd ] )
 
                 _ ->
                     ( ( DatePicker model, pickedTime ), Cmd.none )
@@ -337,6 +346,15 @@ updateSelection settings baseDay newSelectionTuple ( DatePicker model, pickedTim
 
         Nothing ->
             ( DatePicker model, pickedTime )
+
+
+updatePositionFromSelection : ( DatePicker msg, Maybe Posix ) -> ( ( DatePicker msg, Maybe Posix ), Cmd msg )
+updatePositionFromSelection ( picker, pickedTime ) =
+    let
+        ( updatedPicker, cmd ) =
+            updatePickerPosition picker
+    in
+    ( ( updatedPicker, pickedTime ), cmd )
 
 
 determineDateTime : Zone -> Maybe ( PickerDay, Posix ) -> Maybe PickerDay -> Maybe ( PickerDay, Posix )
