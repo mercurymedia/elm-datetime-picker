@@ -2,6 +2,11 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [11.1.1]
+
+### **PATCH**
+- Fixed missing picker popover repositioning when picker height changes
+
 ## [11.1.0]
 
 ### **CHANGED**

@@ -202,16 +202,20 @@ update settings msg (DatePicker model) =
         Open timePickerVisible baseDay ->
             case msg of
                 NextMonth ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset + 1 }, pickedDuration ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset + 1 }, pickedDuration )
+                        |> updatePositionFromSelection
 
                 PrevMonth ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset - 1 }, pickedDuration ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset - 1 }, pickedDuration )
+                        |> updatePositionFromSelection
 
                 NextYear ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset + 12 }, pickedDuration ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset + 12 }, pickedDuration )
+                        |> updatePositionFromSelection
 
                 PrevYear ->
-                    ( ( DatePicker { model | viewOffset = model.viewOffset - 12 }, pickedDuration ), Cmd.none )
+                    ( DatePicker { model | viewOffset = model.viewOffset - 12 }, pickedDuration )
+                        |> updatePositionFromSelection
 
                 SetHoveredDay pickerDay ->
                     ( ( DatePicker { model | hovered = Just pickerDay }, pickedDuration ), Cmd.none )
@@ -224,9 +228,8 @@ update settings msg (DatePicker model) =
                         newSelection =
                             DurationUtilities.selectDay settings.zone model.startSelectionTuple model.endSelectionTuple pickerDay
                     in
-                    ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
-                    , Cmd.none
-                    )
+                    updateSelection settings newSelection ( DatePicker model, pickedDuration )
+                        |> updatePositionFromSelection
 
                 ToggleTimePickerVisibility ->
                     case settings.timePickerVisibility of
@@ -237,44 +240,32 @@ update settings msg (DatePicker model) =
                             ( ( DatePicker model, Nothing ), Cmd.none )
 
                 SetHour startOrEnd hour ->
-                    case startOrEnd of
-                        Start ->
-                            let
-                                newSelection =
+                    let
+                        newSelection =
+                            case startOrEnd of
+                                Start ->
                                     DurationUtilities.selectStartHour settings.zone baseDay model.startSelectionTuple model.endSelectionTuple hour
-                            in
-                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
-                            , Cmd.none
-                            )
 
-                        End ->
-                            let
-                                newSelection =
+                                End ->
                                     DurationUtilities.selectEndHour settings.zone baseDay model.startSelectionTuple model.endSelectionTuple hour
-                            in
-                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
-                            , Cmd.none
-                            )
+                    in
+                    ( DatePicker model, pickedDuration )
+                        |> updateSelection settings newSelection
+                        |> updatePositionFromSelection
 
                 SetMinute startOrEnd minute ->
-                    case startOrEnd of
-                        Start ->
-                            let
-                                newSelection =
+                    let
+                        newSelection =
+                            case startOrEnd of
+                                Start ->
                                     DurationUtilities.selectStartMinute settings.zone baseDay model.startSelectionTuple model.endSelectionTuple minute
-                            in
-                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
-                            , Cmd.none
-                            )
 
-                        End ->
-                            let
-                                newSelection =
+                                End ->
                                     DurationUtilities.selectEndMinute settings.zone baseDay model.startSelectionTuple model.endSelectionTuple minute
-                            in
-                            ( updateSelection settings newSelection ( DatePicker model, pickedDuration )
-                            , Cmd.none
-                            )
+                    in
+                    ( DatePicker model, pickedDuration )
+                        |> updateSelection settings newSelection
+                        |> updatePositionFromSelection
 
                 Close ->
                     ( ( DatePicker { model | status = Closed, alignment = Nothing }, pickedDuration ), Cmd.none )
@@ -297,29 +288,35 @@ update settings msg (DatePicker model) =
 
                         newSelection =
                             ( Just ( startPickerDay, startPickerDay.start ), Just ( endPickerDay, endPickerDay.end ) )
-
-                        updatedPickerAndDuration =
-                            ( DatePicker model, pickedDuration )
-                                |> updateSelection settings newSelection
-                                |> updateViewOffset settings baseDay
                     in
-                    ( updatedPickerAndDuration
-                    , Cmd.none
-                    )
+                    ( DatePicker model, pickedDuration )
+                        |> updateSelection settings newSelection
+                        |> updateViewOffset settings baseDay
+                        |> updatePositionFromSelection
 
                 HandleStartDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
                             DateInput.update (dateInputConfig settings) subMsg model.startDateInput
+
+                        ( updatedSelection, cmd ) =
+                            ( DatePicker model, pickedDuration )
+                                |> updateSelectionFromDateInput settings baseDay Start updatedDateInput
+                                |> updatePositionFromSelection
                     in
-                    ( updateSelectionFromDateInput settings baseDay Start updatedDateInput ( DatePicker model, pickedDuration ), dateInputCmd )
+                    ( updatedSelection, Cmd.batch [ dateInputCmd, cmd ] )
 
                 HandleEndDateInputUpdate subMsg ->
                     let
                         ( updatedDateInput, dateInputCmd ) =
                             DateInput.update (dateInputConfig settings) subMsg model.endDateInput
+
+                        ( updatedSelection, cmd ) =
+                            ( DatePicker model, pickedDuration )
+                                |> updateSelectionFromDateInput settings baseDay End updatedDateInput
+                                |> updatePositionFromSelection
                     in
-                    ( updateSelectionFromDateInput settings baseDay End updatedDateInput ( DatePicker model, pickedDuration ), dateInputCmd )
+                    ( updatedSelection, Cmd.batch [ dateInputCmd, cmd ] )
 
                 _ ->
                     ( ( DatePicker model, pickedDuration ), Cmd.none )
@@ -416,6 +413,15 @@ updateSelection settings ( newStartSelectionTuple, newEndSelectionTuple ) ( Date
         }
     , updatedDuration
     )
+
+
+updatePositionFromSelection : ( DatePicker msg, Maybe ( Posix, Posix ) ) -> ( ( DatePicker msg, Maybe ( Posix, Posix ) ), Cmd msg )
+updatePositionFromSelection ( picker, pickedDuration ) =
+    let
+        ( updatedPicker, cmd ) =
+            updatePickerPosition picker
+    in
+    ( ( updatedPicker, pickedDuration ), cmd )
 
 
 updateSelectionFromDateInput : Settings -> PickerDay -> StartOrEnd -> DateInput.DateInput msg -> ( DatePicker msg, Maybe ( Posix, Posix ) ) -> ( DatePicker msg, Maybe ( Posix, Posix ) )
