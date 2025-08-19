@@ -310,14 +310,11 @@ update settings msg (DatePicker model) =
                         newSelectionTuple =
                             Maybe.map (\time -> ( generatePickerDay settings time, time )) pickedTime_
 
-                        timePickerVisible =
-                            isTimePickerVisible settings.timePickerVisibility
-
-                        status =
-                            Open timePickerVisible basePickerDay
-
                         ( DatePicker updatedModel, updatedPickedTime ) =
                             updateSelection settings basePickerDay newSelectionTuple ( DatePicker model, pickedTime )
+
+                        status =
+                            Open (isTimePickerVisible settings.timePickerVisibility) basePickerDay
                     in
                     ( ( DatePicker { updatedModel | status = status }, updatedPickedTime )
                     , Alignment.init
@@ -369,6 +366,23 @@ determineDateTime zone selectionTuple hoveredDay =
 
         Nothing ->
             selectionTuple
+
+
+{-| Returns the initial DateInput model based on the given posix time.
+This is only necessary for the initial rendering if a posix time is provided.
+-}
+initialDateInputModelFromPickedTime : Settings -> DateInput.DateInput msg -> Maybe Posix -> DateInput.DateInput msg
+initialDateInputModelFromPickedTime settings dateInput maybePickedTime =
+    let
+        selectionTuple =
+            Maybe.map (\time -> ( generatePickerDay settings time, time )) maybePickedTime
+    in
+    case ( selectionTuple, DateInput.isInitial dateInput ) of
+        ( Just ( _, newSelection ), True ) ->
+            DateInput.updateFromPosix (dateInputConfig settings) settings.zone newSelection dateInput
+
+        ( _, _ ) ->
+            dateInput
 
 
 {-| The date picker view. Simply pass it the configured settings
@@ -434,6 +448,13 @@ viewDateInputStyled attrs settings baseTime maybePickedTime (DatePicker model) =
 
         isPickerOpen =
             isOpen (DatePicker model)
+
+        dateInputModel =
+            if not isPickerOpen then
+                initialDateInputModelFromPickedTime settings model.dateInput maybePickedTime
+
+            else
+                model.dateInput
     in
     DateInput.viewContainer settings.theme
         (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
@@ -448,7 +469,7 @@ viewDateInputStyled attrs settings baseTime maybePickedTime (DatePicker model) =
                 ]
             ]
             (dateInputConfig settings)
-            model.dateInput
+            dateInputModel
         , case model.status of
             Open timePickerVisible baseDay ->
                 viewContainer settings.theme

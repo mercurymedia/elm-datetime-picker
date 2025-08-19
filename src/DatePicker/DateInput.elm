@@ -3,7 +3,7 @@ module DatePicker.DateInput exposing
     , Config, Format(..), DateFormat, TimeFormat, DatePattern(..), Settings
     , defaultConfig, defaultDateFormat, defaultFormat, defaultSettings, defaultTimeFormat
     , clear, init, toPosix, update, updateFromPosix
-    , hasDurationError, hasError
+    , hasDurationError, hasError, isInitial
     , containerId, durationEndId, durationStartId, textFieldId
     , view, viewContainer, viewDurationInputs, viewPlaceholder
     , partsToPosix, sanitizeInputValue, inputValueToParts, partsToInputValue, catchError
@@ -34,7 +34,7 @@ module DatePicker.DateInput exposing
 
 # Query
 
-@docs hasDurationError, hasError
+@docs hasDurationError, hasError, isInitial
 
 
 # IDs
@@ -263,6 +263,13 @@ init internalMsg =
         }
 
 
+{-| Checks if it's still the initial model
+-}
+isInitial : DateInput msg -> Bool
+isInitial (DateInput model) =
+    model.inputValue == ""
+
+
 {-| Clears the DateInput field.
 -}
 clear : DateInput msg -> DateInput msg
@@ -361,6 +368,7 @@ updateFromPosix ({ dateInputSettings } as config) zone time (DateInput model) =
             , timeParts = timeParts
             , inputValue = inputValue
             , error = error
+            , isTouched = True
         }
 
 

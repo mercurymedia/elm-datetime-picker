@@ -351,20 +351,23 @@ update settings msg (DatePicker model) =
                         timePickerVisible =
                             isTimePickerVisible settings.timePickerVisibility
 
-                        status =
-                            Open timePickerVisible baseDay
-
-                        ( DatePicker updatedModel, updatedPickedDuration ) =
+                        ( DatePicker selectionModel, selectionDuration ) =
                             ( DatePicker model, pickedDuration )
                                 |> updateSelection settings ( newStartSelectionTuple, newEndSelectionTuple )
+
+                        ( DatePicker finalModel, finalPickedDuration ) =
+                            ( DatePicker selectionModel, selectionDuration )
                                 -- in case there was no pickedStartTime but the start input still has a valid value
-                                |> updateSelectionFromDateInput settings baseDay Start model.startDateInput
+                                |> updateSelectionFromDateInput settings baseDay Start selectionModel.startDateInput
                                 -- in case there was no pickedEndTime but the end input still has a valid value
-                                |> updateSelectionFromDateInput settings baseDay End model.endDateInput
+                                |> updateSelectionFromDateInput settings baseDay End selectionModel.endDateInput
                                 |> updateViewOffset settings baseDay
+
+                        status =
+                            Open timePickerVisible baseDay
                     in
-                    ( ( DatePicker { updatedModel | status = status }
-                      , updatedPickedDuration
+                    ( ( DatePicker { finalModel | status = status }
+                      , finalPickedDuration
                       )
                     , Alignment.init
                         { triggerId = triggerElementId, pickerId = settings.id }
@@ -494,6 +497,23 @@ showHoveredIfEnabled hovered =
         Just hovered
 
 
+{-| Returns the initial DateInput model based on the given posix time.
+This is only necessary for the initial rendering if a posix time is provided.
+-}
+initialDateInputModelFromPickedTime : Settings -> DateInput.DateInput msg -> Maybe Posix -> DateInput.DateInput msg
+initialDateInputModelFromPickedTime settings dateInput maybePickedTime =
+    let
+        selectionTuple =
+            Maybe.map (\time -> ( generatePickerDay settings time, time )) maybePickedTime
+    in
+    case ( selectionTuple, DateInput.isInitial dateInput ) of
+        ( Just ( _, newSelection ), True ) ->
+            DateInput.updateFromPosix (dateInputConfig settings) settings.zone newSelection dateInput
+
+        ( _, _ ) ->
+            dateInput
+
+
 {-| The date picker view. Simply pass it the configured settings
 and the date picker instance you wish to view.
 -}
@@ -561,6 +581,15 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
 
         isPickerOpen =
             isOpen (DatePicker model)
+
+        dateInputModels =
+            if not isPickerOpen then
+                ( initialDateInputModelFromPickedTime settings model.startDateInput maybePickedStart
+                , initialDateInputModelFromPickedTime settings model.endDateInput maybePickedEnd
+                )
+
+            else
+                ( model.startDateInput, model.endDateInput )
     in
     DateInput.viewContainer settings.theme
         (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
@@ -576,7 +605,7 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
                 ]
             ]
             (dateInputConfig settings)
-            ( model.startDateInput, model.endDateInput )
+            dateInputModels
         , case model.status of
             Open timePickerVisible baseDay ->
                 viewContainer settings.theme
