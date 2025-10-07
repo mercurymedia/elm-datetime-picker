@@ -164,7 +164,7 @@ init : ( Model, Cmd Msg )
 init =
     ( { currentTime = Time.millisToPosix 0
       , zone = Time.utc
-      , dateInputPickerTime = Nothing
+      , dateInputPickerTime = Just <| Time.millisToPosix 1755077649
       , dateInputPicker = SingleDatePicker.init UpdateDateInputPicker
       , detachedPickerTime = Nothing
       , detachedPicker = SingleDatePicker.init UpdateDetachedPicker

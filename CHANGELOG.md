@@ -2,6 +2,11 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [11.2.0]
+
+### **PATCH**
+- Fixed missing display of picked times in date inputs when used with initial posix values.
+
 ## [11.1.1]
 
 ### **PATCH**
