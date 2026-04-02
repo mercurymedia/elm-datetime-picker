@@ -15,6 +15,9 @@ NOTE: as is the case in the README, all code snippets below are specific to the 
         }
     ```
 
+### **CHANGED**
+- Validation errors in date inputs are no longer displayed as text below the field. Instead, the error message is shown as a tooltip when hovering the input field.
+
 ## [11.2.0]
 
 ### **PATCH**
