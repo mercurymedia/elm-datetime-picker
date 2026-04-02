@@ -85,7 +85,10 @@ userDefinedDatePickerSettings zone today =
             DateInput.defaultTimeFormat
 
         dateInputSettings =
-            { format = DateInput.DateTime dateFormat { timeFormat | allowedTimesOfDay = allowedTimesOfDay }, getErrorMessage = getErrorMessage }
+            { format = DateInput.DateTime dateFormat { timeFormat | allowedTimesOfDay = allowedTimesOfDay }
+            , getErrorMessage = getErrorMessage 
+            , disabled = False
+            }
     in
     { defaults
         | isDayDisabled = \clientZone datetime -> isDateBeforeToday (TimeExtra.floor Day clientZone today) datetime

@@ -2,6 +2,19 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [12.0.0]
+
+### **MAJOR/BREAKING CHANGES**
+- Added `disabled : Bool` to `DateInput.Settings`. Existing record literals need to include the new field. Setting it to `True` puts the date input into read-only mode — event handlers are removed and the field is styled with the disabled color.
+
+    ```elm
+    dateInputSettings =
+        { format = DateInput.Date DateInput.defaultDateFormat
+        , getErrorMessage = getErrorMessage
+        , disabled = False
+        }
+    ```
+
 ## [11.2.0]
 
 ### **PATCH**

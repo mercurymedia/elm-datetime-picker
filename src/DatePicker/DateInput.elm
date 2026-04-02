@@ -141,6 +141,7 @@ type alias Config =
 type alias Settings =
     { format : Format
     , getErrorMessage : InputError -> String
+    , disabled : Bool
     }
 
 
@@ -200,6 +201,7 @@ defaultSettings : Settings
 defaultSettings =
     { format = Date defaultDateFormat
     , getErrorMessage = getDefaultErrorMessage
+    , disabled = False
     }
 
 
@@ -742,22 +744,15 @@ view attrs { dateInputSettings, theme, id } (DateInput model) =
         hasError_ =
             hasError (DateInput model)
 
-        ( textColor, iconColor ) =
-            if hasError_ then
-                ( theme.color.text.error, theme.color.text.error )
+        isDisabled =
+            dateInputSettings.disabled
 
-            else
-                ( theme.color.text.primary, theme.color.text.secondary )
+        ( textColor, iconColor ) =
+            inputColors theme isDisabled hasError_
     in
     viewTextField theme
         (Attrs.css [ Css.color textColor ] :: attrs)
-        [ viewInput theme
-            [ Attrs.value model.inputValue
-            , Attrs.placeholder placeholder
-            , Attrs.id id
-            , onInput (model.internalMsg << UpdateValue)
-            , onBlur (model.internalMsg OnBlur)
-            ]
+        [ viewInput theme (buildInputAttrs isDisabled placeholder id model)
         , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
         , viewError theme hasError_ dateInputSettings.getErrorMessage model.error
         ]
@@ -774,12 +769,17 @@ viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput star
         ( hasDurationError_, durationError ) =
             hasDurationError zone ( DateInput startModel, DateInput endModel )
 
-        ( textColor, iconColor ) =
-            if hasDurationError_ then
-                ( theme.color.text.error, theme.color.text.error )
+        isDisabled =
+            dateInputSettings.disabled
 
-            else
-                ( theme.color.text.primary, theme.color.text.secondary )
+        ( textColor, iconColor ) =
+            inputColors theme isDisabled hasDurationError_
+
+        startInputAttrs =
+            buildInputAttrs isDisabled placeholder (durationStartId id) startModel
+
+        endInputAttrs =
+            buildInputAttrs isDisabled placeholder (durationEndId id) endModel
     in
     div
         (Attrs.css
@@ -792,13 +792,7 @@ viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput star
         )
         [ viewTextField theme
             []
-            [ viewInput theme
-                [ Attrs.value startModel.inputValue
-                , Attrs.placeholder placeholder
-                , Attrs.id (durationStartId id)
-                , onInput (startModel.internalMsg << UpdateValue)
-                , onBlur (startModel.internalMsg OnBlur)
-                ]
+            [ viewInput theme startInputAttrs
             , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
             ]
         , span
@@ -812,13 +806,7 @@ viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput star
             [ text "–" ]
         , viewTextField theme
             []
-            [ viewInput theme
-                [ Attrs.value endModel.inputValue
-                , Attrs.placeholder placeholder
-                , Attrs.id (durationEndId id)
-                , onInput (endModel.internalMsg << UpdateValue)
-                , onBlur (endModel.internalMsg OnBlur)
-                ]
+            [ viewInput theme endInputAttrs
             , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
             ]
         , viewError theme hasDurationError_ dateInputSettings.getErrorMessage durationError
@@ -845,6 +833,10 @@ viewTextField theme attrs children =
             , Css.pseudoClass "focus-within"
                 [ Css.borderColor theme.color.primary.main
                 , Css.backgroundColor theme.color.background.input
+                ]
+            , Css.pseudoClass "has(:disabled)"
+                [ Css.cursor Css.notAllowed
+                , Css.hover [ Css.backgroundColor theme.color.background.input ]
                 ]
             ]
             :: attrs
@@ -894,6 +886,8 @@ viewCalendarIcon attrs =
             [ Css.position Css.absolute
             , Css.right (Css.rem 0.5)
             , Css.pointerEvents Css.none
+            , Css.displayFlex
+            , Css.alignItems Css.center
             ]
             :: attrs
         )
@@ -958,6 +952,40 @@ viewPlaceholder { theme } =
 
 
 -- UTILS
+
+
+{-| Determines the text and icon colors based on the disabled and error states.
+-}
+inputColors : Theme.Theme -> Bool -> Bool -> ( Css.Color, Css.Color )
+inputColors theme isDisabled hasError_ =
+    if isDisabled then
+        ( theme.color.text.disabled, theme.color.text.disabled )
+
+    else if hasError_ then
+        ( theme.color.text.error, theme.color.text.error )
+
+    else
+        ( theme.color.text.primary, theme.color.text.secondary )
+
+
+{-| Builds the list of HTML attributes for a date input field,
+omitting event handlers when the input is disabled.
+-}
+buildInputAttrs : Bool -> String -> String -> Model msg -> List (Html.Styled.Attribute msg)
+buildInputAttrs isDisabled placeholder inputId model =
+    [ Attrs.value model.inputValue
+    , Attrs.placeholder placeholder
+    , Attrs.id inputId
+    , Attrs.disabled isDisabled
+    ]
+        ++ (if isDisabled then
+                []
+
+            else
+                [ onInput (model.internalMsg << UpdateValue)
+                , onBlur (model.internalMsg OnBlur)
+                ]
+           )
 
 
 {-| Builds a placeholder string based on the given date/time format.

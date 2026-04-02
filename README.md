@@ -262,8 +262,11 @@ The `DateInput` module formats and validates a user's text input for dates and t
 type alias Settings =
     { format : Format
     , getErrorMessage : InputError -> String
+    , disabled : Bool
     }
 ```
+
+Setting `disabled = True` puts the date input into read-only mode: the field becomes non-interactive, event handlers are removed, and the text and icon are rendered in the disabled color.
 
 To configure the `Format` there are a few options:
 
@@ -347,6 +350,7 @@ userDefinedDatePickerSettings zone today =
         , dateInputSettings = 
             { format = DateInput.DateTime dateFormat timeFormat
             , getErrorMessage = getErrorMessage
+            , disabled = False
             }
     }
 
