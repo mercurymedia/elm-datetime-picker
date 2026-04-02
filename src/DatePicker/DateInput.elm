@@ -54,6 +54,8 @@ module DatePicker.DateInput exposing
 -}
 
 import Css
+import Css.Global
+import Css.Transitions
 import Date exposing (format, numberToMonth)
 import DatePicker.Icons as Icons
 import DatePicker.Theme as Theme
@@ -751,10 +753,10 @@ view attrs { dateInputSettings, theme, id } (DateInput model) =
             inputColors theme isDisabled hasError_
     in
     viewTextField theme
-        (Attrs.css [ Css.color textColor ] :: attrs)
+        (Attrs.css [ Css.color textColor, hoverTooltipStyle ] :: attrs)
         [ viewInput theme (buildInputAttrs isDisabled placeholder id model)
         , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
-        , viewError theme hasError_ dateInputSettings.getErrorMessage model.error
+        , viewErrorTooltip theme hasError_ dateInputSettings.getErrorMessage model.error
         ]
 
 
@@ -791,9 +793,10 @@ viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput star
             :: attrs
         )
         [ viewTextField theme
-            []
+            [ Attrs.css [ hoverTooltipStyle ] ]
             [ viewInput theme startInputAttrs
             , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
+            , viewErrorTooltip theme hasDurationError_ dateInputSettings.getErrorMessage durationError
             ]
         , span
             [ Attrs.css
@@ -805,11 +808,11 @@ viewDurationInputs attrs { dateInputSettings, theme, id, zone } ( DateInput star
             ]
             [ text "–" ]
         , viewTextField theme
-            []
+            [ Attrs.css [ hoverTooltipStyle ] ]
             [ viewInput theme endInputAttrs
             , viewCalendarIcon [ Attrs.css [ Css.color iconColor ] ]
+            , viewErrorTooltip theme hasDurationError_ dateInputSettings.getErrorMessage durationError
             ]
-        , viewError theme hasDurationError_ dateInputSettings.getErrorMessage durationError
         ]
 
 
@@ -898,18 +901,34 @@ viewCalendarIcon attrs =
         ]
 
 
-{-| Displays an error message if the error is visible.
+{-| Renders a hidden tooltip with the error message, revealed when the parent text field is hovered.
 -}
-viewError : Theme.Theme -> Bool -> (InputError -> String) -> Maybe InputError -> Html.Styled.Html msg
-viewError theme isVisible errorMessageFn error =
+viewErrorTooltip : Theme.Theme -> Bool -> (InputError -> String) -> Maybe InputError -> Html.Styled.Html msg
+viewErrorTooltip theme isVisible errorMessageFn error =
     case ( error, isVisible ) of
         ( Just err, True ) ->
             span
-                [ Attrs.css
+                [ Attrs.class "date-input-error-tooltip"
+                , Attrs.css
                     [ Css.position Css.absolute
-                    , Css.top (Css.pct 100)
+                    , Css.top (Css.calc (Css.pct 100) Css.plus (Css.px 4))
+                    , Css.left (Css.px 0)
+                    , Css.backgroundColor theme.color.background.container
+                    , Css.color theme.color.text.error
                     , Css.fontSize (Css.px theme.fontSize.xs)
-                    , Css.paddingTop (Css.px 3)
+                    , Css.padding2 (Css.px 4) (Css.px 8)
+                    , Css.borderRadius (Css.px theme.borderRadius.base)
+                    , Css.border3 (Css.px 1) Css.solid theme.color.border
+                    , Css.property "box-shadow" "0 2px 8px rgba(0,0,0,0.12)"
+                    , Css.whiteSpace Css.noWrap
+                    , Css.pointerEvents Css.none
+                    , Css.visibility Css.hidden
+                    , Css.opacity (Css.num 0)
+                    , Css.zIndex (Css.int 10)
+                    , Css.Transitions.transition
+                        [ Css.Transitions.opacity3 theme.transition.duration 0 (Css.Transitions.cubicBezier 0.4 0 0.2 1)
+                        , Css.Transitions.visibility3 theme.transition.duration 0 (Css.Transitions.cubicBezier 0.4 0 0.2 1)
+                        ]
                     ]
                 ]
                 [ text <| errorMessageFn err ]
@@ -986,6 +1005,22 @@ buildInputAttrs isDisabled placeholder inputId model =
                 , onBlur (model.internalMsg OnBlur)
                 ]
            )
+
+
+{-| Returns hover attributes that reveal the error tooltip on hover.
+-}
+hoverTooltipStyle : Css.Style
+hoverTooltipStyle =
+    Css.batch
+        [ Css.hover
+            [ Css.Global.descendants
+                [ Css.Global.class "date-input-error-tooltip"
+                    [ Css.visibility Css.visible
+                    , Css.opacity (Css.num 1)
+                    ]
+                ]
+            ]
+        ]
 
 
 {-| Builds a placeholder string based on the given date/time format.
