@@ -170,6 +170,7 @@ type Msg
     | SetPresetDate PresetDateConfig
     | HandleDateInputUpdate DateInput.Msg
     | OpenPicker Posix (Maybe Posix) String
+    | NoOp
 
 
 {-| Update the SingleDatePicker according to the given internal msg.
@@ -442,8 +443,14 @@ viewDateInput attrs settings baseTime maybePickedTime (DatePicker model) =
 viewDateInputStyled : List (Html.Styled.Attribute msg) -> Settings -> Posix -> Maybe Posix -> DatePicker msg -> Html.Styled.Html msg
 viewDateInputStyled attrs settings baseTime maybePickedTime (DatePicker model) =
     let
+        isDisabled =
+            settings.dateInputSettings.disabled
+
         onClickMsg =
-            model.internalMsg <|
+            if isDisabled then
+                NoOp
+
+            else
                 OpenPicker baseTime maybePickedTime (DateInput.containerId <| dateInputConfig settings)
 
         isPickerOpen =
@@ -460,7 +467,7 @@ viewDateInputStyled attrs settings baseTime maybePickedTime (DatePicker model) =
         (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
         [ DateInput.view
             [ id (DateInput.textFieldId <| dateInputConfig settings)
-            , onClick onClickMsg
+            , onClick <| model.internalMsg onClickMsg
             , css
                 [ Alignment.dateInputStylesFromAlignment settings.theme
                     isPickerOpen

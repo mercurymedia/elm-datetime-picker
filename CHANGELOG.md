@@ -2,6 +2,11 @@
 
 NOTE: as is the case in the README, all code snippets below are specific to the `SingleDatePicker`; however, the only real difference between the `SingleDatePicker` and `DurationDatePicker` from an API standpoint is the `Msg` that a user needs to define to handle updates. Keep this in mind when making updates to your code.
 
+## [12.0.1]
+
+### **PATCH**
+- Fixed date input still opening the picker when `disabled` is set to `True` in `DateInput.Settings`. Clicking a disabled date input now correctly no-ops instead of triggering the picker.
+
 ## [12.0.0]
 
 ### **MAJOR/BREAKING CHANGES**

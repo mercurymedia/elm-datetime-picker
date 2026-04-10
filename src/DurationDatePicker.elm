@@ -185,6 +185,7 @@ type Msg
     | HandleStartDateInputUpdate DateInput.Msg
     | HandleEndDateInputUpdate DateInput.Msg
     | OpenPicker Posix (Maybe Posix) (Maybe Posix) String
+    | NoOp
 
 
 {-| Update the DurationDatePicker according to the given internal msg.
@@ -575,8 +576,14 @@ viewDurationInput attrs settings baseTime maybePickedStart maybePickedEnd (DateP
 viewDurationInputStyled : List (Html.Styled.Attribute msg) -> Settings -> Posix -> Maybe Posix -> Maybe Posix -> DatePicker msg -> Html.Styled.Html msg
 viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd (DatePicker model) =
     let
+        isDisabled =
+            settings.dateInputSettings.disabled
+
         onClickMsg =
-            model.internalMsg <|
+            if isDisabled then
+                NoOp
+
+            else
                 OpenPicker baseTime maybePickedStart maybePickedEnd (DateInput.containerId <| dateInputConfig settings)
 
         isPickerOpen =
@@ -595,7 +602,7 @@ viewDurationInputStyled attrs settings baseTime maybePickedStart maybePickedEnd 
         (id (DateInput.containerId <| dateInputConfig settings) :: attrs)
         [ DateInput.viewDurationInputs
             [ id (DateInput.textFieldId <| dateInputConfig settings)
-            , onClick onClickMsg
+            , onClick <| model.internalMsg onClickMsg
             , css
                 [ Alignment.dateInputStylesFromAlignment
                     settings.theme
